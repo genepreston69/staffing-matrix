@@ -154,7 +154,17 @@
   .epob-footer .ef-val { font-size:30px; font-weight:700; line-height:1; font-variant-numeric:tabular-nums; }
   .epob-footer .ef-sub { font-size:10px; color:var(--gray-500); margin-top:4px; }
   .footer { text-align:center; padding:20px; font-size:11px; color:var(--gray-500); border-top:1px solid var(--gray-200); margin-top:40px; }
-  @media print { header,.top-bar,.tabs { break-inside:avoid; } .table-wrap { box-shadow:none; border:1px solid #ccc; } body { background:#fff; } }
+  @media print {
+    header,.top-bar,.tabs { break-inside:avoid; }
+    .table-wrap { box-shadow:none; border:1px solid #ccc; break-inside:avoid; }
+    body { background:#fff; }
+    .export-btn { display:none; }
+    .container { max-width:100%; padding:10px; }
+    .top-section { box-shadow:none; }
+    .total-stat { box-shadow:none; -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    thead th { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+    tbody tr.grand-total-row { -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  }
 </style>
 </head>
 <body>
@@ -185,7 +195,7 @@
           <div class="card-label">Assumptions</div>
           <div class="card-title" style="margin-bottom:6px;">Non-Productive %</div>
           <div class="card-row">
-            <input type="number" class="card-input" id="npInput" min="0" max="40" step="0.1" value="12.6" oninput="onCensusChange()">
+            <input type="number" class="card-input" id="npInput" min="0" max="40" step="0.1" value="12.6" oninput="onCensusChange()" aria-label="Non-productive percentage">
             <span class="np-pct">%</span>
           </div>
           <div class="np-note">PTO, sick, holiday, orientation, training.<br><strong>Gross-up:</strong> <span id="npMultiplierDisplay">×1.144</span></div>
@@ -195,7 +205,7 @@
           <div class="card-label">Additional Staffing</div>
           <div class="card-title" style="margin-bottom:6px;">1:1 Observation Hours</div>
           <div class="card-row">
-            <input type="number" class="card-input" id="oneOneInput" min="0" max="200" step="1" value="0" oninput="onCensusChange()">
+            <input type="number" class="card-input" id="oneOneInput" min="0" max="200" step="1" value="0" oninput="onCensusChange()" aria-label="One-to-one observation hours">
             <span class="card-meta">hrs / day</span>
           </div>
           <div class="np-note">Daily 1:1 hours across all patients.<br><strong>Adj. FTEs:</strong> <span id="oneOneFteDisplay">0.0</span></div>
@@ -257,7 +267,7 @@ const ACUTE_GRID={
   notes:'Day/Eve 1:6 · Night 1:7 · +float'
 };
 const DETOX_GRID={
-  day:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  day:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
   evening:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
   night:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
   notes:'ASAM 3.7 · LPN model · 1:8'
@@ -278,6 +288,8 @@ const FIXED_DEPTS=[
 ];
 const TOTAL_FIXED_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.fte,0);
 const TOTAL_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
+const DAYS_PER_WEEK=7, HOURS_PER_WEEK=40;
+const DEFAULT_NP_PCT=12.6, MAX_NP_PCT=40;
 
 function getStaffing(grid,census){
   if(census<=0)return{day:{rn:0,lpn:0,tech:0},evening:{rn:0,lpn:0,tech:0},night:{rn:0,lpn:0,tech:0}};
@@ -285,24 +297,48 @@ function getStaffing(grid,census){
   return{day:{rn:grid.day.rn[idx],lpn:grid.day.lpn[idx],tech:grid.day.tech[idx]},evening:{rn:grid.evening.rn[idx],lpn:grid.evening.lpn[idx],tech:grid.evening.tech[idx]},night:{rn:grid.night.rn[idx],lpn:grid.night.lpn[idx],tech:grid.night.tech[idx]}};
 }
 function fmt(n){return Number(n).toFixed(1);}
-function getNP(){const v=parseFloat(document.getElementById('npInput').value);return isNaN(v)?12.6:Math.min(Math.max(v,0),40);}
+function calcUnitStaffing(vals){
+  let tRN=0,tLPN=0,tTech=0;const rows=[];
+  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);let rn=0,lpn=0,tech=0;['day','evening','night'].forEach(sh=>{rn+=s[sh].rn;lpn+=s[sh].lpn;tech+=s[sh].tech;});tRN+=rn;tLPN+=lpn;tTech+=tech;rows.push({...v,s,rn,lpn,tech,total:rn+lpn+tech});});
+  return{tRN,tLPN,tTech,shiftTot:tRN+tLPN+tTech,rows};
+}
+function getNP(){const v=parseFloat(document.getElementById('npInput').value);return isNaN(v)?DEFAULT_NP_PCT:Math.min(Math.max(v,0),MAX_NP_PCT);}
 function getOneOneHrs(){const v=parseFloat(document.getElementById('oneOneInput').value);return isNaN(v)?0:Math.max(v,0);}
 function grossUp(p){return p/(1-getNP()/100);}
 
+function saveCensus(){
+  const data={};
+  UNITS.forEach(u=>{data[u.id]=parseInt(document.getElementById('input-'+u.id).value,10)||0;});
+  data.np=document.getElementById('npInput').value;
+  data.oo=document.getElementById('oneOneInput').value;
+  try{localStorage.setItem('staffingMatrixCensus',JSON.stringify(data));}catch(e){}
+}
+function loadCensus(){
+  try{return JSON.parse(localStorage.getItem('staffingMatrixCensus'));}catch(e){return null;}
+}
+
 function renderCensusGrid(){
-  document.getElementById('censusGrid').innerHTML=UNITS.map(u=>`
+  const saved=loadCensus();
+  document.getElementById('censusGrid').innerHTML=UNITS.map(u=>{
+    const val=saved&&saved[u.id]!=null?Math.min(Math.max(saved[u.id],0),u.maxBeds):0;
+    return `
     <div class="card ${u.type}">
-      <div class="card-label">${u.label}</div>
+      <label class="card-label" for="input-${u.id}">${u.label}</label>
       <div class="card-title">${u.payrollBU}</div>
       <div class="card-row">
-        <input type="number" class="card-input" id="input-${u.id}" min="0" max="${u.maxBeds}" value="0" oninput="onCensusChange()">
+        <input type="number" class="card-input" id="input-${u.id}" min="0" max="${u.maxBeds}" value="${val}" oninput="onCensusChange()" aria-label="Census for ${u.label}">
         <span class="card-meta">/ ${u.maxBeds}</span>
         <span class="card-badge" id="pct-${u.id}">0%</span>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
+  if(saved){
+    if(saved.np!=null)document.getElementById('npInput').value=saved.np;
+    if(saved.oo!=null)document.getElementById('oneOneInput').value=saved.oo;
+  }
 }
 
-function getVals(){return UNITS.map(u=>({...u,census:Math.min(Math.max(parseInt(document.getElementById('input-'+u.id).value)||0,0),u.maxBeds)}));}
+function getVals(){return UNITS.map(u=>({...u,census:Math.min(Math.max(parseInt(document.getElementById('input-'+u.id).value,10)||0,0),u.maxBeds)}));}
 
 function onCensusChange(){
   const vals=getVals();
@@ -324,23 +360,23 @@ function onCensusChange(){
   renderStaffing(vals,totalCensus);
   renderPositionControl(vals,totalCensus);
   updateEpobKpi(vals,totalCensus);
+  saveCensus();
 }
 
 function updateEpobKpi(vals,totalCensus){
-  let tRN=0,tLPN=0,tTech=0;
-  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);['day','evening','night'].forEach(sh=>{tRN+=s[sh].rn;tLPN+=s[sh].lpn;tTech+=s[sh].tech;});});
-  const shiftTot=tRN+tLPN+tTech;
+  const{shiftTot}=calcUnitStaffing(vals);
   const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;
   const floatFTE=Math.ceil(acuteOpen/2)*FTE_MULTIPLIER;
   const nursingProd=shiftTot*FTE_MULTIPLIER;
   const ooHrs=getOneOneHrs();
-  const oneOneProd=ooHrs*7/40;
+  const oneOneProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;
   const oneOneAdj=grossUp(oneOneProd);
   document.getElementById('oneOneFteDisplay').textContent=oneOneAdj.toFixed(1);
   const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj;
   const grandAdj=totalVarAdj+TOTAL_FIXED_FTE;
   document.getElementById('kpiVarFTE').textContent=totalCensus>0?totalVarAdj.toFixed(1):'—';
   document.getElementById('kpiVarFTE2').textContent=totalCensus>0?totalVarAdj.toFixed(1):'—';
+  document.getElementById('kpiFixFTE').textContent=fmt(TOTAL_FIXED_FTE);
   document.getElementById('kpiTotalFTE').textContent=totalCensus>0?grandAdj.toFixed(1):'—';
   if(totalCensus>0){
     const dcEpob=totalVarAdj/totalCensus;
@@ -364,9 +400,8 @@ function updateEpobKpi(vals,totalCensus){
 function renderStaffing(vals,totalCensus){
   const out=document.getElementById('staffingOutput');const bar=document.getElementById('totalsBar');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate staffing requirements.</div>';bar.innerHTML='';return;}
-  let tRN=0,tLPN=0,tTech=0;const rows=[];
-  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);let rn=0,lpn=0,tech=0;['day','evening','night'].forEach(sh=>{rn+=s[sh].rn;lpn+=s[sh].lpn;tech+=s[sh].tech;});tRN+=rn;tLPN+=lpn;tTech+=tech;rows.push({...v,s,rn,lpn,tech,total:rn+lpn+tech});});
-  const shiftTot=tRN+tLPN+tTech;const ooHrs=getOneOneHrs();const ooProd=ooHrs*7/40;const prodFTE=shiftTot*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE)+grossUp(ooProd);
+  const{tRN,tLPN,tTech,shiftTot,rows}=calcUnitStaffing(vals);
+  const ooHrs=getOneOneHrs();const ooProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;const prodFTE=shiftTot*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE)+grossUp(ooProd);
   bar.innerHTML=`
     <div class="total-stat"><div class="stat-label">Variable Staff/Shift</div><div class="stat-value">${Math.round(shiftTot/3)}</div><div class="stat-sub">${shiftTot} across 3 shifts</div></div>
     <div class="total-stat alt"><div class="stat-label">RN / LPN / Tech</div><div class="stat-value">${tRN}/${tLPN}/${tTech}</div><div class="stat-sub">Sum across all shifts</div></div>
@@ -385,16 +420,16 @@ function renderStaffing(vals,totalCensus){
 function renderPositionControl(vals,totalCensus){
   const out=document.getElementById('posControlOutput');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate position control.</div>';return;}
-  const npPct=getNP();let tRN=0,tLPN=0,tTech=0;const uRows=[];
-  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);let rn=0,lpn=0,tech=0;['day','evening','night'].forEach(sh=>{rn+=s[sh].rn;lpn+=s[sh].lpn;tech+=s[sh].tech;});tRN+=rn;tLPN+=lpn;tTech+=tech;uRows.push({name:v.payrollBU,type:v.type,census:v.census,rn,lpn,tech});});
-  const shiftTot=tRN+tLPN+tTech;const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatShift=Math.ceil(acuteOpen/2);
+  const npPct=getNP();
+  const{tRN,tLPN,tTech,shiftTot,rows:uRows}=calcUnitStaffing(vals);
+  const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatShift=Math.ceil(acuteOpen/2);
   const rnFTE=tRN*FTE_MULTIPLIER,lpnFTE=tLPN*FTE_MULTIPLIER,techFTE=tTech*FTE_MULTIPLIER;const nursingProd=rnFTE+lpnFTE+techFTE;const floatFTE=floatShift*FTE_MULTIPLIER;
-  const ooHrs=getOneOneHrs();const oneOneProd=ooHrs*7/40;const oneOneAdj=grossUp(oneOneProd);const totalVarProd=nursingProd+floatFTE+oneOneProd;const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj;const varNPadd=totalVarAdj-totalVarProd;
+  const ooHrs=getOneOneHrs();const oneOneProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;const oneOneAdj=grossUp(oneOneProd);const totalVarProd=nursingProd+floatFTE+oneOneProd;const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj;const varNPadd=totalVarAdj-totalVarProd;
   const grandProd=totalVarProd+TOTAL_FIXED_FTE;const grandAdj=totalVarAdj+TOTAL_FIXED_FTE;
   let h='';
   h+=`<div class="section-header-row"><h3 class="section-title">Variable FTEs — Direct Care Units <span class="sub">· Flex with census · NP ${npPct}% applied</span></h3><button class="export-btn" onclick="exportToExcel('poscontrol')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>Export to Excel</button></div>`;
   h+=`<div class="table-wrap"><table><thead><tr><td class="pc-section-header var" colspan="8">VARIABLE — NURSING UNITS (Census-Driven)</td></tr><tr><th>Unit</th><th>Type</th><th class="num">RN</th><th class="num">LPN</th><th class="num">Tech</th><th class="num">Shift Tot</th><th class="num">Prod FTEs</th><th class="num warn-head">Adj FTEs</th></tr></thead><tbody>`;
-  uRows.forEach(u=>{const tot=u.rn+u.lpn+u.tech;const prod=tot*FTE_MULTIPLIER;h+=`<tr><td>${u.name}</td><td><span class="unit-tag ${u.type==='acute'?'tag-acute':'tag-detox'}">${u.type==='acute'?'ACUTE':'DETOX'}</span></td><td class="num">${u.rn}</td><td class="num">${u.lpn}</td><td class="num">${u.tech}</td><td class="num bold">${tot}</td><td class="num">${fmt(prod)}</td><td class="num bold">${fmt(grossUp(prod))}</td></tr>`;});
+  uRows.forEach(u=>{const tot=u.rn+u.lpn+u.tech;const prod=tot*FTE_MULTIPLIER;h+=`<tr><td>${u.payrollBU}</td><td><span class="unit-tag ${u.type==='acute'?'tag-acute':'tag-detox'}">${u.type==='acute'?'ACUTE':'DETOX'}</span></td><td class="num">${u.rn}</td><td class="num">${u.lpn}</td><td class="num">${u.tech}</td><td class="num bold">${tot}</td><td class="num">${fmt(prod)}</td><td class="num bold">${fmt(grossUp(prod))}</td></tr>`;});
   h+=`<tr class="subtotal-row"><td colspan="2">Subtotal Nursing</td><td class="num">${tRN}</td><td class="num">${tLPN}</td><td class="num">${tTech}</td><td class="num">${shiftTot}</td><td class="num">${fmt(nursingProd)}</td><td class="num">${fmt(grossUp(nursingProd))}</td></tr>`;
   h+=`<tr><td colspan="2">Float Coverage</td><td colspan="3" class="num" style="text-align:center;color:var(--gray-500)">Split-shift floats</td><td class="num">${floatShift}</td><td class="num">${fmt(floatFTE)}</td><td class="num">${fmt(grossUp(floatFTE))}</td></tr>`;
   if(ooHrs>0){h+=`<tr style="color:var(--danger)"><td colspan="2">1:1 Observation Hours</td><td colspan="3" class="num" style="text-align:center">${ooHrs} hrs/day</td><td class="num">${fmt(oneOneProd)}</td><td class="num">${fmt(oneOneProd)}</td><td class="num bold">${fmt(oneOneAdj)}</td></tr>`;}
