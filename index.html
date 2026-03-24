@@ -78,12 +78,13 @@
   .epob-hdr { background:var(--navy); padding:8px 14px; }
   .epob-hdr.dc { background:var(--teal); }
   .epob-hdr-title { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--white); }
-  .epob-body { padding:10px 14px; }
+  .epob-body { padding:10px 14px; display:flex; flex-direction:column; flex:1; }
   .epob-row { display:flex; justify-content:space-between; padding:2px 0; }
   .epob-row.tot { border-top:1.5px solid var(--gray-200); padding-top:4px; margin-top:2px; }
   .epob-rl { font-size:11px; color:var(--gray-500); }
   .epob-row.tot .epob-rl { font-weight:700; color:var(--navy); }
   .epob-rv { font-size:12px; font-weight:700; color:var(--navy); font-variant-numeric:tabular-nums; }
+  .epob-spacer { flex:1; }
   .epob-div { height:1px; background:var(--teal-light); margin:6px 0; }
   .epob-big { text-align:center; }
   .epob-big-lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1.5px; color:var(--teal); }
@@ -204,6 +205,7 @@
           <div class="epob-hdr dc"><div class="epob-hdr-title">Direct Care EPOB</div></div>
           <div class="epob-body">
             <div class="epob-row"><span class="epob-rl">Variable FTEs</span><span class="epob-rv" id="kpiVarFTE">—</span></div>
+            <div class="epob-spacer"></div>
             <div class="epob-div"></div>
             <div class="epob-big"><div class="epob-big-lbl">Direct Care</div><div class="epob-big-val" id="kpiDcEpob">—</div></div>
             <div class="epob-sub" id="kpiDcLine">Variable FTEs ÷ ADC</div>
