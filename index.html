@@ -3,9 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
 <title>Highland Hospital — Staffing Matrix & Position Control</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+
+  /* ── SharePoint iframe compatibility ── */
+  @supports (-ms-ime-align:auto) { body { font-family: 'Segoe UI', Tahoma, sans-serif; } }
 
   :root {
     --navy: #1b4f6e; --navy-deep: #0f3550; --teal: #4a8faa; --teal-light: #6fb8ca;
@@ -17,11 +21,12 @@
     --radius: 8px; --radius-lg: 12px;
   }
   * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Source Sans 3',-apple-system,sans-serif; background:var(--off-white); color:var(--gray-900); line-height:1.5; min-height:100vh; }
+  html, body { height:100%; }
+  body { font-family:'Source Sans 3','Segoe UI',-apple-system,sans-serif; background:var(--off-white); color:var(--gray-900); line-height:1.5; min-height:100vh; }
 
   /* Header */
   .top-bar { background:var(--teal); color:var(--white); font-size:12px; text-align:center; padding:6px 20px; letter-spacing:0.3px; }
-  header { background:var(--navy); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:72px; box-shadow:0 2px 12px rgba(15,53,80,0.3); position:sticky; top:0; z-index:100; }
+  header { background:var(--navy); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:72px; box-shadow:0 2px 12px rgba(15,53,80,0.3); z-index:100; }
   .logo-area { display:flex; align-items:center; }
   .logo-img { height:50px; width:auto; border-radius:6px; padding:4px 8px; background:var(--white); }
   .header-right { display:flex; align-items:center; gap:24px; }
