@@ -291,26 +291,32 @@
 <div class="footer">Highland Hospital &bull; A Summit BHC Facility &bull; Staffing Matrix Tool &bull; Payroll baseline: 5 pay periods ending 3/17/2026 &bull; Variable FTEs flex with census; Fixed FTEs from actuals</div>
 <script>
 const UNITS = [
-  { id:'u100e', payrollBU:'Acute Adult-100E', type:'acute', maxBeds:18, label:'1 East · Adult Acute' },
-  { id:'u200e', payrollBU:'Acute Child-200E', type:'acute', maxBeds:20, label:'2 East · Child Acute' },
+  { id:'u100e', payrollBU:'Acute Child-100E', type:'acute', maxBeds:18, label:'1 East · Children' },
+  { id:'u200e', payrollBU:'Acute Adult-200E', type:'acute', maxBeds:20, label:'2 East · Adult Acute' },
   { id:'u200w', payrollBU:'Acute Adol-200W',  type:'acute', maxBeds:20, label:'2 West · Adolescent' },
   { id:'u300e', payrollBU:'Acute Adult-300E', type:'acute', maxBeds:20, label:'3 East · Adult Acute' },
   { id:'u300w', payrollBU:'Acute Adult-300W', type:'acute', maxBeds:20, label:'3 West · Adult Acute' },
-  { id:'detox', payrollBU:'Adult Detox-100',  type:'detox', maxBeds:16, label:'SUD/Detox · ASAM 3.7' },
+  { id:'detox', payrollBU:'HRC Detox',  type:'detox', maxBeds:16, label:'HRC · Detox' },
 ];
-const TOTAL_STAFFED=114, FTE_MULTIPLIER=1.4;
+const TOTAL_STAFFED=114;
+const FTE_12HR=2.1, FTE_8HR=1.4; // 12×7/40=2.1, 8×7/40=1.4
+function fteMult(role,unitType){
+  if(role==='rn') return FTE_12HR;
+  if(role==='lpn'&&unitType==='detox') return FTE_12HR;
+  return FTE_8HR;
+}
 
 const ACUTE_GRID={
   day:{rn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],lpn:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,2,2,1,1,1,2,2,2,2]},
-  evening:{rn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],lpn:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,2,2,1,1,1,2,2,2,2]},
+  evening:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,2,2,1,1,1,2,2,2,2]},
   night:{rn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],lpn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,2,2,2,2,2]},
-  notes:'Day/Eve 1:6 · Night 1:7 · +float'
+  notes:'RN 12hr Day/Night · LPN/Tech 8hr D/E/N'
 };
 const DETOX_GRID={
   day:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  evening:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  evening:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
   night:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
-  notes:'ASAM 3.7 · LPN model · 1:8'
+  notes:'LPN 12hr Day/Night · Tech 8hr D/E/N'
 };
 
 const FIXED_DEPTS=[
@@ -344,9 +350,12 @@ function getStaffing(grid,census){
 }
 function fmt(n){return Number(n).toFixed(1);}
 function calcUnitStaffing(vals){
-  let tRN=0,tLPN=0,tTech=0;const rows=[];
-  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);let rn=0,lpn=0,tech=0;['day','evening','night'].forEach(sh=>{rn+=s[sh].rn;lpn+=s[sh].lpn;tech+=s[sh].tech;});tRN+=rn;tLPN+=lpn;tTech+=tech;rows.push({...v,s,rn,lpn,tech,total:rn+lpn+tech});});
-  return{tRN,tLPN,tTech,shiftTot:tRN+tLPN+tTech,rows};
+  let tRN=0,tLPN=0,tTech=0;let fteRN=0,fteLPN=0,fteTech=0;const rows=[];
+  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);let rn=0,lpn=0,tech=0;['day','evening','night'].forEach(sh=>{rn+=s[sh].rn;lpn+=s[sh].lpn;tech+=s[sh].tech;});tRN+=rn;tLPN+=lpn;tTech+=tech;
+    const uRnFTE=rn*fteMult('rn',v.type),uLpnFTE=lpn*fteMult('lpn',v.type),uTechFTE=tech*fteMult('tech',v.type);
+    fteRN+=uRnFTE;fteLPN+=uLpnFTE;fteTech+=uTechFTE;
+    rows.push({...v,s,rn,lpn,tech,total:rn+lpn+tech,rnFTE:uRnFTE,lpnFTE:uLpnFTE,techFTE:uTechFTE,prodFTE:uRnFTE+uLpnFTE+uTechFTE});});
+  return{tRN,tLPN,tTech,shiftTot:tRN+tLPN+tTech,fteRN,fteLPN,fteTech,nursingProd:fteRN+fteLPN+fteTech,rows};
 }
 function getNP(){const v=parseFloat(document.getElementById('npInput').value);return isNaN(v)?DEFAULT_NP_PCT:Math.min(Math.max(v,0),MAX_NP_PCT);}
 function getOneOneHrs(){const v=parseFloat(document.getElementById('oneOneInput').value);return isNaN(v)?0:Math.max(v,0);}
@@ -411,10 +420,9 @@ function onCensusChange(){
 }
 
 function updateEpobKpi(vals,totalCensus){
-  const{shiftTot}=calcUnitStaffing(vals);
+  const{nursingProd}=calcUnitStaffing(vals);
   const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;
-  const floatFTE=Math.ceil(acuteOpen/2)*FTE_MULTIPLIER;
-  const nursingProd=shiftTot*FTE_MULTIPLIER;
+  const floatFTE=Math.ceil(acuteOpen/2)*FTE_8HR;
   const ooHrs=getOneOneHrs();
   const oneOneProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;
   const oneOneAdj=grossUp(oneOneProd);
@@ -448,12 +456,12 @@ function updateEpobKpi(vals,totalCensus){
 function renderStaffing(vals,totalCensus){
   const out=document.getElementById('staffingOutput');const bar=document.getElementById('totalsBar');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate staffing requirements.</div>';bar.innerHTML='';return;}
-  const{tRN,tLPN,tTech,shiftTot,rows}=calcUnitStaffing(vals);
-  const ooHrs=getOneOneHrs();const ooProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;const prodFTE=shiftTot*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE)+grossUp(ooProd);
+  const{tRN,tLPN,tTech,shiftTot,nursingProd,rows}=calcUnitStaffing(vals);
+  const ooHrs=getOneOneHrs();const ooProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;const adjFTE=grossUp(nursingProd)+grossUp(ooProd);
   bar.innerHTML=`
-    <div class="total-stat"><div class="stat-label">Variable Staff/Shift</div><div class="stat-value">${Math.round(shiftTot/3)}</div><div class="stat-sub">${shiftTot} across 3 shifts</div></div>
+    <div class="total-stat"><div class="stat-label">Shift Positions</div><div class="stat-value">${shiftTot}</div><div class="stat-sub">All shifts combined</div></div>
     <div class="total-stat alt"><div class="stat-label">RN / LPN / Tech</div><div class="stat-value">${tRN}/${tLPN}/${tTech}</div><div class="stat-sub">Sum across all shifts</div></div>
-    <div class="total-stat"><div class="stat-label">Variable Prod FTEs</div><div class="stat-value">${fmt(prodFTE)}</div><div class="stat-sub">${shiftTot} × ${FTE_MULTIPLIER} coverage</div></div>
+    <div class="total-stat"><div class="stat-label">Variable Prod FTEs</div><div class="stat-value">${fmt(nursingProd)}</div><div class="stat-sub">RN×${FTE_12HR} LPN/Tech×${FTE_8HR}</div></div>
     <div class="total-stat warn"><div class="stat-label">Variable Adj FTEs</div><div class="stat-value">${fmt(adjFTE)}</div><div class="stat-sub">+${getNP()}% non-productive</div></div>
     <div class="total-stat alt"><div class="stat-label">Fixed FTEs</div><div class="stat-value">${fmt(TOTAL_FIXED_FTE)}</div><div class="stat-sub">${TOTAL_FIXED_HC} headcount (constant)</div></div>`;
   let h=`<div class="section-header-row"><h3 class="section-title">Shift Staffing Detail</h3><button class="export-btn" onclick="exportToExcel('staffing')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>Export to Excel</button></div><div class="table-wrap"><table><thead><tr><th>Unit</th><th>Census</th><th class="teal-head" colspan="3" style="text-align:center">Day</th><th class="teal-head" colspan="3" style="text-align:center">Evening</th><th colspan="3" style="text-align:center">Night</th><th style="text-align:center">Total</th></tr><tr><th></th><th></th><th class="teal-head">RN</th><th class="teal-head">LPN</th><th class="teal-head">Tech</th><th class="teal-head">RN</th><th class="teal-head">LPN</th><th class="teal-head">Tech</th><th>RN</th><th>LPN</th><th>Tech</th><th></th></tr></thead><tbody>`;
@@ -469,9 +477,9 @@ function renderPositionControl(vals,totalCensus){
   const out=document.getElementById('posControlOutput');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate position control.</div>';return;}
   const npPct=getNP();
-  const{tRN,tLPN,tTech,shiftTot,rows:uRows}=calcUnitStaffing(vals);
+  const{tRN,tLPN,tTech,shiftTot,fteRN,fteLPN,fteTech,nursingProd,rows:uRows}=calcUnitStaffing(vals);
   const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatShift=Math.ceil(acuteOpen/2);
-  const rnFTE=tRN*FTE_MULTIPLIER,lpnFTE=tLPN*FTE_MULTIPLIER,techFTE=tTech*FTE_MULTIPLIER;const nursingProd=rnFTE+lpnFTE+techFTE;const floatFTE=floatShift*FTE_MULTIPLIER;
+  const rnFTE=fteRN,lpnFTE=fteLPN,techFTE=fteTech;const floatFTE=floatShift*FTE_8HR;
   const ooHrs=getOneOneHrs();const oneOneProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;const oneOneAdj=grossUp(oneOneProd);
   const varDeptAdj=grossUp(TOTAL_VAR_DEPT_FTE);
   const totalVarProd=nursingProd+floatFTE+oneOneProd+TOTAL_VAR_DEPT_FTE;const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj+varDeptAdj;const varNPadd=totalVarAdj-totalVarProd;
@@ -479,7 +487,7 @@ function renderPositionControl(vals,totalCensus){
   let h='';
   h+=`<div class="section-header-row"><h3 class="section-title">Variable FTEs — Direct Care Units <span class="sub">· Flex with census · NP ${npPct}% applied</span></h3><button class="export-btn" onclick="exportToExcel('poscontrol')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>Export to Excel</button></div>`;
   h+=`<div class="table-wrap"><table><thead><tr><td class="pc-section-header var" colspan="8">VARIABLE — NURSING UNITS (Census-Driven)</td></tr><tr><th>Unit</th><th>Type</th><th class="num">RN</th><th class="num">LPN</th><th class="num">Tech</th><th class="num">Shift Tot</th><th class="num">Prod FTEs</th><th class="num warn-head">Adj FTEs</th></tr></thead><tbody>`;
-  uRows.forEach(u=>{const tot=u.rn+u.lpn+u.tech;const prod=tot*FTE_MULTIPLIER;h+=`<tr><td>${u.payrollBU}</td><td><span class="unit-tag ${u.type==='acute'?'tag-acute':'tag-detox'}">${u.type==='acute'?'ACUTE':'DETOX'}</span></td><td class="num">${u.rn}</td><td class="num">${u.lpn}</td><td class="num">${u.tech}</td><td class="num bold">${tot}</td><td class="num">${fmt(prod)}</td><td class="num bold">${fmt(grossUp(prod))}</td></tr>`;});
+  uRows.forEach(u=>{const tot=u.rn+u.lpn+u.tech;h+=`<tr><td>${u.payrollBU}</td><td><span class="unit-tag ${u.type==='acute'?'tag-acute':'tag-detox'}">${u.type==='acute'?'ACUTE':'DETOX'}</span></td><td class="num">${u.rn}</td><td class="num">${u.lpn}</td><td class="num">${u.tech}</td><td class="num bold">${tot}</td><td class="num">${fmt(u.prodFTE)}</td><td class="num bold">${fmt(grossUp(u.prodFTE))}</td></tr>`;});
   h+=`<tr class="subtotal-row"><td colspan="2">Subtotal Nursing</td><td class="num">${tRN}</td><td class="num">${tLPN}</td><td class="num">${tTech}</td><td class="num">${shiftTot}</td><td class="num">${fmt(nursingProd)}</td><td class="num">${fmt(grossUp(nursingProd))}</td></tr>`;
   h+=`<tr><td colspan="2">Float Coverage</td><td colspan="3" class="num" style="text-align:center;color:var(--gray-500)">Split-shift floats</td><td class="num">${floatShift}</td><td class="num">${fmt(floatFTE)}</td><td class="num">${fmt(grossUp(floatFTE))}</td></tr>`;
   if(ooHrs>0){h+=`<tr style="color:var(--danger)"><td colspan="2">1:1 Observation Hours</td><td colspan="3" class="num" style="text-align:center">${ooHrs} hrs/day</td><td class="num">${fmt(oneOneProd)}</td><td class="num">${fmt(oneOneProd)}</td><td class="num bold">${fmt(oneOneAdj)}</td></tr>`;}
@@ -566,12 +574,11 @@ function updateSaveBtnState(){
 function buildSharePointPayload(){
   const vals=getVals();
   const totalCensus=vals.reduce((s,v)=>s+v.census,0);
-  const{tRN,tLPN,tTech,shiftTot}=calcUnitStaffing(vals);
+  const{tRN,tLPN,tTech,shiftTot,nursingProd}=calcUnitStaffing(vals);
   const npPct=getNP();
   const ooHrs=getOneOneHrs();
   const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;
-  const floatFTE=Math.ceil(acuteOpen/2)*FTE_MULTIPLIER;
-  const nursingProd=shiftTot*FTE_MULTIPLIER;
+  const floatFTE=Math.ceil(acuteOpen/2)*FTE_8HR;
   const oneOneProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;
   const oneOneAdj=grossUp(oneOneProd);
   const varDeptAdj=grossUp(TOTAL_VAR_DEPT_FTE);
