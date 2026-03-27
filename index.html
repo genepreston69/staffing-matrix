@@ -347,15 +347,23 @@ const FIXED_DEPTS=[
   {name:'Human Resources',cat:'Admin / G&A',hc:2,fte:0.1},{name:'Business Office',cat:'Admin / G&A',hc:1,fte:0.1},
   {name:'Facility IT',cat:'Admin / G&A',hc:2,fte:0.1},
 ];
+/* ── Therapist staffing: census-driven ──
+   M-F: 1 per open unit, 8hr day only → openUnits × 8×5/40 = openUnits × 1.0 FTE
+   Sat-Sun: 3 hospital-wide, 8hr day  → 3 × 8×2/40 = 1.2 FTE */
+const THERAPIST_WKEND_FTE=1.2; // 3 staff × 8hr × 2 days / 40
+function calcTherapistFTE(openUnits){return openUnits*1.0+THERAPIST_WKEND_FTE;}
+function calcTherapistHC(openUnits){return openUnits+3;} // weekday per-unit + 3 weekend
+
 const VARIABLE_DEPTS=[
-  {name:'IP Therapists',cat:'Direct Care',hc:12,fte:2.4},
   {name:'Medical Staff',cat:'Direct Care',hc:2,fte:0.1},
   {name:'Physician InPatient',cat:'Direct Care',hc:2,fte:0.2},
 ];
 const TOTAL_FIXED_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.fte,0);
 const TOTAL_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
-const TOTAL_VAR_DEPT_FTE=VARIABLE_DEPTS.reduce((s,d)=>s+d.fte,0);
-const TOTAL_VAR_DEPT_HC=VARIABLE_DEPTS.reduce((s,d)=>s+d.hc,0);
+const STATIC_VAR_DEPT_FTE=VARIABLE_DEPTS.reduce((s,d)=>s+d.fte,0);
+const STATIC_VAR_DEPT_HC=VARIABLE_DEPTS.reduce((s,d)=>s+d.hc,0);
+function totalVarDeptFTE(openUnits){return STATIC_VAR_DEPT_FTE+calcTherapistFTE(openUnits);}
+function totalVarDeptHC(openUnits){return STATIC_VAR_DEPT_HC+calcTherapistHC(openUnits);}
 const DAYS_PER_WEEK=7, HOURS_PER_WEEK=40;
 const DEFAULT_NP_PCT=12.6, MAX_NP_PCT=40;
 
@@ -438,12 +446,13 @@ function onCensusChange(){
 function updateEpobKpi(vals,totalCensus){
   const{nursingProd}=calcUnitStaffing(vals);
   const acuteOpen=vals.filter(v=>isAcute(v.type)&&v.census>0).length;
+  const allOpen=vals.filter(v=>v.census>0).length;
   const floatFTE=Math.ceil(acuteOpen/2)*FTE_8HR;
   const ooHrs=getOneOneHrs();
   const oneOneProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;
   const oneOneAdj=grossUp(oneOneProd);
   document.getElementById('oneOneFteDisplay').textContent=oneOneAdj.toFixed(1);
-  const varDeptAdj=grossUp(TOTAL_VAR_DEPT_FTE);
+  const varDeptAdj=grossUp(totalVarDeptFTE(allOpen));
   const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj+varDeptAdj;
   const grandAdj=totalVarAdj+TOTAL_FIXED_FTE;
   document.getElementById('kpiVarFTE').textContent=totalCensus>0?totalVarAdj.toFixed(1):'—';
@@ -495,10 +504,12 @@ function renderPositionControl(vals,totalCensus){
   const npPct=getNP();
   const{tRN,tLPN,tTech,shiftTot,fteRN,fteLPN,fteTech,nursingProd,rows:uRows}=calcUnitStaffing(vals);
   const acuteOpen=vals.filter(v=>isAcute(v.type)&&v.census>0).length;const floatShift=Math.ceil(acuteOpen/2);
+  const allOpen=vals.filter(v=>v.census>0).length;
   const rnFTE=fteRN,lpnFTE=fteLPN,techFTE=fteTech;const floatFTE=floatShift*FTE_8HR;
   const ooHrs=getOneOneHrs();const oneOneProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;const oneOneAdj=grossUp(oneOneProd);
-  const varDeptAdj=grossUp(TOTAL_VAR_DEPT_FTE);
-  const totalVarProd=nursingProd+floatFTE+oneOneProd+TOTAL_VAR_DEPT_FTE;const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj+varDeptAdj;const varNPadd=totalVarAdj-totalVarProd;
+  const therapistFTE=calcTherapistFTE(allOpen);const therapistHC=calcTherapistHC(allOpen);
+  const varDeptFTE=totalVarDeptFTE(allOpen);const varDeptAdj=grossUp(varDeptFTE);
+  const totalVarProd=nursingProd+floatFTE+oneOneProd+varDeptFTE;const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj+varDeptAdj;const varNPadd=totalVarAdj-totalVarProd;
   const grandProd=totalVarProd+TOTAL_FIXED_FTE;const grandAdj=totalVarAdj+TOTAL_FIXED_FTE;
   let h='';
   h+=`<div class="section-header-row"><h3 class="section-title">Variable FTEs — Direct Care Units <span class="sub">· Flex with census · NP ${npPct}% applied</span></h3><button class="export-btn" onclick="exportToExcel('poscontrol')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>Export to Excel</button></div>`;
@@ -507,15 +518,17 @@ function renderPositionControl(vals,totalCensus){
   h+=`<tr class="subtotal-row"><td colspan="2">Subtotal Nursing</td><td class="num">${tRN}</td><td class="num">${tLPN}</td><td class="num">${tTech}</td><td class="num">${shiftTot}</td><td class="num">${fmt(nursingProd)}</td><td class="num">${fmt(grossUp(nursingProd))}</td></tr>`;
   h+=`<tr><td colspan="2">Float Coverage</td><td colspan="3" class="num" style="text-align:center;color:var(--gray-500)">Split-shift floats</td><td class="num">${floatShift}</td><td class="num">${fmt(floatFTE)}</td><td class="num">${fmt(grossUp(floatFTE))}</td></tr>`;
   if(ooHrs>0){h+=`<tr style="color:var(--danger)"><td colspan="2">1:1 Observation Hours</td><td colspan="3" class="num" style="text-align:center">${ooHrs} hrs/day</td><td class="num">${fmt(oneOneProd)}</td><td class="num">${fmt(oneOneProd)}</td><td class="num bold">${fmt(oneOneAdj)}</td></tr>`;}
-  h+=`<tr><td colspan="8" class="pc-section-header var" style="font-size:11px">VARIABLE — DIRECT CARE DEPARTMENTS (From Payroll Actuals)</td></tr>`;
+  h+=`<tr><td colspan="8" class="pc-section-header var" style="font-size:11px">VARIABLE — DIRECT CARE DEPARTMENTS</td></tr>`;
+  h+=`<tr><td>IP Therapists</td><td><span class="unit-tag tag-variable">VARIABLE</span></td><td colspan="3" class="num" style="text-align:center;color:var(--gray-500)">${therapistHC} HC · ${allOpen} unit${allOpen!==1?'s':''} M-F + 3 wknd</td><td class="num">—</td><td class="num">${fmt(therapistFTE)}</td><td class="num bold">${fmt(grossUp(therapistFTE))}</td></tr>`;
   VARIABLE_DEPTS.forEach(d=>{h+=`<tr><td>${d.name}</td><td><span class="unit-tag tag-variable">VARIABLE</span></td><td colspan="3" class="num" style="text-align:center;color:var(--gray-500)">${d.hc} HC</td><td class="num">—</td><td class="num">${fmt(d.fte)}</td><td class="num bold">${fmt(grossUp(d.fte))}</td></tr>`;});
-  h+=`<tr class="subtotal-row"><td colspan="2">Subtotal Direct Care Depts</td><td colspan="3"></td><td class="num">—</td><td class="num">${fmt(TOTAL_VAR_DEPT_FTE)}</td><td class="num">${fmt(varDeptAdj)}</td></tr>`;
+  h+=`<tr class="subtotal-row"><td colspan="2">Subtotal Direct Care Depts</td><td colspan="3"></td><td class="num">—</td><td class="num">${fmt(varDeptFTE)}</td><td class="num">${fmt(varDeptAdj)}</td></tr>`;
   h+=`<tr class="grand-total-row"><td colspan="5">TOTAL VARIABLE FTEs</td><td class="num">${shiftTot+floatShift}</td><td class="num">${fmt(totalVarProd)}</td><td class="num">${fmt(totalVarAdj)}</td></tr></tbody></table></div>`;
   h+=`<div class="table-wrap"><table><thead><tr><th>Role</th><th class="num">Shift Pos</th><th class="num">Prod FTEs</th><th class="num warn-head">Adj FTEs</th><th class="num">NP Add</th></tr></thead><tbody>`;
   h+=`<tr><td>Registered Nurses (RN)</td><td class="num">${tRN}</td><td class="num">${fmt(rnFTE)}</td><td class="num bold">${fmt(grossUp(rnFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(rnFTE)-rnFTE)}</td></tr>`;
   h+=`<tr><td>LPNs</td><td class="num">${tLPN}</td><td class="num">${fmt(lpnFTE)}</td><td class="num bold">${fmt(grossUp(lpnFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(lpnFTE)-lpnFTE)}</td></tr>`;
   h+=`<tr><td>Behavioral Health Techs</td><td class="num">${tTech}</td><td class="num">${fmt(techFTE)}</td><td class="num bold">${fmt(grossUp(techFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(techFTE)-techFTE)}</td></tr>`;
   h+=`<tr><td>Float</td><td class="num">${floatShift}</td><td class="num">${fmt(floatFTE)}</td><td class="num bold">${fmt(grossUp(floatFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(floatFTE)-floatFTE)}</td></tr>`;
+  h+=`<tr><td>IP Therapists</td><td class="num">—</td><td class="num">${fmt(therapistFTE)}</td><td class="num bold">${fmt(grossUp(therapistFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(therapistFTE)-therapistFTE)}</td></tr>`;
   VARIABLE_DEPTS.forEach(d=>{h+=`<tr><td>${d.name}</td><td class="num">—</td><td class="num">${fmt(d.fte)}</td><td class="num bold">${fmt(grossUp(d.fte))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(d.fte)-d.fte)}</td></tr>`;});
   h+=`<tr class="grand-total-row"><td>TOTAL VARIABLE</td><td class="num">${shiftTot+floatShift}</td><td class="num">${fmt(totalVarProd)}</td><td class="num">${fmt(totalVarAdj)}</td><td class="num">+${fmt(varNPadd)}</td></tr></tbody></table></div>`;
   h+=`<div class="section-header-row"><h3 class="section-title">Fixed FTEs — Support & Overhead <span class="sub">· Constant · From payroll actuals (5 PP ending 3/17/26)</span></h3></div>`;
@@ -594,10 +607,11 @@ function buildSharePointPayload(){
   const npPct=getNP();
   const ooHrs=getOneOneHrs();
   const acuteOpen=vals.filter(v=>isAcute(v.type)&&v.census>0).length;
+  const allOpen=vals.filter(v=>v.census>0).length;
   const floatFTE=Math.ceil(acuteOpen/2)*FTE_8HR;
   const oneOneProd=ooHrs*DAYS_PER_WEEK/HOURS_PER_WEEK;
   const oneOneAdj=grossUp(oneOneProd);
-  const varDeptAdj=grossUp(TOTAL_VAR_DEPT_FTE);
+  const varDeptAdj=grossUp(totalVarDeptFTE(allOpen));
   const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj+varDeptAdj;
   const grandAdj=totalVarAdj+TOTAL_FIXED_FTE;
 
