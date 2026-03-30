@@ -172,7 +172,7 @@
   .upload-compact strong { color:var(--navy); }
   .upload-compact a { color:var(--teal); text-decoration:underline; cursor:pointer; }
   .upload-icon-sm { font-size:16px; vertical-align:middle; }
-  .file-input-hidden { position:absolute; inset:0; opacity:0; cursor:pointer; }
+  .file-input-hidden { position:absolute; inset:0; opacity:0; cursor:pointer; z-index:2; }
   .upload-file-info { display:flex; align-items:center; gap:12px; justify-content:center; margin-top:6px; }
   .upload-file-name { font-weight:600; color:var(--navy); font-size:12px; }
   .upload-file-clear { font-size:11px; color:var(--danger); cursor:pointer; text-decoration:underline; }
@@ -660,7 +660,6 @@ function parsePayroll(rows, fileName) {
 
   payrollData = buMap;
   payrollMeta = { fileName, dayCount, minDate, maxDate, rowCount: rows.length };
-  updateCensusNP();
 
   // Update upload zone
   uploadZone.classList.add('has-file');
@@ -675,7 +674,7 @@ function parsePayroll(rows, fileName) {
       <span class="upload-meta-item">${dateStr}${dayCount>1?' — '+dateEndStr:''}</span>
     </div>`;
 
-  renderVariance();
+  onCensusChange();
 }
 
 function updateCensusNP() {
