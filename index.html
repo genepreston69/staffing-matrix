@@ -301,7 +301,7 @@
     <div id="varianceOutput"><div class="no-upload-msg">Upload a Workday Time Summary in the Key Metrics section above, then enter census values to see payroll variances by business unit.</div></div>
   </div>
 </div>
-<div class="footer">Highland Hospital &bull; A Summit BHC Facility &bull; Staffing Matrix Tool &bull; Payroll baseline: 5 pay periods ending 3/17/2026 &bull; Variable FTEs flex with census; Fixed FTEs from actuals</div>
+<div class="footer">Highland Hospital &bull; A Summit BHC Facility &bull; Staffing Matrix Tool &bull; Payroll baseline: 5 pay periods ending 3/17/2026 &bull; Variable FTEs flex with census; Fixed FTEs from time entry upload or baseline</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const UNITS = [
@@ -340,8 +340,27 @@ const FIXED_DEPTS=[
   {name:'Human Resources',cat:'Admin / G&A',hc:2,fte:0.1},{name:'Business Office',cat:'Admin / G&A',hc:1,fte:0.1},
   {name:'Facility IT',cat:'Admin / G&A',hc:2,fte:0.1},
 ];
-const TOTAL_FIXED_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.fte,0);
-const TOTAL_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
+const BASELINE_FIXED_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.fte,0);
+const BASELINE_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
+let payrollData = null;
+let payrollMeta = null;
+
+function getFixedTotals() {
+  if (!payrollData || !payrollMeta) return { fte: BASELINE_FIXED_FTE, hc: BASELINE_FIXED_HC, source: 'baseline', depts: FIXED_DEPTS };
+  const variableBUs = UNITS.map(u => u.payrollBU);
+  const days = payrollMeta.dayCount;
+  let totalFTE = 0, totalHC = 0;
+  const depts = [];
+  Object.entries(payrollData).forEach(([bu, d]) => {
+    if (variableBUs.includes(bu)) return;
+    const fte = (d.hours / days) * 7 / 40;
+    const baseline = FIXED_DEPTS.find(f => f.name === bu);
+    totalFTE += fte;
+    totalHC += d.headcount;
+    depts.push({ name: bu, cat: baseline ? baseline.cat : 'Other', hc: d.headcount, fte: fte });
+  });
+  return { fte: totalFTE, hc: totalHC, source: 'payroll', depts };
+}
 
 function getStaffing(grid, census) {
   const empty = { rn: 0, lpn: 0, tech: 0 };
@@ -433,7 +452,9 @@ function updateEpobKpi(vals,totalCensus){
   const oneOneAdj=grossUp(oneOneProd);
   document.getElementById('oneOneFteDisplay').textContent=oneOneAdj.toFixed(1);
   const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj;
-  const grandAdj=totalVarAdj+TOTAL_FIXED_FTE;
+  const fixed=getFixedTotals();
+  const grandAdj=totalVarAdj+fixed.fte;
+  document.getElementById('kpiFixFTE').textContent=fmt(fixed.fte);
   document.getElementById('kpiVarFTE').textContent=totalCensus>0?totalVarAdj.toFixed(1):'—';
   document.getElementById('kpiVarFTE2').textContent=totalCensus>0?totalVarAdj.toFixed(1):'—';
   document.getElementById('kpiTotalFTE').textContent=totalCensus>0?grandAdj.toFixed(1):'—';
@@ -445,7 +466,7 @@ function updateEpobKpi(vals,totalCensus){
     document.getElementById('kpiDcLine').textContent=totalVarAdj.toFixed(1)+' FTEs ÷ '+totalCensus+' ADC'+(ooHrs>0?' (incl '+ooHrs+'h 1:1s)':'');
     document.getElementById('kpiEpob').textContent=totalEpob.toFixed(2);
     document.getElementById('kpiEpob').style.color=totalEpob>2.0?'var(--danger)':totalEpob>1.5?'var(--warning)':'var(--success)';
-    document.getElementById('kpiCensusLine').textContent=grandAdj.toFixed(1)+' FTEs ÷ '+totalCensus+' ADC';
+    document.getElementById('kpiCensusLine').textContent=grandAdj.toFixed(1)+' FTEs ÷ '+totalCensus+' ADC'+(fixed.source==='payroll'?' (payroll)':'');
   }else{
     document.getElementById('kpiDcEpob').textContent='—';
     document.getElementById('kpiDcEpob').style.color='var(--navy)';
@@ -461,12 +482,13 @@ function renderStaffing(vals,totalCensus){
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate staffing requirements.</div>';bar.innerHTML='';return;}
   const { tRN, tLPN, tTech, shiftTot, rows } = aggregateStaffing(vals);
   const ooHrs=getOneOneHrs();const ooProd=ooHrs*7/40;const prodFTE=shiftTot*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE)+grossUp(ooProd);
+  const fixed=getFixedTotals();
   bar.innerHTML=`
     <div class="total-stat"><div class="stat-label">Variable Staff/Shift</div><div class="stat-value">${Math.round(shiftTot/3)}</div><div class="stat-sub">${shiftTot} across 3 shifts</div></div>
     <div class="total-stat alt"><div class="stat-label">RN / LPN / Tech</div><div class="stat-value">${tRN}/${tLPN}/${tTech}</div><div class="stat-sub">Sum across all shifts</div></div>
     <div class="total-stat"><div class="stat-label">Variable Prod FTEs</div><div class="stat-value">${fmt(prodFTE)}</div><div class="stat-sub">${shiftTot} × ${FTE_MULTIPLIER} coverage</div></div>
     <div class="total-stat warn"><div class="stat-label">Variable Adj FTEs</div><div class="stat-value">${fmt(adjFTE)}</div><div class="stat-sub">+${getNP()}% non-productive</div></div>
-    <div class="total-stat alt"><div class="stat-label">Fixed FTEs</div><div class="stat-value">${fmt(TOTAL_FIXED_FTE)}</div><div class="stat-sub">${TOTAL_FIXED_HC} headcount (constant)</div></div>`;
+    <div class="total-stat alt"><div class="stat-label">Fixed FTEs</div><div class="stat-value">${fmt(fixed.fte)}</div><div class="stat-sub">${fixed.hc} headcount (${fixed.source})</div></div>`;
   let h=`<div class="section-header-row"><h3 class="section-title">Shift Staffing Detail</h3><button class="export-btn" onclick="exportToExcel('staffing')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>Export to Excel</button></div><div class="table-wrap"><table><thead><tr><th>Unit</th><th>Census</th><th class="teal-head" colspan="3" style="text-align:center">Day</th><th class="teal-head" colspan="3" style="text-align:center">Evening</th><th colspan="3" style="text-align:center">Night</th><th style="text-align:center">Total</th></tr><tr><th></th><th></th><th class="teal-head">RN</th><th class="teal-head">LPN</th><th class="teal-head">Tech</th><th class="teal-head">RN</th><th class="teal-head">LPN</th><th class="teal-head">Tech</th><th>RN</th><th>LPN</th><th>Tech</th><th></th></tr></thead><tbody>`;
   rows.forEach(r=>{const tag=r.type==='acute'?'<span class="unit-tag tag-acute">ACUTE</span>':'<span class="unit-tag tag-detox">DETOX</span>';h+=`<tr><td>${r.payrollBU} ${tag}</td><td class="num bold">${r.census}</td><td class="num">${r.s.day.rn}</td><td class="num">${r.s.day.lpn}</td><td class="num">${r.s.day.tech}</td><td class="num">${r.s.evening.rn}</td><td class="num">${r.s.evening.lpn}</td><td class="num">${r.s.evening.tech}</td><td class="num">${r.s.night.rn}</td><td class="num">${r.s.night.lpn}</td><td class="num">${r.s.night.tech}</td><td class="num bold">${r.total}</td></tr>`;});
   const dRN=rows.reduce((s,r)=>s+r.s.day.rn,0),dLPN=rows.reduce((s,r)=>s+r.s.day.lpn,0),dT=rows.reduce((s,r)=>s+r.s.day.tech,0);const eRN=rows.reduce((s,r)=>s+r.s.evening.rn,0),eLPN=rows.reduce((s,r)=>s+r.s.evening.lpn,0),eT=rows.reduce((s,r)=>s+r.s.evening.tech,0);const nRN=rows.reduce((s,r)=>s+r.s.night.rn,0),nLPN=rows.reduce((s,r)=>s+r.s.night.lpn,0),nT=rows.reduce((s,r)=>s+r.s.night.tech,0);
@@ -485,7 +507,8 @@ function renderPositionControl(vals,totalCensus){
   const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatShift=Math.ceil(acuteOpen/2);
   const rnFTE=tRN*FTE_MULTIPLIER,lpnFTE=tLPN*FTE_MULTIPLIER,techFTE=tTech*FTE_MULTIPLIER;const nursingProd=rnFTE+lpnFTE+techFTE;const floatFTE=floatShift*FTE_MULTIPLIER;
   const ooHrs=getOneOneHrs();const oneOneProd=ooHrs*7/40;const oneOneAdj=grossUp(oneOneProd);const totalVarProd=nursingProd+floatFTE+oneOneProd;const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj;const varNPadd=totalVarAdj-totalVarProd;
-  const grandProd=totalVarProd+TOTAL_FIXED_FTE;const grandAdj=totalVarAdj+TOTAL_FIXED_FTE;
+  const fixed=getFixedTotals();
+  const grandProd=totalVarProd+fixed.fte;const grandAdj=totalVarAdj+fixed.fte;
   let h='';
   h+=`<div class="section-header-row"><h3 class="section-title">Variable FTEs — Direct Care Units <span class="sub">· Flex with census · NP ${npPct}% applied</span></h3><button class="export-btn" onclick="exportToExcel('poscontrol')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>Export to Excel</button></div>`;
   h+=`<div class="table-wrap"><table><thead><tr><td class="pc-section-header var" colspan="8">VARIABLE — NURSING UNITS (Census-Driven)</td></tr><tr><th>Unit</th><th>Type</th><th class="num">RN</th><th class="num">LPN</th><th class="num">Tech</th><th class="num">Shift Tot</th><th class="num">Prod FTEs</th><th class="num warn-head">Adj FTEs</th></tr></thead><tbody>`;
@@ -500,18 +523,19 @@ function renderPositionControl(vals,totalCensus){
   h+=`<tr><td>Behavioral Health Techs</td><td class="num">${tTech}</td><td class="num">${fmt(techFTE)}</td><td class="num bold">${fmt(grossUp(techFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(techFTE)-techFTE)}</td></tr>`;
   h+=`<tr><td>Float</td><td class="num">${floatShift}</td><td class="num">${fmt(floatFTE)}</td><td class="num bold">${fmt(grossUp(floatFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(floatFTE)-floatFTE)}</td></tr>`;
   h+=`<tr class="grand-total-row"><td>TOTAL VARIABLE</td><td class="num">${shiftTot+floatShift}</td><td class="num">${fmt(totalVarProd)}</td><td class="num">${fmt(totalVarAdj)}</td><td class="num">+${fmt(varNPadd)}</td></tr></tbody></table></div>`;
-  h+=`<div class="section-header-row"><h3 class="section-title">Fixed FTEs — Support & Overhead <span class="sub">· Constant · From payroll actuals (5 PP ending 3/17/26)</span></h3></div>`;
-  const cats={};FIXED_DEPTS.forEach(d=>{if(!cats[d.cat])cats[d.cat]=[];cats[d.cat].push(d);});
-  ['Clinical Operations','Support Services','Admin / G&A'].forEach(cat=>{if(!cats[cat])return;const catFTE=cats[cat].reduce((s,d)=>s+d.fte,0);const catHC=cats[cat].reduce((s,d)=>s+d.hc,0);
+  const fixSource = fixed.source === 'payroll' ? 'From uploaded time entry file' : 'Baseline (5 PP ending 3/17/26)';
+  h+=`<div class="section-header-row"><h3 class="section-title">Fixed FTEs — Support & Overhead <span class="sub">· ${fixSource}</span></h3></div>`;
+  const cats={};fixed.depts.forEach(d=>{if(!cats[d.cat])cats[d.cat]=[];cats[d.cat].push(d);});
+  ['Clinical Operations','Support Services','Admin / G&A','Other'].forEach(cat=>{if(!cats[cat])return;const catFTE=cats[cat].reduce((s,d)=>s+d.fte,0);const catHC=cats[cat].reduce((s,d)=>s+d.hc,0);
     h+=`<div class="table-wrap"><table><thead><tr><td class="pc-section-header fix" colspan="3">FIXED — ${cat.toUpperCase()}</td></tr><tr><th>Department</th><th class="num">HC</th><th class="num">FTEs</th></tr></thead><tbody>`;
-    cats[cat].forEach(d=>{h+=`<tr class="fixed-row"><td>${d.name} <span class="unit-tag tag-fixed">FIXED</span></td><td class="num">${d.hc}</td><td class="num bold">${fmt(d.fte)}</td></tr>`;});
-    h+=`<tr class="subtotal-row"><td>Subtotal ${cat}</td><td class="num">${catHC}</td><td class="num">${fmt(catFTE)}</td></tr></tbody></table></div>`;});
+    cats[cat].forEach(d=>{h+=`<tr class="fixed-row"><td>${esc(d.name)} <span class="unit-tag tag-fixed">FIXED</span></td><td class="num">${d.hc}</td><td class="num bold">${fmt(d.fte)}</td></tr>`;});
+    h+=`<tr class="subtotal-row"><td>Subtotal ${esc(cat)}</td><td class="num">${catHC}</td><td class="num">${fmt(catFTE)}</td></tr></tbody></table></div>`;});
   h+=`<div class="table-wrap"><table><thead><tr><th></th><th class="num">Productive</th><th class="num warn-head">Adjusted</th><th class="num">NP Add</th><th>Scope</th></tr></thead><tbody>`;
   h+=`<tr class="subtotal-row"><td>Total Variable (Nursing)</td><td class="num">${fmt(totalVarProd)}</td><td class="num bold">${fmt(totalVarAdj)}</td><td class="num" style="color:var(--warning)">+${fmt(varNPadd)}</td><td><span class="unit-tag tag-variable">VARIABLE</span></td></tr>`;
-  h+=`<tr class="subtotal-row"><td>Total Fixed (Support)</td><td class="num">${fmt(TOTAL_FIXED_FTE)}</td><td class="num bold">${fmt(TOTAL_FIXED_FTE)}</td><td class="num" style="color:var(--gray-300)">—</td><td><span class="unit-tag tag-fixed">FIXED</span></td></tr>`;
+  h+=`<tr class="subtotal-row"><td>Total Fixed (Support)</td><td class="num">${fmt(fixed.fte)}</td><td class="num bold">${fmt(fixed.fte)}</td><td class="num" style="color:var(--gray-300)">—</td><td><span class="unit-tag tag-fixed">FIXED</span></td></tr>`;
   h+=`<tr class="grand-total-row"><td>GRAND TOTAL FACILITY FTEs</td><td class="num">${fmt(grandProd)}</td><td class="num">${fmt(grandAdj)}</td><td class="num">+${fmt(varNPadd)}</td><td></td></tr></tbody></table></div>`;
   if(totalCensus>0){const epobProd=grandProd/totalCensus;const epobAdj=grandAdj/totalCensus;
-    h+=`<div class="epob-footer"><div class="ef-col"><div class="ef-label" style="color:var(--gray-500)">EPOB (Productive)</div><div class="ef-val" style="color:var(--gray-700)">${epobProd.toFixed(2)}</div><div class="ef-sub">${fmt(grandProd)} prod FTEs ÷ ${totalCensus}</div></div><div class="ef-col"><div class="ef-label" style="color:var(--teal)">EPOB (Adjusted · ${npPct}% NP)</div><div class="ef-val" style="color:var(--navy)">${epobAdj.toFixed(2)}</div><div class="ef-sub">${fmt(grandAdj)} adj FTEs ÷ ${totalCensus}</div></div><div class="ef-col"><div class="ef-label" style="color:var(--success)">Variable FTE / Patient</div><div class="ef-val" style="color:var(--success)">${(totalVarAdj/totalCensus).toFixed(2)}</div><div class="ef-sub">${fmt(totalVarAdj)} variable ÷ ${totalCensus}</div></div><div class="ef-col"><div class="ef-label" style="color:var(--gray-500)">Fixed FTE / Patient</div><div class="ef-val" style="color:var(--gray-500)">${(TOTAL_FIXED_FTE/totalCensus).toFixed(2)}</div><div class="ef-sub">${fmt(TOTAL_FIXED_FTE)} fixed ÷ ${totalCensus}</div></div></div>`;}
+    h+=`<div class="epob-footer"><div class="ef-col"><div class="ef-label" style="color:var(--gray-500)">EPOB (Productive)</div><div class="ef-val" style="color:var(--gray-700)">${epobProd.toFixed(2)}</div><div class="ef-sub">${fmt(grandProd)} prod FTEs ÷ ${totalCensus}</div></div><div class="ef-col"><div class="ef-label" style="color:var(--teal)">EPOB (Adjusted · ${npPct}% NP)</div><div class="ef-val" style="color:var(--navy)">${epobAdj.toFixed(2)}</div><div class="ef-sub">${fmt(grandAdj)} adj FTEs ÷ ${totalCensus}</div></div><div class="ef-col"><div class="ef-label" style="color:var(--success)">Variable FTE / Patient</div><div class="ef-val" style="color:var(--success)">${(totalVarAdj/totalCensus).toFixed(2)}</div><div class="ef-sub">${fmt(totalVarAdj)} variable ÷ ${totalCensus}</div></div><div class="ef-col"><div class="ef-label" style="color:var(--gray-500)">Fixed FTE / Patient</div><div class="ef-val" style="color:var(--gray-500)">${(fixed.fte/totalCensus).toFixed(2)}</div><div class="ef-sub">${fmt(fixed.fte)} fixed ÷ ${totalCensus}</div></div></div>`;}
   out.innerHTML=h;
 }
 
@@ -541,14 +565,10 @@ function exportToExcel(tabId) {
 }
 
 document.getElementById('headerDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-document.getElementById('kpiFixFTE').textContent=fmt(TOTAL_FIXED_FTE);
 renderCensusGrid();onCensusChange();
 document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('tab-'+btn.dataset.tab).classList.add('active');});});
 
 /* ── Payroll Variance Module ── */
-let payrollData = null;
-let payrollMeta = null;
-
 const uploadZone = document.getElementById('uploadZone');
 const fileInput = document.getElementById('fileInput');
 
@@ -683,6 +703,7 @@ function clearUpload() {
   fileInput.value = '';
   document.getElementById('varianceOutput').innerHTML = '<div class="no-upload-msg">Upload a Workday Time Summary in the Key Metrics section above, then enter census values to see payroll variances by business unit.</div>';
   UNITS.forEach(u => { const el = document.getElementById('np-actual-' + u.id); if(el) el.innerHTML = ''; });
+  onCensusChange();
 }
 
 function renderVariance() {
@@ -766,7 +787,8 @@ function renderVariance() {
   const actualFixFTE = (totFixActualHrs * 7) / 40;
   const actualTotalFTE = actualVarFTE + actualFixFTE;
   const modelVarFTE = totModelFTE;
-  const modelTotalFTE = modelVarFTE + TOTAL_FIXED_FTE;
+  const fixed = getFixedTotals();
+  const modelTotalFTE = modelVarFTE + fixed.fte;
   const actualEpob = totalCensus > 0 ? actualTotalFTE / totalCensus : 0;
   const modelEpob = totalCensus > 0 ? modelTotalFTE / totalCensus : 0;
   const epobVariance = actualEpob - modelEpob;
@@ -821,16 +843,18 @@ function renderVariance() {
   // Fixed/Support BU Table
   if(fixRows.length > 0) {
     h += `<div class="var-section-hdr"><h3>Fixed & Support Departments — Actuals <span class="sub">· From payroll upload</span></h3></div>`;
-    h += `<div class="table-wrap"><table><thead><tr><th>Business Unit</th><th class="num">Baseline HC</th><th class="num">Baseline FTE</th><th class="num teal-head">Actual Hrs/Day</th><th class="num teal-head">Actual HC</th></tr></thead><tbody>`;
+    h += `<div class="table-wrap"><table><thead><tr><th>Business Unit</th><th class="num">Baseline HC</th><th class="num">Baseline FTE</th><th class="num teal-head">Actual Hrs/Day</th><th class="num teal-head">Actual FTE</th><th class="num teal-head">Actual HC</th></tr></thead><tbody>`;
     fixRows.forEach(r => {
+      const actualFTE = (r.actualDailyHrs * 7) / 40;
       h += `<tr><td>${esc(r.bu)} ${r.fixedFTE !== null ? '<span class="unit-tag tag-fixed">FIXED</span>' : '<span class="unit-tag tag-acute">OTHER</span>'}</td>`;
       h += `<td class="num">${r.fixedHC !== null ? r.fixedHC : '—'}</td>`;
       h += `<td class="num">${r.fixedFTE !== null ? r.fixedFTE.toFixed(1) : '—'}</td>`;
       h += `<td class="num">${r.actualDailyHrs.toFixed(1)}</td>`;
+      h += `<td class="num bold">${actualFTE.toFixed(1)}</td>`;
       h += `<td class="num">${r.actualHC}</td>`;
       h += `</tr>`;
     });
-    h += `<tr class="grand-total-row"><td>TOTAL FIXED/SUPPORT</td><td class="num">${TOTAL_FIXED_HC}</td><td class="num">${fmt(TOTAL_FIXED_FTE)}</td><td class="num">${totFixActualHrs.toFixed(1)}</td><td class="num">${totFixHC}</td></tr>`;
+    h += `<tr class="grand-total-row"><td>TOTAL FIXED/SUPPORT</td><td class="num">${BASELINE_FIXED_HC}</td><td class="num">${fmt(BASELINE_FIXED_FTE)}</td><td class="num">${totFixActualHrs.toFixed(1)}</td><td class="num">${fmt(fixed.fte)}</td><td class="num">${totFixHC}</td></tr>`;
     h += '</tbody></table></div>';
   }
 
