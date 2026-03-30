@@ -267,7 +267,7 @@
           <div class="epob-hdr"><div class="epob-hdr-title">Total Facility EPOB</div></div>
           <div class="epob-body">
             <div class="epob-row"><span class="epob-rl">Variable</span><span class="epob-rv" id="kpiVarFTE2">—</span></div>
-            <div class="epob-row"><span class="epob-rl">Fixed</span><span class="epob-rv" id="kpiFixFTE">63.3</span></div>
+            <div class="epob-row"><span class="epob-rl">Fixed</span><span class="epob-rv" id="kpiFixFTE">—</span></div>
             <div class="epob-row tot"><span class="epob-rl">Total</span><span class="epob-rv" id="kpiTotalFTE">—</span></div>
             <div class="epob-div"></div>
             <div class="epob-big"><div class="epob-big-lbl">Total</div><div class="epob-big-val" id="kpiEpob">—</div></div>
@@ -321,7 +321,7 @@ const ACUTE_GRID={
   notes:'Day/Eve 1:6 · Night 1:7 · +float'
 };
 const DETOX_GRID={
-  day:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
+  day:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
   evening:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
   night:{rn:[0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],lpn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]},
   notes:'ASAM 3.7 · LPN model · 1:8'
@@ -343,16 +343,38 @@ const FIXED_DEPTS=[
 const TOTAL_FIXED_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.fte,0);
 const TOTAL_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
 
-function getStaffing(grid,census){
-  if(census<=0)return{day:{rn:0,lpn:0,tech:0},evening:{rn:0,lpn:0,tech:0},night:{rn:0,lpn:0,tech:0}};
-  const idx=Math.min(census,grid.day.rn.length)-1;
-  return{day:{rn:grid.day.rn[idx],lpn:grid.day.lpn[idx],tech:grid.day.tech[idx]},evening:{rn:grid.evening.rn[idx],lpn:grid.evening.lpn[idx],tech:grid.evening.tech[idx]},night:{rn:grid.night.rn[idx],lpn:grid.night.lpn[idx],tech:grid.night.tech[idx]}};
+function getStaffing(grid, census) {
+  const empty = { rn: 0, lpn: 0, tech: 0 };
+  if (census <= 0) return { day: { ...empty }, evening: { ...empty }, night: { ...empty } };
+  const idx = Math.min(census, grid.day.rn.length) - 1;
+  const pick = (shift) => ({
+    rn: shift.rn[idx], lpn: shift.lpn[idx], tech: shift.tech[idx]
+  });
+  return { day: pick(grid.day), evening: pick(grid.evening), night: pick(grid.night) };
 }
 function fmt(n){return Number(n).toFixed(1);}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
 function getNP(){const v=parseFloat(document.getElementById('npInput').value);return isNaN(v)?12.6:Math.min(Math.max(v,0),40);}
 function getOneOneHrs(){return UNITS.reduce((s,u)=>{const v=parseFloat(document.getElementById('oo-'+u.id).value);return s+(isNaN(v)?0:Math.max(v,0));},0);}
 function getUnitOoHrs(uid){const v=parseFloat(document.getElementById('oo-'+uid).value);return isNaN(v)?0:Math.max(v,0);}
 function grossUp(p){return p/(1-getNP()/100);}
+
+function aggregateStaffing(vals) {
+  let tRN = 0, tLPN = 0, tTech = 0;
+  const rows = [];
+  vals.forEach(v => {
+    if (v.census === 0) return;
+    const g = v.type === 'acute' ? ACUTE_GRID : DETOX_GRID;
+    const s = getStaffing(g, v.census);
+    let rn = 0, lpn = 0, tech = 0;
+    ['day','evening','night'].forEach(sh => {
+      rn += s[sh].rn; lpn += s[sh].lpn; tech += s[sh].tech;
+    });
+    tRN += rn; tLPN += lpn; tTech += tech;
+    rows.push({ ...v, s, rn, lpn, tech, total: rn + lpn + tech });
+  });
+  return { tRN, tLPN, tTech, shiftTot: tRN + tLPN + tTech, rows };
+}
 
 function renderCensusGrid(){
   document.getElementById('censusGrid').innerHTML=UNITS.map(u=>`
@@ -375,19 +397,20 @@ function renderCensusGrid(){
 
 function getVals(){return UNITS.map(u=>({...u,census:Math.min(Math.max(parseInt(document.getElementById('input-'+u.id).value)||0,0),u.maxBeds),ooHrs:getUnitOoHrs(u.id)}));}
 
-function onCensusChange(){
-  const vals=getVals();
-  const totalCensus=vals.reduce((s,v)=>s+v.census,0);
-  const npPct=getNP();
-  const totalOoHrs=getOneOneHrs();
-  document.getElementById('npMultiplierDisplay').textContent='×'+(1/(1-npPct/100)).toFixed(3);
-  document.getElementById('oneOneTotalDisplay').textContent=totalOoHrs;
+function onCensusChange() {
+  const vals = getVals();
+  const totalCensus = vals.reduce((s, v) => s + v.census, 0);
+  const npPct = getNP();
+  const totalOoHrs = getOneOneHrs();
 
-  vals.forEach(v=>{
-    const pct=v.maxBeds>0?Math.round(v.census/v.maxBeds*100):0;
-    const el=document.getElementById('pct-'+v.id);
-    el.textContent=pct+'%';
-    el.className='card-badge '+(pct<50?'pct-low':pct<80?'pct-mid':'pct-high');
+  document.getElementById('npMultiplierDisplay').textContent = '\u00d7' + (1 / (1 - npPct / 100)).toFixed(3);
+  document.getElementById('oneOneTotalDisplay').textContent = totalOoHrs;
+
+  vals.forEach(v => {
+    const pct = v.maxBeds > 0 ? Math.round(v.census / v.maxBeds * 100) : 0;
+    const el = document.getElementById('pct-' + v.id);
+    el.textContent = pct + '%';
+    el.className = 'card-badge ' + (pct < 50 ? 'pct-low' : pct < 80 ? 'pct-mid' : 'pct-high');
   });
 
   // Total census card
@@ -397,12 +420,11 @@ function onCensusChange(){
   renderStaffing(vals,totalCensus);
   renderPositionControl(vals,totalCensus);
   updateEpobKpi(vals,totalCensus);
+  if(payrollData) { renderVariance(); updateCensusNP(); }
 }
 
 function updateEpobKpi(vals,totalCensus){
-  let tRN=0,tLPN=0,tTech=0;
-  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);['day','evening','night'].forEach(sh=>{tRN+=s[sh].rn;tLPN+=s[sh].lpn;tTech+=s[sh].tech;});});
-  const shiftTot=tRN+tLPN+tTech;
+  const { tRN, tLPN, tTech, shiftTot } = aggregateStaffing(vals);
   const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;
   const floatFTE=Math.ceil(acuteOpen/2)*FTE_MULTIPLIER;
   const nursingProd=shiftTot*FTE_MULTIPLIER;
@@ -437,9 +459,8 @@ function updateEpobKpi(vals,totalCensus){
 function renderStaffing(vals,totalCensus){
   const out=document.getElementById('staffingOutput');const bar=document.getElementById('totalsBar');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate staffing requirements.</div>';bar.innerHTML='';return;}
-  let tRN=0,tLPN=0,tTech=0;const rows=[];
-  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);let rn=0,lpn=0,tech=0;['day','evening','night'].forEach(sh=>{rn+=s[sh].rn;lpn+=s[sh].lpn;tech+=s[sh].tech;});tRN+=rn;tLPN+=lpn;tTech+=tech;rows.push({...v,s,rn,lpn,tech,total:rn+lpn+tech});});
-  const shiftTot=tRN+tLPN+tTech;const ooHrs=getOneOneHrs();const ooProd=ooHrs*7/40;const prodFTE=shiftTot*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE)+grossUp(ooProd);
+  const { tRN, tLPN, tTech, shiftTot, rows } = aggregateStaffing(vals);
+  const ooHrs=getOneOneHrs();const ooProd=ooHrs*7/40;const prodFTE=shiftTot*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE)+grossUp(ooProd);
   bar.innerHTML=`
     <div class="total-stat"><div class="stat-label">Variable Staff/Shift</div><div class="stat-value">${Math.round(shiftTot/3)}</div><div class="stat-sub">${shiftTot} across 3 shifts</div></div>
     <div class="total-stat alt"><div class="stat-label">RN / LPN / Tech</div><div class="stat-value">${tRN}/${tLPN}/${tTech}</div><div class="stat-sub">Sum across all shifts</div></div>
@@ -458,9 +479,10 @@ function renderStaffing(vals,totalCensus){
 function renderPositionControl(vals,totalCensus){
   const out=document.getElementById('posControlOutput');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate position control.</div>';return;}
-  const npPct=getNP();let tRN=0,tLPN=0,tTech=0;const uRows=[];
-  vals.forEach(v=>{if(v.census===0)return;const g=v.type==='acute'?ACUTE_GRID:DETOX_GRID;const s=getStaffing(g,v.census);let rn=0,lpn=0,tech=0;['day','evening','night'].forEach(sh=>{rn+=s[sh].rn;lpn+=s[sh].lpn;tech+=s[sh].tech;});tRN+=rn;tLPN+=lpn;tTech+=tech;uRows.push({name:v.payrollBU,type:v.type,census:v.census,rn,lpn,tech});});
-  const shiftTot=tRN+tLPN+tTech;const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatShift=Math.ceil(acuteOpen/2);
+  const npPct=getNP();
+  const { tRN, tLPN, tTech, shiftTot, rows: aggRows } = aggregateStaffing(vals);
+  const uRows = aggRows.map(r => ({ name: r.payrollBU, type: r.type, census: r.census, rn: r.rn, lpn: r.lpn, tech: r.tech }));
+  const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatShift=Math.ceil(acuteOpen/2);
   const rnFTE=tRN*FTE_MULTIPLIER,lpnFTE=tLPN*FTE_MULTIPLIER,techFTE=tTech*FTE_MULTIPLIER;const nursingProd=rnFTE+lpnFTE+techFTE;const floatFTE=floatShift*FTE_MULTIPLIER;
   const ooHrs=getOneOneHrs();const oneOneProd=ooHrs*7/40;const oneOneAdj=grossUp(oneOneProd);const totalVarProd=nursingProd+floatFTE+oneOneProd;const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj;const varNPadd=totalVarAdj-totalVarProd;
   const grandProd=totalVarProd+TOTAL_FIXED_FTE;const grandAdj=totalVarAdj+TOTAL_FIXED_FTE;
@@ -519,6 +541,7 @@ function exportToExcel(tabId) {
 }
 
 document.getElementById('headerDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+document.getElementById('kpiFixFTE').textContent=fmt(TOTAL_FIXED_FTE);
 renderCensusGrid();onCensusChange();
 document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('tab-'+btn.dataset.tab).classList.add('active');});});
 
@@ -624,7 +647,7 @@ function parsePayroll(rows, fileName) {
   const dateStr = minDate ? minDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
   const dateEndStr = maxDate ? maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
   document.getElementById('uploadFileInfo').innerHTML = `
-    <div class="upload-file-info"><span class="upload-file-name">✅ ${fileName}</span><span class="upload-file-clear" onclick="clearUpload()">clear</span></div>
+    <div class="upload-file-info"><span class="upload-file-name">✅ ${esc(fileName)}</span><span class="upload-file-clear" onclick="clearUpload()">clear</span></div>
     <div class="upload-meta">
       <span class="upload-meta-item"><strong>${rows.length}</strong> records</span>
       <span class="upload-meta-item"><strong>${Object.keys(buMap).length}</strong> business units</span>
@@ -780,7 +803,7 @@ function renderVariance() {
     const barW = Math.min(Math.abs(r.variancePct), 100);
     const barCls = r.variance > 0 ? 'bar-over' : 'bar-under';
     h += `<tr>`;
-    h += `<td>${r.bu}</td>`;
+    h += `<td>${esc(r.bu)}</td>`;
     h += `<td class="num bold">${census}</td>`;
     h += `<td class="num">${r.modelDailyHrs > 0 ? r.modelDailyHrs.toFixed(1) : '—'}</td>`;
     h += `<td class="num">${r.modelFTE > 0 ? r.modelFTE.toFixed(1) : '—'}</td>`;
@@ -800,7 +823,7 @@ function renderVariance() {
     h += `<div class="var-section-hdr"><h3>Fixed & Support Departments — Actuals <span class="sub">· From payroll upload</span></h3></div>`;
     h += `<div class="table-wrap"><table><thead><tr><th>Business Unit</th><th class="num">Baseline HC</th><th class="num">Baseline FTE</th><th class="num teal-head">Actual Hrs/Day</th><th class="num teal-head">Actual HC</th></tr></thead><tbody>`;
     fixRows.forEach(r => {
-      h += `<tr><td>${r.bu} ${r.fixedFTE !== null ? '<span class="unit-tag tag-fixed">FIXED</span>' : '<span class="unit-tag tag-acute">OTHER</span>'}</td>`;
+      h += `<tr><td>${esc(r.bu)} ${r.fixedFTE !== null ? '<span class="unit-tag tag-fixed">FIXED</span>' : '<span class="unit-tag tag-acute">OTHER</span>'}</td>`;
       h += `<td class="num">${r.fixedHC !== null ? r.fixedHC : '—'}</td>`;
       h += `<td class="num">${r.fixedFTE !== null ? r.fixedFTE.toFixed(1) : '—'}</td>`;
       h += `<td class="num">${r.actualDailyHrs.toFixed(1)}</td>`;
@@ -826,7 +849,7 @@ function renderVariance() {
     h += `<div class="var-section-hdr"><h3>Variable Staffing by Job Profile <span class="sub">· Across all nursing units</span></h3></div>`;
     h += `<div class="table-wrap"><table><thead><tr><th>Job Profile</th><th class="num">Records</th><th class="num teal-head">Total Hours</th><th class="num">Avg Hrs/Record</th></tr></thead><tbody>`;
     jobArr.forEach(([job, d]) => {
-      h += `<tr><td>${job}</td><td class="num">${d.count}</td><td class="num bold">${d.hours.toFixed(1)}</td><td class="num">${(d.hours/d.count).toFixed(1)}</td></tr>`;
+      h += `<tr><td>${esc(job)}</td><td class="num">${d.count}</td><td class="num bold">${d.hours.toFixed(1)}</td><td class="num">${(d.hours/d.count).toFixed(1)}</td></tr>`;
     });
     h += '</tbody></table></div>';
   }
@@ -837,12 +860,6 @@ function renderVariance() {
   out.innerHTML = h;
 }
 
-// Hook variance re-render into census changes
-const _origOnCensusChange = onCensusChange;
-onCensusChange = function() {
-  _origOnCensusChange();
-  if(payrollData) { renderVariance(); updateCensusNP(); }
-};
 </script>
 </body>
 </html>
