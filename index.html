@@ -351,14 +351,27 @@ function getFixedTotals() {
   const days = payrollMeta.dayCount;
   let totalFTE = 0, totalHC = 0;
   const depts = [];
+  const seen = new Set();
+
+  // Payroll-sourced departments (non-variable BUs)
   Object.entries(payrollData).forEach(([bu, d]) => {
     if (variableBUs.includes(bu)) return;
     const fte = (d.hours / days) * 7 / 40;
     const baseline = FIXED_DEPTS.find(f => f.name === bu);
     totalFTE += fte;
     totalHC += d.headcount;
-    depts.push({ name: bu, cat: baseline ? baseline.cat : 'Other', hc: d.headcount, fte: fte });
+    depts.push({ name: bu, cat: baseline ? baseline.cat : 'Other', hc: d.headcount, fte: fte, source: 'payroll' });
+    seen.add(bu);
   });
+
+  // Baseline departments not found in payroll file
+  FIXED_DEPTS.forEach(d => {
+    if (seen.has(d.name)) return;
+    totalFTE += d.fte;
+    totalHC += d.hc;
+    depts.push({ ...d, source: 'baseline' });
+  });
+
   return { fte: totalFTE, hc: totalHC, source: 'payroll', depts };
 }
 
@@ -528,7 +541,7 @@ function renderPositionControl(vals,totalCensus){
   const cats={};fixed.depts.forEach(d=>{if(!cats[d.cat])cats[d.cat]=[];cats[d.cat].push(d);});
   ['Clinical Operations','Support Services','Admin / G&A','Other'].forEach(cat=>{if(!cats[cat])return;const catFTE=cats[cat].reduce((s,d)=>s+d.fte,0);const catHC=cats[cat].reduce((s,d)=>s+d.hc,0);
     h+=`<div class="table-wrap"><table><thead><tr><td class="pc-section-header fix" colspan="3">FIXED — ${cat.toUpperCase()}</td></tr><tr><th>Department</th><th class="num">HC</th><th class="num">FTEs</th></tr></thead><tbody>`;
-    cats[cat].forEach(d=>{h+=`<tr class="fixed-row"><td>${esc(d.name)} <span class="unit-tag tag-fixed">FIXED</span></td><td class="num">${d.hc}</td><td class="num bold">${fmt(d.fte)}</td></tr>`;});
+    cats[cat].forEach(d=>{const srcTag=d.source==='payroll'?'<span class="unit-tag tag-variable" style="margin-left:6px">PAYROLL</span>':'<span class="unit-tag tag-fixed" style="margin-left:6px;opacity:0.5">BASELINE</span>';h+=`<tr class="fixed-row"><td>${esc(d.name)} <span class="unit-tag tag-fixed">FIXED</span>${srcTag}</td><td class="num">${d.hc}</td><td class="num bold">${fmt(d.fte)}</td></tr>`;});
     h+=`<tr class="subtotal-row"><td>Subtotal ${esc(cat)}</td><td class="num">${catHC}</td><td class="num">${fmt(catFTE)}</td></tr></tbody></table></div>`;});
   h+=`<div class="table-wrap"><table><thead><tr><th></th><th class="num">Productive</th><th class="num warn-head">Adjusted</th><th class="num">NP Add</th><th>Scope</th></tr></thead><tbody>`;
   h+=`<tr class="subtotal-row"><td>Total Variable (Nursing)</td><td class="num">${fmt(totalVarProd)}</td><td class="num bold">${fmt(totalVarAdj)}</td><td class="num" style="color:var(--warning)">+${fmt(varNPadd)}</td><td><span class="unit-tag tag-variable">VARIABLE</span></td></tr>`;
