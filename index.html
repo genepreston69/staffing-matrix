@@ -58,6 +58,10 @@
   .card-oo-input { width:48px; padding:4px 6px; border:1.5px solid var(--gray-200); border-radius:5px; font-family:'Source Sans 3',sans-serif; font-size:14px; font-weight:700; color:var(--danger); text-align:center; outline:none; transition:border-color 0.2s; }
   .card-oo-input:focus { border-color:var(--danger); box-shadow:0 0 0 3px rgba(192,57,43,0.12); }
   .card-oo-meta { font-size:10px; color:var(--gray-500); }
+  .card-np-actual { margin-top:5px; padding:4px 8px; background:var(--warning-light); border-radius:4px; font-size:10px; color:var(--warning); font-weight:600; text-align:center; line-height:1.4; }
+  .card-np-actual:empty { display:none; }
+  .card-np-actual .np-act-val { font-size:13px; font-weight:700; }
+  .card-np-actual .np-act-detail { font-weight:400; font-size:9px; color:var(--gray-500); }
   .card.total-card { border-left:4px solid var(--success); background:linear-gradient(135deg, var(--success-light), var(--white)); }
   .card.total-card .card-label { color:var(--success); }
   .card.total-card .card-title { color:var(--success); }
@@ -160,18 +164,19 @@
   .epob-footer .ef-sub { font-size:10px; color:var(--gray-500); margin-top:4px; }
   .footer { text-align:center; padding:20px; font-size:11px; color:var(--gray-500); border-top:1px solid var(--gray-200); margin-top:40px; }
   /* Upload Area */
-  .upload-zone { border:2px dashed var(--gray-300); border-radius:var(--radius-lg); padding:40px 30px; text-align:center; background:var(--white); transition:all 0.25s; cursor:pointer; position:relative; margin-bottom:24px; }
+  .top-upload { padding:12px 24px; border-bottom:1px solid var(--gray-200); }
+  .upload-zone { border:2px dashed var(--gray-300); border-radius:var(--radius); padding:14px 20px; text-align:center; background:var(--white); transition:all 0.25s; cursor:pointer; position:relative; }
   .upload-zone:hover, .upload-zone.dragover { border-color:var(--teal); background:var(--teal-wash); }
-  .upload-zone.has-file { border-color:var(--success); border-style:solid; background:var(--success-light); }
-  .upload-icon { font-size:36px; margin-bottom:10px; }
-  .upload-title { font-weight:700; font-size:15px; color:var(--navy); margin-bottom:4px; }
-  .upload-sub { font-size:12px; color:var(--gray-500); }
-  .upload-sub a { color:var(--teal); text-decoration:underline; cursor:pointer; }
+  .upload-zone.has-file { border-color:var(--success); border-style:solid; background:var(--success-light); padding:10px 20px; }
+  .upload-compact { font-size:13px; color:var(--gray-700); }
+  .upload-compact strong { color:var(--navy); }
+  .upload-compact a { color:var(--teal); text-decoration:underline; cursor:pointer; }
+  .upload-icon-sm { font-size:16px; vertical-align:middle; }
   .file-input-hidden { position:absolute; inset:0; opacity:0; cursor:pointer; }
-  .upload-file-info { display:flex; align-items:center; gap:12px; justify-content:center; margin-top:10px; }
-  .upload-file-name { font-weight:600; color:var(--navy); font-size:13px; }
+  .upload-file-info { display:flex; align-items:center; gap:12px; justify-content:center; margin-top:6px; }
+  .upload-file-name { font-weight:600; color:var(--navy); font-size:12px; }
   .upload-file-clear { font-size:11px; color:var(--danger); cursor:pointer; text-decoration:underline; }
-  .upload-meta { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-top:10px; }
+  .upload-meta { display:flex; gap:16px; justify-content:center; flex-wrap:wrap; margin-top:4px; }
   .upload-meta-item { font-size:11px; color:var(--gray-500); }
   .upload-meta-item strong { color:var(--navy); }
 
@@ -271,6 +276,13 @@
         </div>
       </div>
     </div>
+    <div class="top-upload" id="topUploadArea">
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" class="file-input-hidden" id="fileInput" accept=".xlsx,.xls,.csv">
+        <div class="upload-compact"><span class="upload-icon-sm">📊</span> <strong>Upload Workday Time Summary</strong> — drag & drop .xlsx or <a>browse</a></div>
+        <div id="uploadFileInfo"></div>
+      </div>
+    </div>
     <div class="top-census">
       <div class="top-col-title">Census by Unit</div>
       <div class="census-grid" id="censusGrid"></div>
@@ -286,14 +298,7 @@
   <div class="tab-panel active" id="tab-staffing"><div id="staffingOutput"></div></div>
   <div class="tab-panel" id="tab-poscontrol"><div id="posControlOutput"></div></div>
   <div class="tab-panel" id="tab-variance">
-    <div class="upload-zone" id="uploadZone">
-      <input type="file" class="file-input-hidden" id="fileInput" accept=".xlsx,.xls,.csv">
-      <div class="upload-icon">📊</div>
-      <div class="upload-title">Upload Workday Time Summary</div>
-      <div class="upload-sub">Drag & drop your .xlsx file here, or <a>browse</a></div>
-      <div id="uploadFileInfo"></div>
-    </div>
-    <div id="varianceOutput"><div class="no-upload-msg">Upload a Workday Time Summary file above, then enter census values to see payroll variances by business unit.</div></div>
+    <div id="varianceOutput"><div class="no-upload-msg">Upload a Workday Time Summary in the Key Metrics section above, then enter census values to see payroll variances by business unit.</div></div>
   </div>
 </div>
 <div class="footer">Highland Hospital &bull; A Summit BHC Facility &bull; Staffing Matrix Tool &bull; Payroll baseline: 5 pay periods ending 3/17/2026 &bull; Variable FTEs flex with census; Fixed FTEs from actuals</div>
@@ -305,7 +310,7 @@ const UNITS = [
   { id:'u200w', payrollBU:'Acute Adol-200W',  type:'acute', maxBeds:20, label:'2 West · Adolescent' },
   { id:'u300e', payrollBU:'Acute Adult-300E', type:'acute', maxBeds:20, label:'3 East · Adult Acute' },
   { id:'u300w', payrollBU:'Acute Adult-300W', type:'acute', maxBeds:20, label:'3 West · Adult Acute' },
-  { id:'detox', payrollBU:'Adult Detox-100',  type:'detox', maxBeds:16, label:'HRC · SUD/Detox ASAM 3.7' },
+  { id:'detox', payrollBU:'Acute Adult-100',  type:'detox', maxBeds:16, label:'HRC · SUD/Detox ASAM 3.7' },
 ];
 const TOTAL_STAFFED=114, FTE_MULTIPLIER=1.4;
 
@@ -364,6 +369,7 @@ function renderCensusGrid(){
         <input type="number" class="card-oo-input" id="oo-${u.id}" min="0" max="96" step="1" value="0" oninput="onCensusChange()">
         <span class="card-oo-meta">hrs/day</span>
       </div>
+      <div class="card-np-actual" id="np-actual-${u.id}"></div>
     </div>`).join('');
 }
 
@@ -562,6 +568,11 @@ function parsePayroll(rows, fileName) {
 
   if(!buCol || !hrsCol) { alert('Could not find required columns (Business Units, All Paid Hours). Check file format.'); return; }
 
+  // Detect NP hour columns
+  const NP_COL_NAMES = ['PTO Hours','Sick Hours','Holiday Hours','Orientation Hours','Training Hours',
+    'Continuing Education Hours','Education Pay Hours','Jury Duty Hours','Bereavement Hours'];
+  const npCols = NP_COL_NAMES.filter(c => sample.hasOwnProperty(c));
+
   // Detect date range
   let minDate = null, maxDate = null;
   if(startCol && endCol) {
@@ -578,7 +589,7 @@ function parsePayroll(rows, fileName) {
   rows.forEach(r => {
     const bu = String(r[buCol] || '').trim();
     if(!bu) return;
-    if(!buMap[bu]) buMap[bu] = { bu, hours:0, wages:0, regHrs:0, otHrs:0, headcount:0, workers:new Set(), fteSum:0, jobs:{} };
+    if(!buMap[bu]) buMap[bu] = { bu, hours:0, wages:0, regHrs:0, otHrs:0, npHrs:0, headcount:0, workers:new Set(), fteSum:0, jobs:{} };
     const hrs = parseFloat(r[hrsCol]) || 0;
     const wages = parseFloat(r[wagesCol]) || 0;
     const reg = regHrsCol ? (parseFloat(r[regHrsCol]) || 0) : 0;
@@ -586,10 +597,12 @@ function parsePayroll(rows, fileName) {
     const fte = fteCol ? (parseFloat(r[fteCol]) || 0) : 0;
     const worker = workerCol ? String(r[workerCol]) : '';
     const job = jobCol ? String(r[jobCol] || '') : '';
+    const npHrs = npCols.reduce((s,c) => s + (parseFloat(r[c]) || 0), 0);
     buMap[bu].hours += hrs;
     buMap[bu].wages += wages;
     buMap[bu].regHrs += reg;
     buMap[bu].otHrs += ot;
+    buMap[bu].npHrs += npHrs;
     buMap[bu].fteSum += fte/100;
     if(worker) buMap[bu].workers.add(worker);
     if(job) {
@@ -604,6 +617,7 @@ function parsePayroll(rows, fileName) {
 
   payrollData = buMap;
   payrollMeta = { fileName, dayCount, minDate, maxDate, rowCount: rows.length };
+  updateCensusNP();
 
   // Update upload zone
   uploadZone.classList.add('has-file');
@@ -621,13 +635,31 @@ function parsePayroll(rows, fileName) {
   renderVariance();
 }
 
+function updateCensusNP() {
+  if(!payrollData || !payrollMeta) {
+    UNITS.forEach(u => { const el = document.getElementById('np-actual-' + u.id); if(el) el.innerHTML = ''; });
+    return;
+  }
+  const days = payrollMeta.dayCount;
+  UNITS.forEach(u => {
+    const el = document.getElementById('np-actual-' + u.id);
+    if(!el) return;
+    const d = payrollData[u.payrollBU];
+    if(!d || d.hours <= 0) { el.innerHTML = ''; return; }
+    const npPct = d.npHrs > 0 ? (d.npHrs / d.hours * 100) : 0;
+    el.innerHTML = '<span class="np-act-val">' + npPct.toFixed(1) + '%</span> Actual NP'
+      + '<br><span class="np-act-detail">' + d.npHrs.toFixed(1) + ' NP hrs / ' + d.hours.toFixed(1) + ' paid hrs</span>';
+  });
+}
+
 function clearUpload() {
   payrollData = null;
   payrollMeta = null;
   uploadZone.classList.remove('has-file');
   document.getElementById('uploadFileInfo').innerHTML = '';
   fileInput.value = '';
-  document.getElementById('varianceOutput').innerHTML = '<div class="no-upload-msg">Upload a Workday Time Summary file above, then enter census values to see payroll variances by business unit.</div>';
+  document.getElementById('varianceOutput').innerHTML = '<div class="no-upload-msg">Upload a Workday Time Summary in the Key Metrics section above, then enter census values to see payroll variances by business unit.</div>';
+  UNITS.forEach(u => { const el = document.getElementById('np-actual-' + u.id); if(el) el.innerHTML = ''; });
 }
 
 function renderVariance() {
@@ -809,7 +841,7 @@ function renderVariance() {
 const _origOnCensusChange = onCensusChange;
 onCensusChange = function() {
   _origOnCensusChange();
-  if(payrollData) renderVariance();
+  if(payrollData) { renderVariance(); updateCensusNP(); }
 };
 </script>
 </body>
