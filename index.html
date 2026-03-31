@@ -341,8 +341,13 @@
             <div class="epob-row"><span class="epob-rl">Variable FTEs</span><span class="epob-rv" id="kpiVarFTE">—</span></div>
             <div class="epob-spacer"></div>
             <div class="epob-div"></div>
-            <div class="epob-big"><div class="epob-big-lbl">Direct Care</div><div class="epob-big-val" id="kpiDcEpob">—</div></div>
+            <div class="epob-big"><div class="epob-big-lbl">Expected</div><div class="epob-big-val" id="kpiDcEpob">—</div></div>
             <div class="epob-sub" id="kpiDcLine">Variable FTEs ÷ ADC</div>
+            <div id="kpiDcActualBlock" style="display:none">
+              <div class="epob-div"></div>
+              <div class="epob-row"><span class="epob-rl">Actual</span><span class="epob-rv" id="kpiDcActual">—</span></div>
+              <div class="epob-row"><span class="epob-rl">Variance</span><span class="epob-rv" id="kpiDcVariance">—</span></div>
+            </div>
           </div>
         </div>
         <div class="card epob-card">
@@ -352,8 +357,13 @@
             <div class="epob-row"><span class="epob-rl">Fixed</span><span class="epob-rv" id="kpiFixFTE">—</span></div>
             <div class="epob-row tot"><span class="epob-rl">Total</span><span class="epob-rv" id="kpiTotalFTE">—</span></div>
             <div class="epob-div"></div>
-            <div class="epob-big"><div class="epob-big-lbl">Total</div><div class="epob-big-val" id="kpiEpob">—</div></div>
+            <div class="epob-big"><div class="epob-big-lbl">Expected</div><div class="epob-big-val" id="kpiEpob">—</div></div>
             <div class="epob-sub" id="kpiCensusLine">All FTEs ÷ ADC</div>
+            <div id="kpiTotalActualBlock" style="display:none">
+              <div class="epob-div"></div>
+              <div class="epob-row"><span class="epob-rl">Actual</span><span class="epob-rv" id="kpiTotalActual">—</span></div>
+              <div class="epob-row"><span class="epob-rl">Variance</span><span class="epob-rv" id="kpiTotalVariance">—</span></div>
+            </div>
           </div>
         </div>
       </div>
@@ -562,6 +572,39 @@ function updateEpobKpi(vals,totalCensus){
     document.getElementById('kpiEpob').textContent=totalEpob.toFixed(2);
     document.getElementById('kpiEpob').style.color=totalEpob>2.0?'var(--danger)':totalEpob>1.5?'var(--warning)':'var(--success)';
     document.getElementById('kpiCensusLine').textContent=grandAdj.toFixed(1)+' FTEs ÷ '+totalCensus+' ADC'+(fixed.source==='payroll'?' (payroll)':'');
+
+    // Actual EPOB & variance from payroll
+    if(payrollData && payrollMeta){
+      const days=payrollMeta.dayCount;
+      const variableBUs=UNITS.map(u=>u.payrollBU);
+      let actVarHrs=0, actFixHrs=0;
+      Object.keys(payrollData).forEach(bu=>{
+        const dailyHrs=payrollData[bu].hours/days;
+        if(variableBUs.includes(bu)) actVarHrs+=dailyHrs; else actFixHrs+=dailyHrs;
+      });
+      const actVarFTE=(actVarHrs*7)/40;
+      const actFixFTE=(actFixHrs*7)/40;
+      const actTotalFTE=actVarFTE+actFixFTE;
+
+      const actDcEpob=actVarFTE/totalCensus;
+      const dcVar=actDcEpob-dcEpob;
+      document.getElementById('kpiDcActualBlock').style.display='';
+      document.getElementById('kpiDcActual').textContent=actDcEpob.toFixed(2);
+      document.getElementById('kpiDcActual').style.color=actDcEpob>1.2?'var(--danger)':actDcEpob>0.9?'var(--warning)':'var(--success)';
+      document.getElementById('kpiDcVariance').textContent=(dcVar>=0?'+':'')+dcVar.toFixed(2);
+      document.getElementById('kpiDcVariance').style.color=dcVar>0.05?'var(--danger)':dcVar<-0.05?'var(--warning)':'var(--success)';
+
+      const actTotalEpob=actTotalFTE/totalCensus;
+      const totalVar=actTotalEpob-totalEpob;
+      document.getElementById('kpiTotalActualBlock').style.display='';
+      document.getElementById('kpiTotalActual').textContent=actTotalEpob.toFixed(2);
+      document.getElementById('kpiTotalActual').style.color=actTotalEpob>2.0?'var(--danger)':actTotalEpob>1.5?'var(--warning)':'var(--success)';
+      document.getElementById('kpiTotalVariance').textContent=(totalVar>=0?'+':'')+totalVar.toFixed(2);
+      document.getElementById('kpiTotalVariance').style.color=totalVar>0.05?'var(--danger)':totalVar<-0.05?'var(--warning)':'var(--success)';
+    }else{
+      document.getElementById('kpiDcActualBlock').style.display='none';
+      document.getElementById('kpiTotalActualBlock').style.display='none';
+    }
   }else{
     document.getElementById('kpiDcEpob').textContent='—';
     document.getElementById('kpiDcEpob').style.color='var(--navy)';
@@ -569,6 +612,8 @@ function updateEpobKpi(vals,totalCensus){
     document.getElementById('kpiEpob').textContent='—';
     document.getElementById('kpiEpob').style.color='var(--navy)';
     document.getElementById('kpiCensusLine').textContent='All FTEs ÷ ADC';
+    document.getElementById('kpiDcActualBlock').style.display='none';
+    document.getElementById('kpiTotalActualBlock').style.display='none';
   }
 }
 
