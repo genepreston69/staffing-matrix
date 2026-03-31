@@ -535,7 +535,6 @@ function onCensusChange() {
   renderPositionControl(vals,totalCensus);
   updateEpobKpi(vals,totalCensus);
   if(payrollData) { renderVariance(); updateCensusNP(); }
-  onCensusChangeSpHook();
 }
 
 function updateEpobKpi(vals,totalCensus){
@@ -771,6 +770,7 @@ function parsePayroll(rows, fileName) {
     </div>`;
 
   onCensusChange();
+  onPayrollUploadSpHook();
 }
 
 function updateCensusNP() {
@@ -1161,7 +1161,7 @@ async function testWebhook() {
   }
 }
 
-function onCensusChangeSpHook() {
+function onPayrollUploadSpHook() {
   if (!spAutoPush) return;
   const cfg = getSpConfig();
   if (!cfg.webhookUrl) return;
@@ -1170,7 +1170,8 @@ function onCensusChangeSpHook() {
   if (totalCensus === 0) return;
 
   clearTimeout(spDebounceTimer);
-  spDebounceTimer = setTimeout(() => pushToSharePoint(), 2000);
+  spDebounceTimer = setTimeout(() => pushToSharePoint(), 30000);
+  updateSpStatus('Auto-push in 30s...', 'ok');
 }
 
 // Initialize SP settings on load
