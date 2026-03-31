@@ -437,6 +437,38 @@ const BASELINE_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
 let payrollData = null;
 let payrollMeta = null;
 
+/* ── Daily Data Persistence ── */
+const DAILY_DATA_KEY = 'dailyStaffingData';
+
+function saveDailyData() {
+  const data = {
+    date: new Date().toISOString().slice(0, 10),
+    census: {},
+    ooHrs: {},
+    npPct: parseFloat(document.getElementById('npInput').value) || 12.6
+  };
+  UNITS.forEach(u => {
+    data.census[u.id] = parseInt(document.getElementById('input-' + u.id).value) || 0;
+    data.ooHrs[u.id] = parseFloat(document.getElementById('oo-' + u.id).value) || 0;
+  });
+  localStorage.setItem(DAILY_DATA_KEY, JSON.stringify(data));
+}
+
+function loadDailyData() {
+  const raw = localStorage.getItem(DAILY_DATA_KEY);
+  if (!raw) return;
+  try {
+    const data = JSON.parse(raw);
+    if (data.npPct != null) document.getElementById('npInput').value = data.npPct;
+    UNITS.forEach(u => {
+      if (data.census && data.census[u.id] != null)
+        document.getElementById('input-' + u.id).value = data.census[u.id];
+      if (data.ooHrs && data.ooHrs[u.id] != null)
+        document.getElementById('oo-' + u.id).value = data.ooHrs[u.id];
+    });
+  } catch(e) { /* ignore corrupt data */ }
+}
+
 function getFixedTotals() {
   if (!payrollData || !payrollMeta) return { fte: BASELINE_FIXED_FTE, hc: BASELINE_FIXED_HC, source: 'baseline', depts: FIXED_DEPTS };
   const variableBUs = UNITS.map(u => u.payrollBU);
@@ -522,6 +554,7 @@ function renderCensusGrid(){
 function getVals(){return UNITS.map(u=>({...u,census:Math.min(Math.max(parseInt(document.getElementById('input-'+u.id).value)||0,0),u.maxBeds),ooHrs:getUnitOoHrs(u.id)}));}
 
 function onCensusChange() {
+  saveDailyData();
   const vals = getVals();
   const totalCensus = vals.reduce((s, v) => s + v.census, 0);
   const npPct = getNP();
@@ -705,7 +738,7 @@ function exportToExcel(tabId) {
 }
 
 document.getElementById('headerDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
-renderCensusGrid();onCensusChange();
+renderCensusGrid();loadDailyData();onCensusChange();
 document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('tab-'+btn.dataset.tab).classList.add('active');});});
 
 /* ── Payroll Variance Module ── */
