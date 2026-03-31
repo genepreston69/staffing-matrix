@@ -30,6 +30,44 @@
   .header-right { display:flex; align-items:center; gap:24px; }
   .header-badge { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:6px 16px; color:var(--teal-accent); font-size:12px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
   .header-date { color:var(--gray-300); font-size:13px; }
+
+  /* ── SharePoint Integration ── */
+  .sp-controls { display:flex; align-items:center; gap:8px; }
+  .sp-push-btn { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25); border-radius:6px; padding:6px 14px; color:var(--teal-accent); font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:6px; transition:all 0.2s; letter-spacing:0.3px; }
+  .sp-push-btn:hover { background:rgba(255,255,255,0.2); border-color:var(--teal-accent); }
+  .sp-push-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .sp-push-btn svg { width:14px; height:14px; fill:currentColor; }
+  .sp-push-btn.sending { color:var(--warning); }
+  .sp-push-btn.success { color:#4caf50; }
+  .sp-push-btn.error { color:var(--danger); }
+  .sp-auto-toggle { display:flex; align-items:center; gap:5px; font-size:10px; color:var(--gray-300); cursor:pointer; user-select:none; }
+  .sp-auto-toggle input { accent-color:var(--teal-accent); cursor:pointer; }
+  .sp-settings-btn { background:none; border:none; color:var(--gray-300); cursor:pointer; padding:4px; border-radius:4px; transition:color 0.2s; display:flex; align-items:center; }
+  .sp-settings-btn:hover { color:var(--white); }
+  .sp-settings-btn svg { width:16px; height:16px; fill:currentColor; }
+  .sp-status { font-size:9px; color:var(--gray-300); max-width:120px; text-align:right; line-height:1.3; }
+  .sp-status.ok { color:#4caf50; }
+  .sp-status.err { color:var(--danger); }
+
+  /* SharePoint Settings Modal */
+  .sp-modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
+  .sp-modal-overlay.active { display:flex; }
+  .sp-modal { background:var(--white); border-radius:var(--radius-lg); box-shadow:0 20px 60px rgba(0,0,0,0.3); width:520px; max-width:90vw; overflow:hidden; }
+  .sp-modal-hdr { background:var(--navy); padding:16px 24px; display:flex; align-items:center; justify-content:space-between; }
+  .sp-modal-hdr h3 { color:var(--white); font-size:16px; font-weight:700; }
+  .sp-modal-close { background:none; border:none; color:var(--gray-300); font-size:22px; cursor:pointer; padding:0 4px; }
+  .sp-modal-close:hover { color:var(--white); }
+  .sp-modal-body { padding:24px; }
+  .sp-field { margin-bottom:16px; }
+  .sp-field label { display:block; font-size:12px; font-weight:700; color:var(--gray-700); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:6px; }
+  .sp-field input { width:100%; padding:10px 12px; border:1.5px solid var(--gray-200); border-radius:6px; font-family:'Source Sans 3',sans-serif; font-size:14px; color:var(--gray-900); outline:none; transition:border-color 0.2s; }
+  .sp-field input:focus { border-color:var(--teal); box-shadow:0 0 0 3px rgba(74,143,170,0.15); }
+  .sp-field .sp-help { font-size:11px; color:var(--gray-500); margin-top:4px; line-height:1.4; }
+  .sp-modal-actions { padding:16px 24px; border-top:1px solid var(--gray-200); display:flex; justify-content:flex-end; gap:10px; }
+  .sp-btn-save { background:var(--teal); color:var(--white); border:none; border-radius:6px; padding:8px 20px; font-weight:600; font-size:13px; cursor:pointer; transition:background 0.2s; }
+  .sp-btn-save:hover { background:var(--navy); }
+  .sp-btn-cancel { background:var(--gray-100); color:var(--gray-700); border:none; border-radius:6px; padding:8px 20px; font-weight:600; font-size:13px; cursor:pointer; }
+  .sp-btn-test { background:var(--warning-light); color:var(--warning); border:1px solid var(--warning); border-radius:6px; padding:8px 16px; font-weight:600; font-size:13px; cursor:pointer; margin-right:auto; }
   .container { max-width:1360px; margin:0 auto; padding:28px 32px 60px; }
   .page-title { font-family:'Merriweather',serif; font-size:24px; font-weight:700; color:var(--navy); margin-bottom:20px; }
   .page-title span { color:var(--teal); font-weight:400; }
@@ -221,8 +259,49 @@
   <div class="header-right">
     <div class="header-badge">Staffing Matrix</div>
     <div class="header-date" id="headerDate"></div>
+    <div class="sp-controls">
+      <button class="sp-push-btn" id="spPushBtn" onclick="pushToSharePoint()" title="Push current data to SharePoint list">
+        <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+        <span id="spPushLabel">Push to SharePoint</span>
+      </button>
+      <label class="sp-auto-toggle" title="Automatically push when census changes">
+        <input type="checkbox" id="spAutoToggle" onchange="toggleAutoPush()"> Auto
+      </label>
+      <button class="sp-settings-btn" onclick="openSpSettings()" title="SharePoint settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/></svg>
+      </button>
+      <div class="sp-status" id="spStatus"></div>
+    </div>
   </div>
 </header>
+
+<!-- SharePoint Settings Modal -->
+<div class="sp-modal-overlay" id="spModal" onclick="if(event.target===this)closeSpSettings()">
+  <div class="sp-modal">
+    <div class="sp-modal-hdr">
+      <h3>SharePoint Integration Settings</h3>
+      <button class="sp-modal-close" onclick="closeSpSettings()">&times;</button>
+    </div>
+    <div class="sp-modal-body">
+      <div class="sp-field">
+        <label>Power Automate Webhook URL</label>
+        <input type="url" id="spWebhookUrl" placeholder="https://prod-XX.westus.logic.azure.com:443/workflows/...">
+        <div class="sp-help">Create a "When an HTTP request is received" trigger in Power Automate, then paste the generated URL here. Saved in your browser only.</div>
+      </div>
+      <div class="sp-field">
+        <label>SharePoint List Name (reference only)</label>
+        <input type="text" id="spListName" placeholder="e.g., Staffing Matrix Daily">
+        <div class="sp-help">For your reference. The actual list is configured in your Power Automate flow.</div>
+      </div>
+    </div>
+    <div class="sp-modal-actions">
+      <button class="sp-btn-test" onclick="testWebhook()">Test Connection</button>
+      <button class="sp-btn-cancel" onclick="closeSpSettings()">Cancel</button>
+      <button class="sp-btn-save" onclick="saveSpSettings()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div class="container">
   <h1 class="page-title">Census-Driven Staffing <span>& Position Control</span></h1>
 
@@ -456,6 +535,7 @@ function onCensusChange() {
   renderPositionControl(vals,totalCensus);
   updateEpobKpi(vals,totalCensus);
   if(payrollData) { renderVariance(); updateCensusNP(); }
+  onCensusChangeSpHook();
 }
 
 function updateEpobKpi(vals,totalCensus){
@@ -898,6 +978,211 @@ function renderVariance() {
 
   out.innerHTML = h;
 }
+
+/* ── SharePoint / Power Automate Integration ── */
+let spAutoPush = false;
+let spDebounceTimer = null;
+
+function getSpConfig() {
+  try {
+    return JSON.parse(localStorage.getItem('spConfig') || '{}');
+  } catch { return {}; }
+}
+
+function saveSpConfig(cfg) {
+  localStorage.setItem('spConfig', JSON.stringify(cfg));
+}
+
+function openSpSettings() {
+  const cfg = getSpConfig();
+  document.getElementById('spWebhookUrl').value = cfg.webhookUrl || '';
+  document.getElementById('spListName').value = cfg.listName || '';
+  document.getElementById('spModal').classList.add('active');
+}
+
+function closeSpSettings() {
+  document.getElementById('spModal').classList.remove('active');
+}
+
+function saveSpSettings() {
+  const webhookUrl = document.getElementById('spWebhookUrl').value.trim();
+  const listName = document.getElementById('spListName').value.trim();
+  saveSpConfig({ webhookUrl, listName });
+  closeSpSettings();
+  updateSpStatus(webhookUrl ? 'Configured' : 'No webhook URL', webhookUrl ? 'ok' : '');
+}
+
+function updateSpStatus(msg, cls) {
+  const el = document.getElementById('spStatus');
+  el.textContent = msg;
+  el.className = 'sp-status' + (cls ? ' ' + cls : '');
+}
+
+function toggleAutoPush() {
+  spAutoPush = document.getElementById('spAutoToggle').checked;
+  localStorage.setItem('spAutoPush', spAutoPush ? '1' : '0');
+  if (spAutoPush) updateSpStatus('Auto-push ON', 'ok');
+}
+
+function collectSharePointPayload() {
+  const vals = getVals();
+  const totalCensus = vals.reduce((s, v) => s + v.census, 0);
+  const npPct = getNP();
+  const ooHrs = getOneOneHrs();
+  const { tRN, tLPN, tTech, shiftTot } = aggregateStaffing(vals);
+
+  const acuteOpen = vals.filter(v => v.type === 'acute' && v.census > 0).length;
+  const floatFTE = Math.ceil(acuteOpen / 2) * FTE_MULTIPLIER;
+  const nursingProd = shiftTot * FTE_MULTIPLIER;
+  const oneOneProd = ooHrs * 7 / 40;
+  const oneOneAdj = grossUp(oneOneProd);
+  const totalVarAdj = grossUp(nursingProd + floatFTE) + oneOneAdj;
+  const fixed = getFixedTotals();
+  const grandFTE = totalVarAdj + fixed.fte;
+  const dcEpob = totalCensus > 0 ? (totalVarAdj / totalCensus) : 0;
+  const totalEpob = totalCensus > 0 ? (grandFTE / totalCensus) : 0;
+
+  // Per-unit NP from payroll (actual), or fall back to global input %
+  const days = payrollMeta ? payrollMeta.dayCount : 1;
+
+  const payload = {
+    Timestamp: new Date().toISOString(),
+    Date: new Date().toLocaleDateString('en-US'),
+    TotalCensus: totalCensus,
+
+    // Census by unit
+    Census_1East: vals.find(v => v.id === 'u100e').census,
+    Census_2East: vals.find(v => v.id === 'u200e').census,
+    Census_2West: vals.find(v => v.id === 'u200w').census,
+    Census_3East: vals.find(v => v.id === 'u300e').census,
+    Census_3West: vals.find(v => v.id === 'u300w').census,
+    Census_HRC: vals.find(v => v.id === 'detox').census,
+
+    // Observation hours (1:1) by unit
+    ObsHrs_1East: getUnitOoHrs('u100e'),
+    ObsHrs_2East: getUnitOoHrs('u200e'),
+    ObsHrs_2West: getUnitOoHrs('u200w'),
+    ObsHrs_3East: getUnitOoHrs('u300e'),
+    ObsHrs_3West: getUnitOoHrs('u300w'),
+    ObsHrs_HRC: getUnitOoHrs('detox'),
+
+    // Non-productive time by unit (actual % from payroll if available, else global input)
+    NP_ModelPct: npPct,
+    NP_1East: payrollData && payrollData['Acute Adult-100E'] && payrollData['Acute Adult-100E'].hours > 0
+      ? parseFloat((payrollData['Acute Adult-100E'].npHrs / payrollData['Acute Adult-100E'].hours * 100).toFixed(1)) : npPct,
+    NP_2East: payrollData && payrollData['Acute Child-200E'] && payrollData['Acute Child-200E'].hours > 0
+      ? parseFloat((payrollData['Acute Child-200E'].npHrs / payrollData['Acute Child-200E'].hours * 100).toFixed(1)) : npPct,
+    NP_2West: payrollData && payrollData['Acute Adol-200W'] && payrollData['Acute Adol-200W'].hours > 0
+      ? parseFloat((payrollData['Acute Adol-200W'].npHrs / payrollData['Acute Adol-200W'].hours * 100).toFixed(1)) : npPct,
+    NP_3East: payrollData && payrollData['Acute Adult-300E'] && payrollData['Acute Adult-300E'].hours > 0
+      ? parseFloat((payrollData['Acute Adult-300E'].npHrs / payrollData['Acute Adult-300E'].hours * 100).toFixed(1)) : npPct,
+    NP_3West: payrollData && payrollData['Acute Adult-300W'] && payrollData['Acute Adult-300W'].hours > 0
+      ? parseFloat((payrollData['Acute Adult-300W'].npHrs / payrollData['Acute Adult-300W'].hours * 100).toFixed(1)) : npPct,
+    NP_HRC: payrollData && payrollData['Acute Adult-100'] && payrollData['Acute Adult-100'].hours > 0
+      ? parseFloat((payrollData['Acute Adult-100'].npHrs / payrollData['Acute Adult-100'].hours * 100).toFixed(1)) : npPct,
+
+    // EPOB
+    EPOB_DirectCare: parseFloat(dcEpob.toFixed(2)),
+    EPOB_TotalFacility: parseFloat(totalEpob.toFixed(2))
+  };
+
+  return payload;
+}
+
+async function pushToSharePoint() {
+  const cfg = getSpConfig();
+  if (!cfg.webhookUrl) {
+    openSpSettings();
+    updateSpStatus('Set webhook URL first', 'err');
+    return;
+  }
+
+  const vals = getVals();
+  const totalCensus = vals.reduce((s, v) => s + v.census, 0);
+  if (totalCensus === 0) {
+    updateSpStatus('Enter census first', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('spPushBtn');
+  const label = document.getElementById('spPushLabel');
+  btn.classList.remove('success', 'error');
+  btn.classList.add('sending');
+  btn.disabled = true;
+  label.textContent = 'Sending...';
+
+  try {
+    const payload = collectSharePointPayload();
+    const resp = await fetch(cfg.webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+
+    if (resp.ok || resp.status === 202) {
+      btn.classList.remove('sending');
+      btn.classList.add('success');
+      label.textContent = 'Sent!';
+      updateSpStatus('Last push: ' + new Date().toLocaleTimeString(), 'ok');
+    } else {
+      throw new Error('HTTP ' + resp.status);
+    }
+  } catch (err) {
+    btn.classList.remove('sending');
+    btn.classList.add('error');
+    label.textContent = 'Failed';
+    updateSpStatus('Error: ' + err.message, 'err');
+  }
+
+  setTimeout(() => {
+    btn.classList.remove('success', 'error');
+    btn.disabled = false;
+    label.textContent = 'Push to SharePoint';
+  }, 3000);
+}
+
+async function testWebhook() {
+  const url = document.getElementById('spWebhookUrl').value.trim();
+  if (!url) { alert('Enter a webhook URL first.'); return; }
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ test: true, source: 'Highland Staffing Matrix', timestamp: new Date().toISOString() })
+    });
+    if (resp.ok || resp.status === 202) {
+      alert('Connection successful! Power Automate received the test payload.');
+    } else {
+      alert('Connection returned HTTP ' + resp.status + '. Check your Power Automate flow.');
+    }
+  } catch (err) {
+    alert('Connection failed: ' + err.message + '\n\nMake sure the webhook URL is correct and CORS is enabled.');
+  }
+}
+
+function onCensusChangeSpHook() {
+  if (!spAutoPush) return;
+  const cfg = getSpConfig();
+  if (!cfg.webhookUrl) return;
+  const vals = getVals();
+  const totalCensus = vals.reduce((s, v) => s + v.census, 0);
+  if (totalCensus === 0) return;
+
+  clearTimeout(spDebounceTimer);
+  spDebounceTimer = setTimeout(() => pushToSharePoint(), 2000);
+}
+
+// Initialize SP settings on load
+(function initSP() {
+  const cfg = getSpConfig();
+  if (cfg.webhookUrl) updateSpStatus('Configured', 'ok');
+  const autoPref = localStorage.getItem('spAutoPush');
+  if (autoPref === '1') {
+    spAutoPush = true;
+    document.getElementById('spAutoToggle').checked = true;
+  }
+})();
 
 </script>
 </body>
