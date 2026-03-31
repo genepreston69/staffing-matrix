@@ -441,32 +441,41 @@ let payrollMeta = null;
 const DAILY_DATA_KEY = 'dailyStaffingData';
 
 function saveDailyData() {
-  const data = {
-    date: new Date().toISOString().slice(0, 10),
-    census: {},
-    ooHrs: {},
-    npPct: parseFloat(document.getElementById('npInput').value) || 12.6
-  };
-  UNITS.forEach(u => {
-    data.census[u.id] = parseInt(document.getElementById('input-' + u.id).value) || 0;
-    data.ooHrs[u.id] = parseFloat(document.getElementById('oo-' + u.id).value) || 0;
-  });
-  localStorage.setItem(DAILY_DATA_KEY, JSON.stringify(data));
+  try {
+    const data = {
+      date: new Date().toISOString().slice(0, 10),
+      census: {},
+      ooHrs: {},
+      npPct: parseFloat(document.getElementById('npInput').value) || 12.6
+    };
+    UNITS.forEach(u => {
+      data.census[u.id] = parseInt(document.getElementById('input-' + u.id).value) || 0;
+      data.ooHrs[u.id] = parseFloat(document.getElementById('oo-' + u.id).value) || 0;
+    });
+    localStorage.setItem(DAILY_DATA_KEY, JSON.stringify(data));
+  } catch(e) { console.warn('Could not save daily data:', e); }
 }
 
 function loadDailyData() {
-  const raw = localStorage.getItem(DAILY_DATA_KEY);
-  if (!raw) return;
   try {
+    const raw = localStorage.getItem(DAILY_DATA_KEY);
+    if (!raw) return;
     const data = JSON.parse(raw);
-    if (data.npPct != null) document.getElementById('npInput').value = data.npPct;
+    if (data.npPct != null) {
+      document.getElementById('npInput').value = data.npPct;
+    }
     UNITS.forEach(u => {
-      if (data.census && data.census[u.id] != null)
-        document.getElementById('input-' + u.id).value = data.census[u.id];
-      if (data.ooHrs && data.ooHrs[u.id] != null)
-        document.getElementById('oo-' + u.id).value = data.ooHrs[u.id];
+      const censusEl = document.getElementById('input-' + u.id);
+      const ooEl = document.getElementById('oo-' + u.id);
+      if (data.census && data.census[u.id] != null && censusEl)
+        censusEl.value = data.census[u.id];
+      if (data.ooHrs && data.ooHrs[u.id] != null && ooEl)
+        ooEl.value = data.ooHrs[u.id];
     });
-  } catch(e) { /* ignore corrupt data */ }
+    if (data.date) {
+      console.log('Restored staffing data from ' + data.date);
+    }
+  } catch(e) { console.warn('Could not load daily data:', e); }
 }
 
 function getFixedTotals() {
