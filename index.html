@@ -420,18 +420,30 @@ const DETOX_GRID={
 };
 
 const FIXED_DEPTS=[
-  {name:'Intake',cat:'Clinical Operations',hc:19,fte:14.5},{name:'IP Clinical Administration',cat:'Clinical Operations',hc:9,fte:7.6},
-  {name:'Case Management',cat:'Clinical Operations',hc:6,fte:5.6},{name:'Utilization Review',cat:'Clinical Operations',hc:4,fte:3.3},
-  {name:'Recreation Therapy',cat:'Clinical Operations',hc:5,fte:2.9},{name:'IP Therapists',cat:'Clinical Operations',hc:12,fte:2.4},
-  {name:'Medical Staff',cat:'Clinical Operations',hc:2,fte:0.1},{name:'Physician InPatient',cat:'Clinical Operations',hc:2,fte:0.2},
-  {name:'Infection Control',cat:'Clinical Operations',hc:1,fte:0.2},{name:'Dietary',cat:'Support Services',hc:8,fte:8.0},
-  {name:'Housekeeping',cat:'Support Services',hc:7,fte:6.0},{name:'Communications',cat:'Support Services',hc:3,fte:2.5},
-  {name:'Plant Operations',cat:'Support Services',hc:4,fte:2.4},{name:'Medical Records',cat:'Support Services',hc:3,fte:2.1},
-  {name:'Call Center',cat:'Support Services',hc:1,fte:1.2},{name:'Administration',cat:'Admin / G&A',hc:3,fte:1.2},
-  {name:'Facility Accounting',cat:'Admin / G&A',hc:2,fte:1.3},{name:'Facility QI/Risk Mgmt',cat:'Admin / G&A',hc:3,fte:1.5},
-  {name:'Human Resources',cat:'Admin / G&A',hc:2,fte:0.1},{name:'Business Office',cat:'Admin / G&A',hc:1,fte:0.1},
-  {name:'Facility IT',cat:'Admin / G&A',hc:2,fte:0.1},
+  {name:'Intake',cat:'Clinical Operations',hc:19,fte:14.5,salaryFTE:0},
+  {name:'IP Clinical Administration',cat:'Clinical Operations',hc:9,fte:7.6,salaryFTE:3.00},
+  {name:'Case Management',cat:'Clinical Operations',hc:6,fte:5.6,salaryFTE:0},
+  {name:'Utilization Review',cat:'Clinical Operations',hc:4,fte:3.3,salaryFTE:3.00},
+  {name:'Recreation Therapy',cat:'Clinical Operations',hc:5,fte:2.9,salaryFTE:1.00},
+  {name:'IP Therapists',cat:'Clinical Operations',hc:12,fte:2.4,salaryFTE:4.00},
+  {name:'Medical Staff',cat:'Clinical Operations',hc:2,fte:0.1,salaryFTE:2.00},
+  {name:'Physicians',cat:'Clinical Operations',hc:2,fte:0.2,salaryFTE:4.63},
+  {name:'Infection Control',cat:'Clinical Operations',hc:1,fte:0.2,salaryFTE:0},
+  {name:'Dietary',cat:'Support Services',hc:8,fte:8.0,salaryFTE:2.00},
+  {name:'Housekeeping',cat:'Support Services',hc:7,fte:6.0,salaryFTE:1.00},
+  {name:'Communications',cat:'Support Services',hc:3,fte:2.5,salaryFTE:0},
+  {name:'Plant Operations',cat:'Support Services',hc:4,fte:2.4,salaryFTE:1.00},
+  {name:'Medical Records',cat:'Support Services',hc:3,fte:2.1,salaryFTE:1.00},
+  {name:'Call Center',cat:'Support Services',hc:1,fte:1.2,salaryFTE:0},
+  {name:'Marketing / Bus Dev',cat:'Admin / G&A',hc:2,fte:2.0,salaryFTE:2.00},
+  {name:'Administration',cat:'Admin / G&A',hc:3,fte:1.2,salaryFTE:2.00},
+  {name:'Facility Accounting',cat:'Admin / G&A',hc:2,fte:1.3,salaryFTE:2.00},
+  {name:'Facility QI/Risk Management',cat:'Admin / G&A',hc:3,fte:1.5,salaryFTE:1.00},
+  {name:'Facility HR',cat:'Admin / G&A',hc:2,fte:0.1,salaryFTE:2.00},
+  {name:'Business Office',cat:'Admin / G&A',hc:1,fte:0.1,salaryFTE:0},
+  {name:'Facility IT',cat:'Admin / G&A',hc:2,fte:0.1,salaryFTE:2.00},
 ];
+const BASELINE_SALARY_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.salaryFTE,0);
 const BASELINE_FIXED_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.fte,0);
 const BASELINE_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
 let payrollData = null;
@@ -493,18 +505,20 @@ function getFixedTotals() {
   const depts = [];
   const seen = new Set();
 
-  // Payroll-sourced departments (non-variable BUs)
+  // Payroll-sourced departments (non-variable BUs) — hourly hours only (salaried filtered at parse)
   Object.entries(payrollData).forEach(([bu, d]) => {
     if (variableBUs.includes(bu)) return;
-    const fte = (d.hours / days) * 7 / 40;
+    const hourlyFTE = (d.hours / days) * 7 / 40;
     const baseline = FIXED_DEPTS.find(f => f.name === bu);
-    totalFTE += fte;
+    const salaryFTE = baseline ? baseline.salaryFTE : 0;
+    const combinedFTE = hourlyFTE + salaryFTE;
+    totalFTE += combinedFTE;
     totalHC += d.headcount;
-    depts.push({ name: bu, cat: baseline ? baseline.cat : 'Other', hc: d.headcount, fte: fte, source: 'payroll' });
+    depts.push({ name: bu, cat: baseline ? baseline.cat : 'Other', hc: d.headcount, fte: combinedFTE, hourlyFTE, salaryFTE, source: 'payroll' });
     seen.add(bu);
   });
 
-  // Baseline departments not found in payroll file
+  // Baseline departments not found in payroll file — use baseline FTE + salary FTE
   FIXED_DEPTS.forEach(d => {
     if (seen.has(d.name)) return;
     totalFTE += d.fte;
@@ -797,6 +811,7 @@ function parsePayroll(rows, fileName) {
   const fteCol = findCol(sample, ['FTE %','FTE%','FTE Percent']);
   const workerCol = findCol(sample, ['Worker','Employee Name','Name']);
   const rateCol = findCol(sample, ['Hourly Rate - Amount','Hourly Rate','HourlyRate']);
+  const payRateTypeCol = findCol(sample, ['Pay Rate Type','PayRateType','Pay Type']);
 
   if(!buCol || !hrsCol) { alert('Could not find required columns (Business Units, All Paid Hours). Check file format.'); return; }
 
@@ -821,6 +836,11 @@ function parsePayroll(rows, fileName) {
   rows.forEach(r => {
     const bu = String(r[buCol] || '').trim();
     if(!bu) return;
+    // When Pay Rate Type column exists, only include Hourly rows (salaried FTEs are hardcoded separately)
+    if(payRateTypeCol) {
+      const rateType = String(r[payRateTypeCol] || '').trim();
+      if(rateType !== 'Hourly') return;
+    }
     if(!buMap[bu]) buMap[bu] = { bu, hours:0, wages:0, regHrs:0, otHrs:0, npHrs:0, headcount:0, workers:new Set(), fteSum:0, jobs:{} };
     const hrs = parseFloat(r[hrsCol]) || 0;
     const wages = parseFloat(r[wagesCol]) || 0;
@@ -949,31 +969,35 @@ function renderVariance() {
     totOT += actual ? actual.otHrs : 0;
   });
 
-  // Fixed BU rows
+  // Fixed BU rows — payroll hours are hourly-only (salaried filtered at parse)
   const fixRows = [];
-  let totFixActualHrs=0, totFixHC=0;
+  let totFixActualHrs=0, totFixHC=0, totFixSalaryFTE=0;
   Object.keys(payrollData).forEach(bu => {
     if(variableBUs.includes(bu)) return;
     const actual = payrollData[bu];
     const fixDept = FIXED_DEPTS.find(d => d.name === bu);
+    const salaryFTE = fixDept ? fixDept.salaryFTE : 0;
     fixRows.push({
       bu, actual,
       fixedFTE: fixDept ? fixDept.fte : null,
       fixedHC: fixDept ? fixDept.hc : null,
+      salaryFTE,
       actualDailyHrs: actual.hours / days,
       actualHC: actual.headcount
     });
     totFixActualHrs += actual.hours / days;
     totFixHC += actual.headcount;
+    totFixSalaryFTE += salaryFTE;
   });
 
   const grandVariance = (totActualHrs - totModelHrs);
   const grandVarianceCls = grandVariance > 2 ? 'over' : grandVariance < -2 ? 'under' : 'balanced';
 
   // EPOB calculations
-  // Actual FTEs from hours: (daily hrs × 7 days) / 40 hrs/week
+  // Actual FTEs from hours: (daily hrs × 7 days) / 40 hrs/week + hardcoded salary FTEs
   const actualVarFTE = (totActualHrs * 7) / 40;
-  const actualFixFTE = (totFixActualHrs * 7) / 40;
+  const actualFixHourlyFTE = (totFixActualHrs * 7) / 40;
+  const actualFixFTE = actualFixHourlyFTE + totFixSalaryFTE;
   const actualTotalFTE = actualVarFTE + actualFixFTE;
   const modelVarFTE = totModelFTE;
   const fixed = getFixedTotals();
@@ -1031,19 +1055,22 @@ function renderVariance() {
 
   // Fixed/Support BU Table
   if(fixRows.length > 0) {
-    h += `<div class="var-section-hdr"><h3>Fixed & Support Departments — Actuals <span class="sub">· From payroll upload</span></h3></div>`;
-    h += `<div class="table-wrap"><table><thead><tr><th>Business Unit</th><th class="num">Baseline HC</th><th class="num">Baseline FTE</th><th class="num teal-head">Actual Hrs/Day</th><th class="num teal-head">Actual FTE</th><th class="num teal-head">Actual HC</th></tr></thead><tbody>`;
+    h += `<div class="var-section-hdr"><h3>Fixed & Support Departments — Actuals <span class="sub">· Hourly from payroll + salaried hardcoded @ 40 hrs/wk</span></h3></div>`;
+    h += `<div class="table-wrap"><table><thead><tr><th>Business Unit</th><th class="num">Baseline HC</th><th class="num">Baseline FTE</th><th class="num teal-head">Hourly Hrs/Day</th><th class="num teal-head">Hourly FTE</th><th class="num teal-head">Salary FTE</th><th class="num teal-head">Total FTE</th><th class="num teal-head">Actual HC</th></tr></thead><tbody>`;
     fixRows.forEach(r => {
-      const actualFTE = (r.actualDailyHrs * 7) / 40;
+      const hourlyFTE = (r.actualDailyHrs * 7) / 40;
+      const totalFTE = hourlyFTE + r.salaryFTE;
       h += `<tr><td>${esc(r.bu)} ${r.fixedFTE !== null ? '<span class="unit-tag tag-fixed">FIXED</span>' : '<span class="unit-tag tag-acute">OTHER</span>'}</td>`;
       h += `<td class="num">${r.fixedHC !== null ? r.fixedHC : '—'}</td>`;
       h += `<td class="num">${r.fixedFTE !== null ? r.fixedFTE.toFixed(1) : '—'}</td>`;
       h += `<td class="num">${r.actualDailyHrs.toFixed(1)}</td>`;
-      h += `<td class="num bold">${actualFTE.toFixed(1)}</td>`;
+      h += `<td class="num">${hourlyFTE.toFixed(1)}</td>`;
+      h += `<td class="num">${r.salaryFTE > 0 ? r.salaryFTE.toFixed(2) : '—'}</td>`;
+      h += `<td class="num bold">${totalFTE.toFixed(1)}</td>`;
       h += `<td class="num">${r.actualHC}</td>`;
       h += `</tr>`;
     });
-    h += `<tr class="grand-total-row"><td>TOTAL FIXED/SUPPORT</td><td class="num">${BASELINE_FIXED_HC}</td><td class="num">${fmt(BASELINE_FIXED_FTE)}</td><td class="num">${totFixActualHrs.toFixed(1)}</td><td class="num">${fmt(fixed.fte)}</td><td class="num">${totFixHC}</td></tr>`;
+    h += `<tr class="grand-total-row"><td>TOTAL FIXED/SUPPORT</td><td class="num">${BASELINE_FIXED_HC}</td><td class="num">${fmt(BASELINE_FIXED_FTE)}</td><td class="num">${totFixActualHrs.toFixed(1)}</td><td class="num">${actualFixHourlyFTE.toFixed(1)}</td><td class="num">${totFixSalaryFTE.toFixed(2)}</td><td class="num">${fmt(fixed.fte)}</td><td class="num">${totFixHC}</td></tr>`;
     h += '</tbody></table></div>';
   }
 
