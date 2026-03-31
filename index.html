@@ -1042,75 +1042,49 @@ function collectSharePointPayload() {
   const dcEpob = totalCensus > 0 ? (totalVarAdj / totalCensus) : 0;
   const totalEpob = totalCensus > 0 ? (grandFTE / totalCensus) : 0;
 
-  // Per-unit census detail
-  const unitCensus = {};
-  vals.forEach(v => { unitCensus[v.payrollBU] = v.census; });
+  // Per-unit NP from payroll (actual), or fall back to global input %
+  const days = payrollMeta ? payrollMeta.dayCount : 1;
 
   const payload = {
-    timestamp: new Date().toISOString(),
-    date: new Date().toLocaleDateString('en-US'),
-    totalCensus,
-    occupancyPct: Math.round(totalCensus / TOTAL_STAFFED * 100),
-    unitCensus,
-    npPct,
-    oneOneHrsPerDay: ooHrs,
-    staffing: {
-      totalRN: tRN,
-      totalLPN: tLPN,
-      totalTech: tTech,
-      shiftPositions: shiftTot,
-      floatFTE: parseFloat(floatFTE.toFixed(1)),
-      variableFTE: parseFloat(totalVarAdj.toFixed(1)),
-      fixedFTE: parseFloat(fixed.fte.toFixed(1)),
-      grandTotalFTE: parseFloat(grandFTE.toFixed(1))
-    },
-    epob: {
-      directCare: parseFloat(dcEpob.toFixed(2)),
-      totalFacility: parseFloat(totalEpob.toFixed(2))
-    }
+    Timestamp: new Date().toISOString(),
+    Date: new Date().toLocaleDateString('en-US'),
+    TotalCensus: totalCensus,
+
+    // Census by unit
+    Census_1East: vals.find(v => v.id === 'u100e').census,
+    Census_2East: vals.find(v => v.id === 'u200e').census,
+    Census_2West: vals.find(v => v.id === 'u200w').census,
+    Census_3East: vals.find(v => v.id === 'u300e').census,
+    Census_3West: vals.find(v => v.id === 'u300w').census,
+    Census_HRC: vals.find(v => v.id === 'detox').census,
+
+    // Observation hours (1:1) by unit
+    ObsHrs_1East: getUnitOoHrs('u100e'),
+    ObsHrs_2East: getUnitOoHrs('u200e'),
+    ObsHrs_2West: getUnitOoHrs('u200w'),
+    ObsHrs_3East: getUnitOoHrs('u300e'),
+    ObsHrs_3West: getUnitOoHrs('u300w'),
+    ObsHrs_HRC: getUnitOoHrs('detox'),
+
+    // Non-productive time by unit (actual % from payroll if available, else global input)
+    NP_ModelPct: npPct,
+    NP_1East: payrollData && payrollData['Acute Adult-100E'] && payrollData['Acute Adult-100E'].hours > 0
+      ? parseFloat((payrollData['Acute Adult-100E'].npHrs / payrollData['Acute Adult-100E'].hours * 100).toFixed(1)) : npPct,
+    NP_2East: payrollData && payrollData['Acute Child-200E'] && payrollData['Acute Child-200E'].hours > 0
+      ? parseFloat((payrollData['Acute Child-200E'].npHrs / payrollData['Acute Child-200E'].hours * 100).toFixed(1)) : npPct,
+    NP_2West: payrollData && payrollData['Acute Adol-200W'] && payrollData['Acute Adol-200W'].hours > 0
+      ? parseFloat((payrollData['Acute Adol-200W'].npHrs / payrollData['Acute Adol-200W'].hours * 100).toFixed(1)) : npPct,
+    NP_3East: payrollData && payrollData['Acute Adult-300E'] && payrollData['Acute Adult-300E'].hours > 0
+      ? parseFloat((payrollData['Acute Adult-300E'].npHrs / payrollData['Acute Adult-300E'].hours * 100).toFixed(1)) : npPct,
+    NP_3West: payrollData && payrollData['Acute Adult-300W'] && payrollData['Acute Adult-300W'].hours > 0
+      ? parseFloat((payrollData['Acute Adult-300W'].npHrs / payrollData['Acute Adult-300W'].hours * 100).toFixed(1)) : npPct,
+    NP_HRC: payrollData && payrollData['Acute Adult-100'] && payrollData['Acute Adult-100'].hours > 0
+      ? parseFloat((payrollData['Acute Adult-100'].npHrs / payrollData['Acute Adult-100'].hours * 100).toFixed(1)) : npPct,
+
+    // EPOB
+    EPOB_DirectCare: parseFloat(dcEpob.toFixed(2)),
+    EPOB_TotalFacility: parseFloat(totalEpob.toFixed(2))
   };
-
-  // Add variance data if payroll is loaded
-  if (payrollData && payrollMeta) {
-    const days = payrollMeta.dayCount;
-    const variableBUs = UNITS.map(u => u.payrollBU);
-    let totModelHrs = 0, totActualHrs = 0, totOT = 0;
-
-    const varianceByUnit = {};
-    vals.forEach(v => {
-      if (v.census === 0) return;
-      const g = v.type === 'acute' ? ACUTE_GRID : DETOX_GRID;
-      const s = getStaffing(g, v.census);
-      let totalStaff = 0;
-      ['day','evening','night'].forEach(sh => { totalStaff += s[sh].rn + s[sh].lpn + s[sh].tech; });
-      const modelDailyHrs = totalStaff * 8;
-      const actual = payrollData[v.payrollBU];
-      const actualDailyHrs = actual ? actual.hours / days : 0;
-      const variance = actualDailyHrs - modelDailyHrs;
-      totModelHrs += modelDailyHrs;
-      totActualHrs += actualDailyHrs;
-      totOT += actual ? actual.otHrs : 0;
-      varianceByUnit[v.payrollBU] = {
-        modelHrsPerDay: parseFloat(modelDailyHrs.toFixed(1)),
-        actualHrsPerDay: parseFloat(actualDailyHrs.toFixed(1)),
-        varianceHrs: parseFloat(variance.toFixed(1))
-      };
-    });
-
-    payload.payrollPeriod = {
-      fileName: payrollMeta.fileName,
-      startDate: payrollMeta.minDate ? payrollMeta.minDate.toISOString().slice(0,10) : null,
-      endDate: payrollMeta.maxDate ? payrollMeta.maxDate.toISOString().slice(0,10) : null,
-      days: days
-    };
-    payload.variance = {
-      totalModelHrsPerDay: parseFloat(totModelHrs.toFixed(1)),
-      totalActualHrsPerDay: parseFloat(totActualHrs.toFixed(1)),
-      totalVarianceHrs: parseFloat((totActualHrs - totModelHrs).toFixed(1)),
-      totalOTHrs: parseFloat(totOT.toFixed(1)),
-      byUnit: varianceByUnit
-    };
-  }
 
   return payload;
 }
