@@ -289,14 +289,22 @@
   .exec-report .print-btn:hover { background: #0a3a47; }
   .exec-report .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; }
 
+  body.printing-exec * { display: none !important; }
+  body.printing-exec, body.printing-exec .container,
+  body.printing-exec #tab-execsummary,
+  body.printing-exec #tab-execsummary *,
+  body.printing-exec #execSummaryOutput,
+  body.printing-exec #execSummaryOutput * { display: block !important; }
+  body.printing-exec table, body.printing-exec #execSummaryOutput table { display: table !important; }
+  body.printing-exec thead { display: table-header-group !important; }
+  body.printing-exec tbody { display: table-row-group !important; }
+  body.printing-exec tr { display: table-row !important; }
+  body.printing-exec th, body.printing-exec td { display: table-cell !important; }
+  body.printing-exec .print-btn { display: none !important; }
+  body.printing-exec .two-col { display: flex !important; }
+  body.printing-exec .two-col > div { display: block !important; }
   @media print {
     body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    body > *:not(.container) { display: none !important; }
-    .top-bar, header, .sp-modal-overlay, .footer { display: none !important; }
-    .container > *:not(.tab-panel.print-active) { display: none !important; }
-    .tab-panel { display: none !important; }
-    .tab-panel.print-active { display: block !important; }
-    .print-btn { display: none !important; }
     .table-wrap { box-shadow: none; border: 1px solid #ccc; }
     .exec-report { padding: 0; max-width: 100%; }
     .exec-report th { background: #f0f2f5 !important; }
@@ -1615,12 +1623,15 @@ function renderExecSummary() {
 }
 
 function printExecSummary() {
-  // Mark the exec summary panel for print visibility
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('print-active'));
-  document.getElementById('tab-execsummary').classList.add('print-active');
+  document.body.classList.add('printing-exec');
   window.print();
-  // Restore after print dialog closes
-  setTimeout(() => document.getElementById('tab-execsummary').classList.remove('print-active'), 500);
+  // Use afterprint event if available, otherwise fallback to timeout
+  const cleanup = () => document.body.classList.remove('printing-exec');
+  if (window.onafterprint !== undefined) {
+    window.addEventListener('afterprint', cleanup, { once: true });
+  } else {
+    setTimeout(cleanup, 1000);
+  }
 }
 
 /* ── SharePoint / Power Automate Integration ── */
