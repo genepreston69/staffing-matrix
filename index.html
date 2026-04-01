@@ -291,9 +291,12 @@
 
   @media print {
     body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    header, .top-bar, .tabs, .totals-bar, .upload-section, .kpi-section, .census-section, .footer,
-    .sp-push-btn, .sp-settings, .print-btn, .export-btn, .tab-panel:not(.print-active) { display: none !important; }
+    body > *:not(.container) { display: none !important; }
+    .top-bar, header, .sp-modal-overlay, .footer { display: none !important; }
+    .container > *:not(.tab-panel.print-active) { display: none !important; }
+    .tab-panel { display: none !important; }
     .tab-panel.print-active { display: block !important; }
+    .print-btn { display: none !important; }
     .table-wrap { box-shadow: none; border: 1px solid #ccc; }
     .exec-report { padding: 0; max-width: 100%; }
     .exec-report th { background: #f0f2f5 !important; }
