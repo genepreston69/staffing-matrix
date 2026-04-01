@@ -994,8 +994,8 @@ function parsePayroll(rows, fileName) {
 
   if(!buCol || !hrsCol) { alert('Could not find required columns (Business Units, All Paid Hours). Check file format.'); return; }
 
-  // Detect NP hour columns (non-productive: excludes Training and Light Duty which are productive)
-  const NP_COL_NAMES = ['PTO Hours','Sick Hours','Holiday Hours','Orientation Hours',
+  // Detect NP hour columns (non-productive only — Training, Orientation, Light Duty are productive)
+  const NP_COL_NAMES = ['PTO Hours','Sick Hours','Holiday Hours',
     'Continuing Education Hours','Education Pay Hours','Jury Duty Hours','Bereavement Hours'];
   const npCols = NP_COL_NAMES.filter(c => sample.hasOwnProperty(c));
 
