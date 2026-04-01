@@ -1193,19 +1193,24 @@ function renderVariance() {
 
   // Build combined rows for variable units
   const varRows = [];
-  let totModelHrs=0, totActualHrs=0, totActualProdHrs=0, totModelFTE=0, totActualHC=0, totOT=0;
+  let totModelHrs=0, totActualHrs=0, totActualProdHrs=0, totModelFTE=0, totActualHC=0, totOT=0, totOoHrs=0;
 
   variableBUs.forEach(bu => {
     const model = modelBU[bu] || null;
     const actual = payrollData[bu] || null;
+    const unitVal = vals.find(v => v.payrollBU === bu);
+    const ooHrs = unitVal ? unitVal.ooHrs : 0;
     const modelDailyHrs = model ? model.dailyHrs : 0;
     const actualDailyHrs = actual ? actual.hours / days : 0;
     const actualDailyProdHrs = actual ? (actual.hours - actual.npHrs) / days : 0;
     const variance = actualDailyHrs - modelDailyHrs;
     const variancePct = modelDailyHrs > 0 ? (variance / modelDailyHrs * 100) : (actualDailyHrs > 0 ? 100 : 0);
+    const varianceEx11 = actualDailyHrs - ooHrs - modelDailyHrs;
+    const varianceEx11Pct = modelDailyHrs > 0 ? (varianceEx11 / modelDailyHrs * 100) : (actualDailyHrs - ooHrs > 0 ? 100 : 0);
     varRows.push({
       bu, model, actual,
       modelDailyHrs, actualDailyHrs, variance, variancePct,
+      varianceEx11, varianceEx11Pct, ooHrs,
       modelFTE: model ? model.adjFTE : 0,
       actualHC: actual ? actual.headcount : 0,
       otHrs: actual ? actual.otHrs : 0
@@ -1216,6 +1221,7 @@ function renderVariance() {
     totModelFTE += model ? model.adjFTE : 0;
     totActualHC += actual ? actual.headcount : 0;
     totOT += actual ? actual.otHrs : 0;
+    totOoHrs += ooHrs;
   });
 
   // Fixed BU rows — payroll hours are hourly-only (salaried filtered at parse)
@@ -1248,12 +1254,17 @@ function renderVariance() {
   const actualFixHourlyFTE = (totFixActualHrs * 7) / 40;
   const actualFixFTE = actualFixHourlyFTE + BASELINE_SALARY_FTE;
   const actualTotalFTE = actualVarFTE + actualFixFTE;
+  const ooFTE = (totOoHrs * 7) / 40;
+  const actualVarFTEex11 = actualVarFTE - ooFTE;
+  const actualTotalFTEex11 = actualTotalFTE - ooFTE;
   const modelVarFTE = totModelFTE;
   const fixed = getFixedTotals();
   const modelTotalFTE = modelVarFTE + fixed.fte;
   const actualEpob = totalCensus > 0 ? actualTotalFTE / totalCensus : 0;
+  const actualEpobEx11 = totalCensus > 0 ? actualTotalFTEex11 / totalCensus : 0;
   const modelEpob = totalCensus > 0 ? modelTotalFTE / totalCensus : 0;
   const epobVariance = actualEpob - modelEpob;
+  const epobVarianceEx11 = actualEpobEx11 - modelEpob;
   const epobCls = epobVariance > 0.05 ? 'over' : epobVariance < -0.05 ? 'under' : 'balanced';
 
   // Date badge
@@ -1268,7 +1279,9 @@ function renderVariance() {
   h += `<div class="var-card ${grandVarianceCls}"><div class="vc-label">Daily Hours Variance</div><div class="vc-val">${grandVariance>=0?'+':''}${grandVariance.toFixed(1)}h</div><div class="vc-sub">Actual vs Model (variable units)</div></div>`;
   h += `<div class="var-card"><div class="vc-label">Actual Daily Hours</div><div class="vc-val">${totActualHrs.toFixed(1)}</div><div class="vc-sub">${(totActualHrs+totFixActualHrs).toFixed(1)}h total incl. fixed</div></div>`;
   h += `<div class="var-card"><div class="vc-label">Model Daily Hours</div><div class="vc-val">${totModelHrs.toFixed(1)}</div><div class="vc-sub">Census: ${totalCensus} | NP: ${npPct}%</div></div>`;
-  h += `<div class="var-card ${epobCls}"><div class="vc-label">EPOB Impact</div><div class="vc-val">${totalCensus > 0 ? actualEpob.toFixed(2) : '—'}</div><div class="vc-sub">${totalCensus > 0 ? 'Model: '+modelEpob.toFixed(2)+' · Δ '+(epobVariance>=0?'+':'')+epobVariance.toFixed(2) : 'Enter census to calculate'}</div></div>`;
+  const epobEx11Cls = epobVarianceEx11 > 0.05 ? 'over' : epobVarianceEx11 < -0.05 ? 'under' : 'balanced';
+  h += `<div class="var-card ${epobCls}"><div class="vc-label">EPOB (incl 1:1)</div><div class="vc-val">${totalCensus > 0 ? actualEpob.toFixed(2) : '—'}</div><div class="vc-sub">${totalCensus > 0 ? 'Model: '+modelEpob.toFixed(2)+' · Δ '+(epobVariance>=0?'+':'')+epobVariance.toFixed(2) : 'Enter census'}</div></div>`;
+  h += `<div class="var-card ${epobEx11Cls}"><div class="vc-label">EPOB (ex 1:1)</div><div class="vc-val">${totalCensus > 0 ? actualEpobEx11.toFixed(2) : '—'}</div><div class="vc-sub">${totalCensus > 0 ? 'Model: '+modelEpob.toFixed(2)+' · Δ '+(epobVarianceEx11>=0?'+':'')+epobVarianceEx11.toFixed(2)+(totOoHrs > 0 ? ' · '+totOoHrs.toFixed(0)+'h 1:1' : '') : 'Enter census'}</div></div>`;
   h += '</div>';
 
   // EPOB Detail Bar
@@ -1278,12 +1291,14 @@ function renderVariance() {
 
   // Variable Units Table
   h += `<div class="var-section-hdr"><h3>Variable Units — Staffing Variance <span class="sub">· Model vs Actuals</span></h3><span class="var-period-badge">📅 ${periodLabel} · ${days} day${days>1?'s':''}</span></div>`;
-  h += `<div class="table-wrap"><table><thead><tr><th>Business Unit</th><th class="num">Census</th><th class="num teal-head">Model Hrs/Day</th><th class="num teal-head">Model Adj FTE</th><th class="num">Actual Hrs/Day</th><th class="num">Actual HC</th><th class="num warn-head">Variance Hrs</th><th class="num warn-head">Variance %</th><th class="num">OT Hrs</th></tr></thead><tbody>`;
+  h += `<div class="table-wrap"><table><thead><tr><th>Business Unit</th><th class="num">Census</th><th class="num teal-head">Model Hrs/Day</th><th class="num teal-head">Model Adj FTE</th><th class="num">Actual Hrs/Day</th><th class="num">Actual HC</th><th class="num" style="color:var(--teal)">1:1 Hrs</th><th class="num warn-head">Variance Hrs</th><th class="num warn-head">Variance %</th><th class="num warn-head">Var ex 1:1</th><th class="num warn-head">Var % ex 1:1</th><th class="num">OT Hrs</th></tr></thead><tbody>`;
 
   varRows.forEach(r => {
     const census = r.model ? vals.find(v=>v.payrollBU===r.bu)?.census || 0 : 0;
     const vCls = r.variance > 2 ? 'var-over' : r.variance < -2 ? 'var-under' : 'var-ok';
+    const vEx11Cls = r.varianceEx11 > 2 ? 'var-over' : r.varianceEx11 < -2 ? 'var-under' : 'var-ok';
     const varSign = r.variance >= 0 ? '+' : '';
+    const varEx11Sign = r.varianceEx11 >= 0 ? '+' : '';
     const barW = Math.min(Math.abs(r.variancePct), 100);
     const barCls = r.variance > 0 ? 'bar-over' : 'bar-under';
     h += `<tr>`;
@@ -1293,13 +1308,17 @@ function renderVariance() {
     h += `<td class="num">${r.modelFTE > 0 ? r.modelFTE.toFixed(1) : '—'}</td>`;
     h += `<td class="num">${r.actualDailyHrs > 0 ? r.actualDailyHrs.toFixed(1) : '—'}</td>`;
     h += `<td class="num">${r.actualHC > 0 ? r.actualHC : '—'}</td>`;
+    h += `<td class="num" style="color:var(--teal)">${r.ooHrs > 0 ? r.ooHrs.toFixed(0) : '—'}</td>`;
     h += `<td class="num ${vCls}">${r.modelDailyHrs > 0 || r.actualDailyHrs > 0 ? varSign + r.variance.toFixed(1) : '—'}</td>`;
     h += `<td class="num">${r.modelDailyHrs > 0 ? '<span class="var-bar '+barCls+'" style="width:'+barW+'px"></span> <span class="'+vCls+'">'+varSign+r.variancePct.toFixed(0)+'%</span>' : '—'}</td>`;
+    h += `<td class="num ${vEx11Cls}">${r.modelDailyHrs > 0 || r.actualDailyHrs > 0 ? varEx11Sign + r.varianceEx11.toFixed(1) : '—'}</td>`;
+    h += `<td class="num"><span class="${vEx11Cls}">${r.modelDailyHrs > 0 ? varEx11Sign + r.varianceEx11Pct.toFixed(0) + '%' : '—'}</span></td>`;
     h += `<td class="num">${r.otHrs > 0 ? r.otHrs.toFixed(1) : '—'}</td>`;
     h += `</tr>`;
   });
 
-  h += `<tr class="grand-total-row"><td colspan="2">TOTAL VARIABLE</td><td class="num">${totModelHrs.toFixed(1)}</td><td class="num">${totModelFTE.toFixed(1)}</td><td class="num">${totActualHrs.toFixed(1)}</td><td class="num">${totActualHC}</td><td class="num">${(totActualHrs-totModelHrs)>=0?'+':''}${(totActualHrs-totModelHrs).toFixed(1)}</td><td class="num">${totModelHrs>0?((totActualHrs-totModelHrs)/totModelHrs*100).toFixed(0)+'%':'—'}</td><td class="num">${totOT.toFixed(1)}</td></tr>`;
+  const totVarEx11 = totActualHrs - totOoHrs - totModelHrs;
+  h += `<tr class="grand-total-row"><td colspan="2">TOTAL VARIABLE</td><td class="num">${totModelHrs.toFixed(1)}</td><td class="num">${totModelFTE.toFixed(1)}</td><td class="num">${totActualHrs.toFixed(1)}</td><td class="num">${totActualHC}</td><td class="num" style="color:var(--teal)">${totOoHrs > 0 ? totOoHrs.toFixed(0) : '—'}</td><td class="num">${(totActualHrs-totModelHrs)>=0?'+':''}${(totActualHrs-totModelHrs).toFixed(1)}</td><td class="num">${totModelHrs>0?((totActualHrs-totModelHrs)/totModelHrs*100).toFixed(0)+'%':'—'}</td><td class="num">${totVarEx11>=0?'+':''}${totVarEx11.toFixed(1)}</td><td class="num">${totModelHrs>0?(totVarEx11/totModelHrs*100).toFixed(0)+'%':'—'}</td><td class="num">${totOT.toFixed(1)}</td></tr>`;
   h += '</tbody></table></div>';
 
   // Fixed/Support BU Table
