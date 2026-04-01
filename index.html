@@ -289,39 +289,7 @@
   .exec-report .print-btn:hover { background: #0a3a47; }
   .exec-report .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; }
 
-  body.printing-exec * { display: none !important; }
-  body.printing-exec { color: #1a2332 !important; }
-  body.printing-exec, body.printing-exec .container,
-  body.printing-exec #tab-execsummary,
-  body.printing-exec #tab-execsummary *,
-  body.printing-exec #execSummaryOutput,
-  body.printing-exec #execSummaryOutput * { display: block !important; }
-  body.printing-exec table, body.printing-exec #execSummaryOutput table { display: table !important; }
-  body.printing-exec thead { display: table-header-group !important; }
-  body.printing-exec tbody { display: table-row-group !important; }
-  body.printing-exec tr { display: table-row !important; }
-  body.printing-exec th, body.printing-exec td { display: table-cell !important; }
-  body.printing-exec .print-btn { display: none !important; }
-  body.printing-exec #execSummaryOutput * { color: #1a2332 !important; }
-  body.printing-exec .exec-report .row-over, body.printing-exec .exec-report .row-over * { color: #c0392b !important; }
-  body.printing-exec .exec-report .row-under, body.printing-exec .exec-report .row-under * { color: #27ae60 !important; }
-  body.printing-exec .exec-report .report-facility { color: #999 !important; }
-  body.printing-exec .exec-report .report-subtitle { color: #666 !important; }
-  body.printing-exec .exec-report .exec-note { color: #999 !important; }
-  body.printing-exec .exec-report .exec-footer { color: #aaa !important; }
-  body.printing-exec .exec-report .exec-section-title { color: #0f4c5c !important; }
-  body.printing-exec .two-col { display: flex !important; }
-  body.printing-exec .two-col > div { display: block !important; }
-  @media print {
-    body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .table-wrap { box-shadow: none; border: 1px solid #ccc; }
-    .exec-report { padding: 0; max-width: 100%; }
-    .exec-report th { background: #f0f2f5 !important; }
-    .exec-report .row-total { background: #f0f2f5 !important; }
-    .exec-report .row-sub { background: #f8f9fa !important; }
-    @page { margin: 0.5in 0.6in; size: letter; }
-    .exec-report .page-break { page-break-before: always; }
-  }
+  @media print { header,.top-bar,.tabs { break-inside:avoid; } .table-wrap { box-shadow:none; border:1px solid #ccc; } body { background:#fff; } }
 </style>
 </head>
 <body>
@@ -1632,15 +1600,43 @@ function renderExecSummary() {
 }
 
 function printExecSummary() {
-  document.body.classList.add('printing-exec');
-  window.print();
-  // Use afterprint event if available, otherwise fallback to timeout
-  const cleanup = () => document.body.classList.remove('printing-exec');
-  if (window.onafterprint !== undefined) {
-    window.addEventListener('afterprint', cleanup, { once: true });
-  } else {
-    setTimeout(cleanup, 1000);
-  }
+  const content = document.getElementById('execSummaryOutput').innerHTML;
+  const w = window.open('', '_blank', 'width=900,height=700');
+  w.document.write(`<!DOCTYPE html><html><head><title>Executive Summary</title><style>
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1a2332; margin: 0; padding: 20px; }
+    .exec-report { max-width: 100%; }
+    .report-header { text-align: center; border-bottom: 3px solid #0f4c5c; padding-bottom: 12px; margin-bottom: 20px; }
+    .report-title { font-size: 20px; font-weight: 700; color: #0f4c5c; margin: 0; }
+    .report-subtitle { font-size: 12px; color: #666; margin: 3px 0 0; }
+    .report-facility { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px; }
+    .exec-section { margin-bottom: 18px; break-inside: avoid; }
+    .exec-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #0f4c5c; border-bottom: 2px solid #0f4c5c; padding-bottom: 3px; margin-bottom: 8px; }
+    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
+    th { background: #f0f2f5; font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; padding: 5px 6px; text-align: left; border-bottom: 2px solid #bbb; }
+    td { padding: 4px 6px; border-bottom: 1px solid #e8e8e8; }
+    th.num, td.num { text-align: right; }
+    .row-over { color: #c0392b; font-weight: 600; }
+    .row-under { color: #27ae60; font-weight: 600; }
+    .row-total { font-weight: 700; background: #f0f2f5; border-top: 2px solid #999; }
+    .row-sub { font-weight: 600; background: #f8f9fa; }
+    .val-highlight { font-size: 14px; font-weight: 700; }
+    .page-break { page-break-before: always; }
+    .exec-note { font-size: 9px; color: #999; font-style: italic; margin-top: 3px; }
+    .two-col { display: flex; gap: 16px; }
+    .two-col > div { flex: 1; }
+    .print-btn { display: none; }
+    .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; }
+    @media print {
+      body { padding: 0; }
+      @page { margin: 0.5in 0.6in; size: letter; }
+      th { background: #f0f2f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .row-total { background: #f0f2f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .row-sub { background: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    }
+  </style></head><body>${content}</body></html>`);
+  w.document.close();
+  w.focus();
+  setTimeout(() => { w.print(); }, 250);
 }
 
 /* ── SharePoint / Power Automate Integration ── */
