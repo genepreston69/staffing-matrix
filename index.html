@@ -693,13 +693,13 @@ function updateEpobKpi(vals,totalCensus){
     if(payrollData && payrollMeta){
       const days=payrollMeta.dayCount;
       const variableBUs=UNITS.map(u=>u.payrollBU);
-      let actVarHrs=0, actFixHrs=0;
+      let actVarProdHrs=0, actFixHrs=0;
       Object.keys(payrollData).forEach(bu=>{
-        const dailyHrs=payrollData[bu].hours/days;
-        if(variableBUs.includes(bu)) actVarHrs+=dailyHrs; else actFixHrs+=dailyHrs;
+        const d=payrollData[bu];
+        if(variableBUs.includes(bu)) actVarProdHrs+=(d.regHrs+d.otHrs)/days; else actFixHrs+=d.hours/days;
       });
-      const actVarFTE=(actVarHrs*7)/40;
-      const actFixFTE=(actFixHrs*7)/40;
+      const actVarFTE=(actVarProdHrs*7)/40;
+      const actFixFTE=(actFixHrs*7)/40+BASELINE_SALARY_FTE;
       const actTotalFTE=actVarFTE+actFixFTE;
 
       const actDcEpob=actVarFTE/totalCensus;
@@ -817,23 +817,21 @@ function renderTrends() {
     const totalCensus = rec.census.reduce((s, c) => s + c.census, 0);
     const totalOoHrs = rec.census.reduce((s, c) => s + (c.ooHrs || 0), 0);
 
-    // Variable hours/FTE from payroll
-    let varHrs = 0, varOT = 0, varHC = 0;
-    variableBUs.forEach(bu => { if (d[bu]) { varHrs += d[bu].hours / days; varOT += d[bu].otHrs; varHC += d[bu].headcount; } });
+    // Variable hours/FTE from payroll — productive hours only for DC EPOB
+    let varHrs = 0, varProdHrs = 0, varOT = 0, varHC = 0;
+    variableBUs.forEach(bu => { if (d[bu]) { varHrs += d[bu].hours / days; varProdHrs += (d[bu].regHrs + d[bu].otHrs) / days; varOT += d[bu].otHrs; varHC += d[bu].headcount; } });
 
-    // Fixed hours/FTE from payroll (hourly only — salaried filtered at parse)
-    let fixHrs = 0, fixHC = 0, fixSalaryFTE = 0;
+    // Fixed hours/FTE from payroll (hourly only — salaried added via BASELINE_SALARY_FTE)
+    let fixHrs = 0, fixHC = 0;
     Object.keys(d).forEach(bu => {
       if (variableBUs.includes(bu)) return;
       fixHrs += d[bu].hours / days;
       fixHC += d[bu].headcount;
-      const baseline = matchFixedDept(bu);
-      fixSalaryFTE += baseline ? baseline.salaryFTE : 0;
     });
 
-    const varFTE = (varHrs * 7) / 40;
+    const varFTE = (varProdHrs * 7) / 40;
     const fixHourlyFTE = (fixHrs * 7) / 40;
-    const fixFTE = fixHourlyFTE + fixSalaryFTE;
+    const fixFTE = fixHourlyFTE + BASELINE_SALARY_FTE;
     const totalFTE = varFTE + fixFTE;
     const totalHrs = varHrs + fixHrs;
     const epobDC = totalCensus > 0 ? varFTE / totalCensus : 0;
@@ -1195,13 +1193,14 @@ function renderVariance() {
 
   // Build combined rows for variable units
   const varRows = [];
-  let totModelHrs=0, totActualHrs=0, totModelFTE=0, totActualHC=0, totOT=0;
+  let totModelHrs=0, totActualHrs=0, totActualProdHrs=0, totModelFTE=0, totActualHC=0, totOT=0;
 
   variableBUs.forEach(bu => {
     const model = modelBU[bu] || null;
     const actual = payrollData[bu] || null;
     const modelDailyHrs = model ? model.dailyHrs : 0;
     const actualDailyHrs = actual ? actual.hours / days : 0;
+    const actualDailyProdHrs = actual ? (actual.regHrs + actual.otHrs) / days : 0;
     const variance = actualDailyHrs - modelDailyHrs;
     const variancePct = modelDailyHrs > 0 ? (variance / modelDailyHrs * 100) : (actualDailyHrs > 0 ? 100 : 0);
     varRows.push({
@@ -1213,6 +1212,7 @@ function renderVariance() {
     });
     totModelHrs += modelDailyHrs;
     totActualHrs += actualDailyHrs;
+    totActualProdHrs += actualDailyProdHrs;
     totModelFTE += model ? model.adjFTE : 0;
     totActualHC += actual ? actual.headcount : 0;
     totOT += actual ? actual.otHrs : 0;
@@ -1243,10 +1243,10 @@ function renderVariance() {
   const grandVarianceCls = grandVariance > 2 ? 'over' : grandVariance < -2 ? 'under' : 'balanced';
 
   // EPOB calculations
-  // Actual FTEs from hours: (daily hrs × 7 days) / 40 hrs/week + hardcoded salary FTEs
-  const actualVarFTE = (totActualHrs * 7) / 40;
+  // DC EPOB uses productive hours only (excluding NP); Total adds salaried FTE proxy
+  const actualVarFTE = (totActualProdHrs * 7) / 40;
   const actualFixHourlyFTE = (totFixActualHrs * 7) / 40;
-  const actualFixFTE = actualFixHourlyFTE + totFixSalaryFTE;
+  const actualFixFTE = actualFixHourlyFTE + BASELINE_SALARY_FTE;
   const actualTotalFTE = actualVarFTE + actualFixFTE;
   const modelVarFTE = totModelFTE;
   const fixed = getFixedTotals();
@@ -1532,7 +1532,7 @@ function collectSharePointPayload() {
     payload.PayrollEndDate = payrollMeta.maxDate ? payrollMeta.maxDate.toISOString().slice(0, 10) : '';
 
     const variableBUs = UNITS.map(u => u.payrollBU);
-    let totActVarHrs = 0, totActFixHrs = 0, totModelHrs = 0, totOT = 0, totActVarHC = 0;
+    let totActVarHrs = 0, totActVarProdHrs = 0, totActFixHrs = 0, totModelHrs = 0, totOT = 0, totActVarHC = 0;
 
     // Per-unit payroll actuals and variance
     unitKeys.forEach(uk => {
@@ -1548,6 +1548,7 @@ function collectSharePointPayload() {
         modelDailyHrs = staff * 8;
       }
       const actualDailyHrs = actual ? actual.hours / days : 0;
+      const actualDailyProdHrs = actual ? (actual.regHrs + actual.otHrs) / days : 0;
       const variance = actualDailyHrs - modelDailyHrs;
 
       payload['Actual_HrsDay_' + uk.key] = parseFloat(actualDailyHrs.toFixed(1));
@@ -1561,6 +1562,7 @@ function collectSharePointPayload() {
         ? parseFloat((variance / modelDailyHrs * 100).toFixed(1)) : 0;
 
       totActVarHrs += actualDailyHrs;
+      totActVarProdHrs += actualDailyProdHrs;
       totModelHrs += modelDailyHrs;
       totOT += actual ? actual.otHrs : 0;
       totActVarHC += actual ? actual.headcount : 0;
@@ -1585,9 +1587,9 @@ function collectSharePointPayload() {
     payload.Variance_VarPct_Total = totModelHrs > 0
       ? parseFloat(((totActVarHrs - totModelHrs) / totModelHrs * 100).toFixed(1)) : 0;
 
-    // Actual FTEs from payroll
-    const actualVarFTE = (totActVarHrs * 7) / 40;
-    const actualFixFTE = (totActFixHrs * 7) / 40;
+    // Actual FTEs from payroll — DC uses productive hours; Total adds salaried FTE proxy
+    const actualVarFTE = (totActVarProdHrs * 7) / 40;
+    const actualFixFTE = (totActFixHrs * 7) / 40 + BASELINE_SALARY_FTE;
     const actualTotalFTE = actualVarFTE + actualFixFTE;
     payload.Actual_VarFTE = parseFloat(actualVarFTE.toFixed(1));
     payload.Actual_FixFTE = parseFloat(actualFixFTE.toFixed(1));
