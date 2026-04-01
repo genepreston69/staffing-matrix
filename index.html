@@ -1600,15 +1600,6 @@ function collectSharePointPayload() {
     payload.EPOB_Total_Variance = totalCensus > 0 ? parseFloat((actualTotalFTE / totalCensus - totalEpob).toFixed(2)) : 0;
   }
 
-  // Ensure integer-typed fields are clean integers for Power Automate schema compatibility
-  // PA infers Integer from whole-number samples; fractional runtime values cause 400 errors
-  const integerPattern = /^(TotalStaffedBeds|TotalCensus|Census_|ObsHrs_|.+_Day_(?:RN|LPN|Tech)|.+_Evening_(?:RN|LPN|Tech)|.+_Night_(?:RN|LPN|Tech)|.+_ShiftTotal|Total_(?:RN|LPN|Tech|ShiftStaff)|StaffPerShift|FloatShiftPositions|FixedHC|PayrollDayCount|Actual_HC_|Actual_VarHC_Total|Actual_FixHC_Total)$/;
-  Object.keys(payload).forEach(k => {
-    if (typeof payload[k] === 'number' && integerPattern.test(k)) {
-      payload[k] = Math.round(payload[k]);
-    }
-  });
-
   return payload;
 }
 
