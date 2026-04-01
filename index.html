@@ -1627,11 +1627,17 @@ async function pushToSharePoint() {
 
   try {
     const payload = collectSharePointPayload();
+    console.log('[SP Push] Payload (' + Object.keys(payload).length + ' fields):', JSON.stringify(payload, null, 2));
+    const body = JSON.stringify(payload);
     const resp = await fetch(cfg.webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
+      body: body
     });
+
+    let respBody = '';
+    try { respBody = await resp.text(); } catch(e) {}
+    console.log('[SP Push] Response:', resp.status, resp.statusText, respBody);
 
     if (resp.ok || resp.status === 202) {
       btn.classList.remove('sending');
@@ -1639,12 +1645,13 @@ async function pushToSharePoint() {
       label.textContent = 'Sent!';
       updateSpStatus('Last push: ' + new Date().toLocaleTimeString(), 'ok');
     } else {
-      throw new Error('HTTP ' + resp.status);
+      throw new Error('HTTP ' + resp.status + ' — ' + respBody);
     }
   } catch (err) {
     btn.classList.remove('sending');
     btn.classList.add('error');
     label.textContent = 'Failed';
+    console.error('[SP Push] Error:', err);
     updateSpStatus('Error: ' + err.message, 'err');
   }
 
