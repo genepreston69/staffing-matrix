@@ -241,6 +241,22 @@
   .bar-under { background:var(--warning); }
   .no-upload-msg { text-align:center; padding:40px; color:var(--gray-500); font-style:italic; }
 
+  /* Date Selector */
+  .date-selector-row { display:flex; align-items:center; gap:12px; margin-top:10px; padding:8px 0; }
+  .date-selector-label { font-size:12px; font-weight:700; color:var(--navy); text-transform:uppercase; letter-spacing:0.5px; }
+  #payrollDateSelect { padding:6px 12px; border:1px solid var(--gray-300); border-radius:var(--radius); font-size:13px; font-weight:600; color:var(--navy); background:var(--white); cursor:pointer; min-width:160px; }
+  #payrollDateSelect:focus { outline:none; border-color:var(--teal); box-shadow:0 0 0 2px rgba(0,128,128,0.15); }
+  .date-record-count { font-size:11px; color:var(--gray-500); }
+  .date-clear-btn { font-size:11px; color:var(--danger); background:none; border:1px solid var(--danger); border-radius:var(--radius); padding:4px 10px; cursor:pointer; }
+  .date-clear-btn:hover { background:var(--danger); color:var(--white); }
+
+  /* Trend View */
+  .trend-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px; }
+  @media (max-width:900px) { .trend-summary { grid-template-columns:repeat(2,1fr); } }
+  .trend-table th.trend-date { writing-mode:horizontal-tb; font-size:11px; min-width:80px; }
+  .trend-metric-label { font-weight:600; color:var(--navy); white-space:nowrap; }
+  .trend-arrow-up { color:var(--danger); font-size:10px; } .trend-arrow-down { color:var(--success); font-size:10px; }
+
   /* Variance Section Headers */
   .var-section-hdr { display:flex; align-items:center; justify-content:space-between; margin:20px 0 12px; }
   .var-section-hdr h3 { font-family:'Merriweather',serif; font-size:16px; font-weight:700; color:var(--navy); }
@@ -374,6 +390,12 @@
         <div class="upload-compact"><span class="upload-icon-sm">📊</span> <strong>Upload Workday Time Summary</strong> — drag & drop .xlsx or <a>browse</a></div>
         <div id="uploadFileInfo"></div>
       </div>
+      <div class="date-selector-row" id="dateSelectorRow" style="display:none">
+        <label class="date-selector-label">Time Entry Date:</label>
+        <select id="payrollDateSelect" onchange="selectPayrollDate(this.value)"></select>
+        <span class="date-record-count" id="dateRecordCount"></span>
+        <button class="date-clear-btn" onclick="clearAllUploads()" title="Clear all uploaded records">Clear All</button>
+      </div>
     </div>
     <div class="top-census">
       <div class="top-col-title">Census by Unit</div>
@@ -386,11 +408,15 @@
     <button class="tab-btn active" data-tab="staffing">Shift Staffing Requirements</button>
     <button class="tab-btn" data-tab="poscontrol">Position Control</button>
     <button class="tab-btn" data-tab="variance">Payroll Variance</button>
+    <button class="tab-btn" data-tab="trends">Trends</button>
   </div>
   <div class="tab-panel active" id="tab-staffing"><div id="staffingOutput"></div></div>
   <div class="tab-panel" id="tab-poscontrol"><div id="posControlOutput"></div></div>
   <div class="tab-panel" id="tab-variance">
     <div id="varianceOutput"><div class="no-upload-msg">Upload a Workday Time Summary in the Key Metrics section above, then enter census values to see payroll variances by business unit.</div></div>
+  </div>
+  <div class="tab-panel" id="tab-trends">
+    <div id="trendsOutput"><div class="no-upload-msg">Upload time entry summaries for multiple dates to view trends. Each file is stored by its Start Date.</div></div>
   </div>
 </div>
 <div class="footer">Highland Hospital &bull; A Summit BHC Facility &bull; Staffing Matrix Tool &bull; Payroll baseline: 5 pay periods ending 3/17/2026 &bull; Variable FTEs flex with census; Fixed FTEs from time entry upload or baseline</div>
@@ -448,6 +474,8 @@ const BASELINE_FIXED_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.fte,0);
 const BASELINE_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
 let payrollData = null;
 let payrollMeta = null;
+let payrollHistory = {};   // { 'YYYY-MM-DD': { data, meta, census, npPct } }
+let selectedPayrollDate = null;
 
 /* ── Local Persistence (localStorage + cookie fallback for Teams) ── */
 function storeSet(key, value) {
@@ -606,6 +634,12 @@ function onCensusChange() {
   const vals = getVals();
   const totalCensus = vals.reduce((s, v) => s + v.census, 0);
   const npPct = getNP();
+
+  // Keep current date's census snapshot in sync
+  if (selectedPayrollDate && payrollHistory[selectedPayrollDate]) {
+    payrollHistory[selectedPayrollDate].census = vals.map(v => ({ id: v.id, census: v.census, ooHrs: v.ooHrs }));
+    payrollHistory[selectedPayrollDate].npPct = npPct;
+  }
   const totalOoHrs = getOneOneHrs();
 
   document.getElementById('npMultiplierDisplay').textContent = '\u00d7' + (1 / (1 - npPct / 100)).toFixed(3);
@@ -626,6 +660,7 @@ function onCensusChange() {
   renderPositionControl(vals,totalCensus);
   updateEpobKpi(vals,totalCensus);
   if(payrollData) { renderVariance(); updateCensusNP(); }
+  if(Object.keys(payrollHistory).length > 0) renderTrends();
 }
 
 function updateEpobKpi(vals,totalCensus){
@@ -760,6 +795,134 @@ function renderPositionControl(vals,totalCensus){
   out.innerHTML=h;
 }
 
+function renderTrends() {
+  const out = document.getElementById('trendsOutput');
+  const dates = Object.keys(payrollHistory).sort();
+  if (dates.length === 0) {
+    out.innerHTML = '<div class="no-upload-msg">Upload time entry summaries for multiple dates to view trends. Each file is stored by its Start Date.</div>';
+    return;
+  }
+
+  const variableBUs = UNITS.map(u => u.payrollBU);
+  const npPct = getNP();
+
+  // Compute metrics for each date
+  const metrics = dates.map(dk => {
+    const rec = payrollHistory[dk];
+    const d = rec.data;
+    const days = rec.meta.dayCount;
+    const recNP = rec.npPct || 12.6;
+
+    // Census from snapshot
+    const totalCensus = rec.census.reduce((s, c) => s + c.census, 0);
+    const totalOoHrs = rec.census.reduce((s, c) => s + (c.ooHrs || 0), 0);
+
+    // Variable hours/FTE from payroll
+    let varHrs = 0, varOT = 0, varHC = 0;
+    variableBUs.forEach(bu => { if (d[bu]) { varHrs += d[bu].hours / days; varOT += d[bu].otHrs; varHC += d[bu].headcount; } });
+
+    // Fixed hours/FTE from payroll (hourly only — salaried filtered at parse)
+    let fixHrs = 0, fixHC = 0, fixSalaryFTE = 0;
+    Object.keys(d).forEach(bu => {
+      if (variableBUs.includes(bu)) return;
+      fixHrs += d[bu].hours / days;
+      fixHC += d[bu].headcount;
+      const baseline = matchFixedDept(bu);
+      fixSalaryFTE += baseline ? baseline.salaryFTE : 0;
+    });
+
+    const varFTE = (varHrs * 7) / 40;
+    const fixHourlyFTE = (fixHrs * 7) / 40;
+    const fixFTE = fixHourlyFTE + fixSalaryFTE;
+    const totalFTE = varFTE + fixFTE;
+    const totalHrs = varHrs + fixHrs;
+    const epobDC = totalCensus > 0 ? varFTE / totalCensus : 0;
+    const epobTotal = totalCensus > 0 ? totalFTE / totalCensus : 0;
+
+    // Model variable FTE for this date's census
+    let modelVarShifts = 0;
+    rec.census.forEach(snap => {
+      const unit = UNITS.find(u => u.id === snap.id);
+      if (!unit || snap.census <= 0) return;
+      const grid = unit.type === 'acute' ? ACUTE_GRID : DETOX_GRID;
+      const s = getStaffing(grid, snap.census);
+      ['day','evening','night'].forEach(sh => { modelVarShifts += s[sh].rn + s[sh].lpn + s[sh].tech; });
+    });
+    const acuteOpen = rec.census.filter(c => { const u = UNITS.find(x => x.id === c.id); return u && u.type === 'acute' && c.census > 0; }).length;
+    const modelFloatFTE = Math.ceil(acuteOpen / 2) * FTE_MULTIPLIER;
+    const modelNursingProd = modelVarShifts * FTE_MULTIPLIER;
+    const modelGrossUp = v => v / (1 - recNP / 100);
+    const oneOneProd = totalOoHrs * 7 / 40;
+    const modelVarAdj = modelGrossUp(modelNursingProd + modelFloatFTE) + modelGrossUp(oneOneProd);
+
+    return {
+      date: dk, totalCensus, varHrs, fixHrs, totalHrs, varFTE, fixFTE, totalFTE,
+      varOT, varHC, fixHC, epobDC, epobTotal, modelVarAdj, npPct: recNP,
+      hrsVariance: varHrs - (modelVarShifts * 8)
+    };
+  });
+
+  let h = '';
+
+  // Summary cards (latest date)
+  if (dates.length >= 2) {
+    const curr = metrics[metrics.length - 1];
+    const prev = metrics[metrics.length - 2];
+    const delta = (val, prevVal) => { const d = val - prevVal; return d >= 0 ? '+' + d.toFixed(1) : d.toFixed(1); };
+    h += '<div class="trend-summary">';
+    h += `<div class="var-card"><div class="vc-label">Census Trend</div><div class="vc-val">${curr.totalCensus}</div><div class="vc-sub">${delta(curr.totalCensus, prev.totalCensus)} from prior</div></div>`;
+    h += `<div class="var-card"><div class="vc-label">Total FTE Trend</div><div class="vc-val">${curr.totalFTE.toFixed(1)}</div><div class="vc-sub">${delta(curr.totalFTE, prev.totalFTE)} from prior</div></div>`;
+    h += `<div class="var-card ${curr.epobDC > 1.2 ? 'over' : curr.epobDC < 0.9 ? 'under' : 'balanced'}"><div class="vc-label">DC EPOB Trend</div><div class="vc-val">${curr.epobDC.toFixed(2)}</div><div class="vc-sub">${delta(curr.epobDC, prev.epobDC)} from prior</div></div>`;
+    h += `<div class="var-card ${curr.varOT > 0 ? 'over' : 'balanced'}"><div class="vc-label">OT Hours Trend</div><div class="vc-val">${curr.varOT.toFixed(1)}</div><div class="vc-sub">${delta(curr.varOT, prev.varOT)} from prior</div></div>`;
+    h += '</div>';
+  }
+
+  // Trend table
+  h += `<div class="var-section-hdr"><h3>Daily Metrics Trend <span class="sub">· Across ${dates.length} uploaded date${dates.length > 1 ? 's' : ''}</span></h3></div>`;
+  h += '<div class="table-wrap"><table class="trend-table"><thead><tr><th>Metric</th>';
+  metrics.forEach(m => {
+    const label = new Date(m.date + 'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' });
+    const isSelected = m.date === selectedPayrollDate;
+    h += `<th class="num trend-date" ${isSelected ? 'style="background:var(--teal-wash);color:var(--teal)"' : ''}>${label}</th>`;
+  });
+  h += '</tr></thead><tbody>';
+
+  const row = (label, fn, fmt) => {
+    h += `<tr><td class="trend-metric-label">${label}</td>`;
+    metrics.forEach((m, i) => {
+      const val = fn(m);
+      const prev = i > 0 ? fn(metrics[i - 1]) : null;
+      let arrow = '';
+      if (prev !== null && val !== prev) arrow = val > prev ? ' <span class="trend-arrow-up">&#9650;</span>' : ' <span class="trend-arrow-down">&#9660;</span>';
+      h += `<td class="num">${fmt(val)}${arrow}</td>`;
+    });
+    h += '</tr>';
+  };
+
+  row('Total Census', m => m.totalCensus, v => v);
+  row('Occupancy %', m => m.totalCensus > 0 ? Math.round(m.totalCensus / TOTAL_STAFFED * 100) : 0, v => v + '%');
+  row('NP %', m => m.npPct, v => v.toFixed(1) + '%');
+  row('Variable Hrs/Day', m => m.varHrs, v => v.toFixed(1));
+  row('Fixed Hrs/Day', m => m.fixHrs, v => v.toFixed(1));
+  row('Total Hrs/Day', m => m.totalHrs, v => v.toFixed(1));
+  row('Variable FTE (Actual)', m => m.varFTE, v => v.toFixed(1));
+  row('Variable FTE (Model)', m => m.modelVarAdj, v => v.toFixed(1));
+  row('Fixed FTE', m => m.fixFTE, v => v.toFixed(1));
+  row('Total FTE', m => m.totalFTE, v => v.toFixed(1));
+  row('DC EPOB', m => m.epobDC, v => v.toFixed(2));
+  row('Total EPOB', m => m.epobTotal, v => v.toFixed(2));
+  row('Variable HC', m => m.varHC, v => v);
+  row('Fixed HC', m => m.fixHC, v => v);
+  row('OT Hours (Period)', m => m.varOT, v => v.toFixed(1));
+
+  h += '</tbody></table></div>';
+
+  // Export button
+  h += `<div style="margin-top:16px;text-align:right;"><button class="export-btn" onclick="exportToExcel('trends')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>Export to Excel</button></div>`;
+
+  out.innerHTML = h;
+}
+
 function exportToExcel(tabId) {
   const tables = document.querySelectorAll('#tab-' + tabId + ' table');
   if (!tables.length) return;
@@ -888,21 +1051,47 @@ function parsePayroll(rows, fileName) {
   payrollData = buMap;
   payrollMeta = { fileName, dayCount, minDate, maxDate, rowCount: rows.length };
 
+  // Store in history keyed by Start Date (YYYY-MM-DD)
+  const dateKey = minDate ? minDate.toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10);
+  const censusSnapshot = getVals().map(v => ({ id: v.id, census: v.census, ooHrs: v.ooHrs }));
+  payrollHistory[dateKey] = { data: buMap, meta: { ...payrollMeta }, census: censusSnapshot, npPct: getNP() };
+  selectedPayrollDate = dateKey;
+
   // Update upload zone
   uploadZone.classList.add('has-file');
-  const dateStr = minDate ? minDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
-  const dateEndStr = maxDate ? maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
-  document.getElementById('uploadFileInfo').innerHTML = `
-    <div class="upload-file-info"><span class="upload-file-name">✅ ${esc(fileName)}</span><span class="upload-file-clear" onclick="clearUpload()">clear</span></div>
-    <div class="upload-meta">
-      <span class="upload-meta-item"><strong>${rows.length}</strong> records</span>
-      <span class="upload-meta-item"><strong>${Object.keys(buMap).length}</strong> business units</span>
-      <span class="upload-meta-item"><strong>${dayCount}</strong> day${dayCount>1?'s':''}</span>
-      <span class="upload-meta-item">${dateStr}${dayCount>1?' — '+dateEndStr:''}</span>
-    </div>`;
+  renderDateSelector();
+  updateUploadInfo();
 
   onCensusChange();
   onPayrollUploadSpHook();
+}
+
+function updateUploadInfo() {
+  if (!payrollMeta) return;
+  const dateStr = payrollMeta.minDate ? payrollMeta.minDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+  const dateEndStr = payrollMeta.maxDate ? payrollMeta.maxDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
+  const dayCount = payrollMeta.dayCount;
+  document.getElementById('uploadFileInfo').innerHTML = `
+    <div class="upload-file-info"><span class="upload-file-name">${esc(payrollMeta.fileName)}</span><span class="upload-file-clear" onclick="clearCurrentDate()">remove this date</span></div>
+    <div class="upload-meta">
+      <span class="upload-meta-item"><strong>${payrollMeta.rowCount}</strong> records</span>
+      <span class="upload-meta-item"><strong>${Object.keys(payrollData).length}</strong> business units</span>
+      <span class="upload-meta-item"><strong>${dayCount}</strong> day${dayCount>1?'s':''}</span>
+      <span class="upload-meta-item">${dateStr}${dayCount>1?' — '+dateEndStr:''}</span>
+    </div>`;
+}
+
+function renderDateSelector() {
+  const dates = Object.keys(payrollHistory).sort();
+  const row = document.getElementById('dateSelectorRow');
+  const sel = document.getElementById('payrollDateSelect');
+  if (dates.length === 0) { row.style.display = 'none'; return; }
+  row.style.display = 'flex';
+  sel.innerHTML = dates.map(d => {
+    const label = new Date(d + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+    return `<option value="${d}" ${d === selectedPayrollDate ? 'selected' : ''}>${label}</option>`;
+  }).join('');
+  document.getElementById('dateRecordCount').textContent = dates.length + ' date' + (dates.length > 1 ? 's' : '') + ' uploaded';
 }
 
 function updateCensusNP() {
@@ -922,16 +1111,58 @@ function updateCensusNP() {
   });
 }
 
-function clearUpload() {
+function selectPayrollDate(dateKey) {
+  if (!payrollHistory[dateKey]) return;
+  const record = payrollHistory[dateKey];
+  payrollData = record.data;
+  payrollMeta = record.meta;
+  selectedPayrollDate = dateKey;
+
+  // Restore census snapshot for this date
+  record.census.forEach(snap => {
+    const el = document.getElementById('input-' + snap.id);
+    if (el) el.value = snap.census;
+    const ooEl = document.getElementById('oo-' + snap.id);
+    if (ooEl) ooEl.value = snap.ooHrs || 0;
+  });
+  const npEl = document.getElementById('npInput');
+  if (npEl && record.npPct != null) npEl.value = record.npPct;
+
+  uploadZone.classList.add('has-file');
+  updateUploadInfo();
+  renderDateSelector();
+  onCensusChange();
+}
+
+function clearCurrentDate() {
+  if (selectedPayrollDate && payrollHistory[selectedPayrollDate]) {
+    delete payrollHistory[selectedPayrollDate];
+  }
+  const dates = Object.keys(payrollHistory).sort();
+  if (dates.length > 0) {
+    selectPayrollDate(dates[dates.length - 1]);
+  } else {
+    clearAllUploads();
+  }
+  renderTrends();
+}
+
+function clearAllUploads() {
   payrollData = null;
   payrollMeta = null;
+  payrollHistory = {};
+  selectedPayrollDate = null;
   uploadZone.classList.remove('has-file');
   document.getElementById('uploadFileInfo').innerHTML = '';
+  document.getElementById('dateSelectorRow').style.display = 'none';
   fileInput.value = '';
   document.getElementById('varianceOutput').innerHTML = '<div class="no-upload-msg">Upload a Workday Time Summary in the Key Metrics section above, then enter census values to see payroll variances by business unit.</div>';
+  document.getElementById('trendsOutput').innerHTML = '<div class="no-upload-msg">Upload time entry summaries for multiple dates to view trends. Each file is stored by its Start Date.</div>';
   UNITS.forEach(u => { const el = document.getElementById('np-actual-' + u.id); if(el) el.innerHTML = ''; });
   onCensusChange();
 }
+
+function clearUpload() { clearAllUploads(); }
 
 function renderVariance() {
   if(!payrollData) return;
@@ -1208,6 +1439,7 @@ function collectSharePointPayload() {
     // ─── Metadata ───
     Timestamp: new Date().toISOString(),
     Date: new Date().toLocaleDateString('en-US'),
+    TimeEntryDate: selectedPayrollDate || '',
     TotalStaffedBeds: TOTAL_STAFFED,
 
     // ─── Inputs: Census ───
