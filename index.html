@@ -1601,42 +1601,45 @@ function renderExecSummary() {
 
 function printExecSummary() {
   const content = document.getElementById('execSummaryOutput').innerHTML;
-  const w = window.open('', '_blank', 'width=900,height=700');
-  w.document.write(`<!DOCTYPE html><html><head><title>Executive Summary</title><style>
-    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1a2332; margin: 0; padding: 20px; }
-    .exec-report { max-width: 100%; }
-    .report-header { text-align: center; border-bottom: 3px solid #0f4c5c; padding-bottom: 12px; margin-bottom: 20px; }
-    .report-title { font-size: 20px; font-weight: 700; color: #0f4c5c; margin: 0; }
-    .report-subtitle { font-size: 12px; color: #666; margin: 3px 0 0; }
-    .report-facility { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px; }
-    .exec-section { margin-bottom: 18px; break-inside: avoid; }
-    .exec-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #0f4c5c; border-bottom: 2px solid #0f4c5c; padding-bottom: 3px; margin-bottom: 8px; }
-    table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
-    th { background: #f0f2f5; font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; padding: 5px 6px; text-align: left; border-bottom: 2px solid #bbb; }
-    td { padding: 4px 6px; border-bottom: 1px solid #e8e8e8; }
-    th.num, td.num { text-align: right; }
-    .row-over { color: #c0392b; font-weight: 600; }
-    .row-under { color: #27ae60; font-weight: 600; }
-    .row-total { font-weight: 700; background: #f0f2f5; border-top: 2px solid #999; }
-    .row-sub { font-weight: 600; background: #f8f9fa; }
-    .val-highlight { font-size: 14px; font-weight: 700; }
-    .page-break { page-break-before: always; }
-    .exec-note { font-size: 9px; color: #999; font-style: italic; margin-top: 3px; }
-    .two-col { display: flex; gap: 16px; }
-    .two-col > div { flex: 1; }
-    .print-btn { display: none; }
-    .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; }
-    @media print {
-      body { padding: 0; }
-      @page { margin: 0.5in 0.6in; size: letter; }
-      th { background: #f0f2f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .row-total { background: #f0f2f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      .row-sub { background: #f8f9fa !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    }
-  </style></head><body>${content}</body></html>`);
-  w.document.close();
-  w.focus();
-  setTimeout(() => { w.print(); }, 250);
+  const css = [
+    'body{font-family:Segoe UI,system-ui,sans-serif;color:#1a2332;margin:0;padding:20px}',
+    '.exec-report{max-width:100%}',
+    '.report-header{text-align:center;border-bottom:3px solid #0f4c5c;padding-bottom:12px;margin-bottom:20px}',
+    '.report-title{font-size:20px;font-weight:700;color:#0f4c5c;margin:0}',
+    '.report-subtitle{font-size:12px;color:#666;margin:3px 0 0}',
+    '.report-facility{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px}',
+    '.exec-section{margin-bottom:18px;break-inside:avoid}',
+    '.exec-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#0f4c5c;border-bottom:2px solid #0f4c5c;padding-bottom:3px;margin-bottom:8px}',
+    'table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px}',
+    'th{background:#f0f2f5;font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:.5px;padding:5px 6px;text-align:left;border-bottom:2px solid #bbb}',
+    'td{padding:4px 6px;border-bottom:1px solid #e8e8e8}',
+    'th.num,td.num{text-align:right}',
+    '.row-over{color:#c0392b;font-weight:600}',
+    '.row-under{color:#27ae60;font-weight:600}',
+    '.row-total{font-weight:700;background:#f0f2f5;border-top:2px solid #999}',
+    '.row-sub{font-weight:600;background:#f8f9fa}',
+    '.val-highlight{font-size:14px;font-weight:700}',
+    '.page-break{page-break-before:always}',
+    '.exec-note{font-size:9px;color:#999;font-style:italic;margin-top:3px}',
+    '.two-col{display:flex;gap:16px}.two-col>div{flex:1}',
+    '.print-btn{display:none}',
+    '.exec-footer{text-align:center;font-size:9px;color:#aaa;border-top:1px solid #ddd;padding-top:6px;margin-top:16px}',
+    '@media print{body{padding:0}@page{margin:.5in .6in;size:letter}}',
+  ].join('\n');
+
+  // Create hidden iframe
+  let frame = document.getElementById('printFrame');
+  if (!frame) {
+    frame = document.createElement('iframe');
+    frame.id = 'printFrame';
+    frame.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none';
+    document.body.appendChild(frame);
+  }
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><style>' + css + '</style></head><body>' + content + '</body></html>');
+  doc.close();
+  setTimeout(function() { frame.contentWindow.focus(); frame.contentWindow.print(); }, 300);
 }
 
 /* ── SharePoint / Power Automate Integration ── */
