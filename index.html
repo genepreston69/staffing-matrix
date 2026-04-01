@@ -1439,7 +1439,7 @@ function collectSharePointPayload() {
     // ─── Metadata ───
     Timestamp: new Date().toISOString(),
     Date: new Date().toLocaleDateString('en-US'),
-    TimeEntryDate: selectedPayrollDate || '',
+    TimeEntryDate: selectedPayrollDate ? selectedPayrollDate + 'T00:00:00Z' : '',
     TotalStaffedBeds: TOTAL_STAFFED,
 
     // ─── Inputs: Census ───
@@ -1528,8 +1528,8 @@ function collectSharePointPayload() {
   if (payrollData && payrollMeta) {
     payload.PayrollFileName = payrollMeta.fileName;
     payload.PayrollDayCount = payrollMeta.dayCount;
-    payload.PayrollStartDate = payrollMeta.minDate ? payrollMeta.minDate.toISOString().slice(0, 10) : '';
-    payload.PayrollEndDate = payrollMeta.maxDate ? payrollMeta.maxDate.toISOString().slice(0, 10) : '';
+    payload.PayrollStartDate = payrollMeta.minDate ? payrollMeta.minDate.toISOString() : '';
+    payload.PayrollEndDate = payrollMeta.maxDate ? payrollMeta.maxDate.toISOString() : '';
 
     const variableBUs = UNITS.map(u => u.payrollBU);
     let totActVarHrs = 0, totActFixHrs = 0, totModelHrs = 0, totOT = 0, totActVarHC = 0;
