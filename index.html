@@ -696,7 +696,7 @@ function updateEpobKpi(vals,totalCensus){
       let actVarProdHrs=0, actFixHrs=0;
       Object.keys(payrollData).forEach(bu=>{
         const d=payrollData[bu];
-        if(variableBUs.includes(bu)) actVarProdHrs+=(d.regHrs+d.otHrs)/days; else actFixHrs+=d.hours/days;
+        if(variableBUs.includes(bu)) actVarProdHrs+=(d.hours-d.npHrs)/days; else actFixHrs+=d.hours/days;
       });
       const actVarFTE=(actVarProdHrs*7)/40;
       const actFixFTE=(actFixHrs*7)/40+BASELINE_SALARY_FTE;
@@ -819,7 +819,7 @@ function renderTrends() {
 
     // Variable hours/FTE from payroll — productive hours only for DC EPOB
     let varHrs = 0, varProdHrs = 0, varOT = 0, varHC = 0;
-    variableBUs.forEach(bu => { if (d[bu]) { varHrs += d[bu].hours / days; varProdHrs += (d[bu].regHrs + d[bu].otHrs) / days; varOT += d[bu].otHrs; varHC += d[bu].headcount; } });
+    variableBUs.forEach(bu => { if (d[bu]) { varHrs += d[bu].hours / days; varProdHrs += (d[bu].hours - d[bu].npHrs) / days; varOT += d[bu].otHrs; varHC += d[bu].headcount; } });
 
     // Fixed hours/FTE from payroll (hourly only — salaried added via BASELINE_SALARY_FTE)
     let fixHrs = 0, fixHC = 0;
@@ -994,8 +994,8 @@ function parsePayroll(rows, fileName) {
 
   if(!buCol || !hrsCol) { alert('Could not find required columns (Business Units, All Paid Hours). Check file format.'); return; }
 
-  // Detect NP hour columns
-  const NP_COL_NAMES = ['PTO Hours','Sick Hours','Holiday Hours','Orientation Hours','Training Hours',
+  // Detect NP hour columns (non-productive: excludes Training and Light Duty which are productive)
+  const NP_COL_NAMES = ['PTO Hours','Sick Hours','Holiday Hours','Orientation Hours',
     'Continuing Education Hours','Education Pay Hours','Jury Duty Hours','Bereavement Hours'];
   const npCols = NP_COL_NAMES.filter(c => sample.hasOwnProperty(c));
 
@@ -1200,7 +1200,7 @@ function renderVariance() {
     const actual = payrollData[bu] || null;
     const modelDailyHrs = model ? model.dailyHrs : 0;
     const actualDailyHrs = actual ? actual.hours / days : 0;
-    const actualDailyProdHrs = actual ? (actual.regHrs + actual.otHrs) / days : 0;
+    const actualDailyProdHrs = actual ? (actual.hours - actual.npHrs) / days : 0;
     const variance = actualDailyHrs - modelDailyHrs;
     const variancePct = modelDailyHrs > 0 ? (variance / modelDailyHrs * 100) : (actualDailyHrs > 0 ? 100 : 0);
     varRows.push({
@@ -1548,7 +1548,7 @@ function collectSharePointPayload() {
         modelDailyHrs = staff * 8;
       }
       const actualDailyHrs = actual ? actual.hours / days : 0;
-      const actualDailyProdHrs = actual ? (actual.regHrs + actual.otHrs) / days : 0;
+      const actualDailyProdHrs = actual ? (actual.hours - actual.npHrs) / days : 0;
       const variance = actualDailyHrs - modelDailyHrs;
 
       payload['Actual_HrsDay_' + uk.key] = parseFloat(actualDailyHrs.toFixed(1));
