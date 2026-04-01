@@ -1439,7 +1439,7 @@ function collectSharePointPayload() {
     // ─── Metadata ───
     Timestamp: new Date().toISOString(),
     Date: new Date().toLocaleDateString('en-US'),
-    TimeEntryDate: selectedPayrollDate || '',
+    TimeEntryDate: payrollMeta && payrollMeta.minDate ? payrollMeta.minDate.toISOString().slice(0, 10) : (selectedPayrollDate || ''),
     TotalStaffedBeds: TOTAL_STAFFED,
 
     // ─── Inputs: Census ───
@@ -1623,29 +1623,73 @@ async function pushToSharePoint() {
   btn.classList.remove('success', 'error');
   btn.classList.add('sending');
   btn.disabled = true;
-  label.textContent = 'Sending...';
+
+  // Collect all dates to push
+  const dates = Object.keys(payrollHistory).sort();
+  const originalDate = selectedPayrollDate;
+  const totalDates = dates.length || 1;
+  let sentCount = 0;
+  let lastError = null;
 
   try {
-    const payload = collectSharePointPayload();
-    console.log('[SP Push] Payload (' + Object.keys(payload).length + ' fields):', JSON.stringify(payload, null, 2));
-    const body = JSON.stringify(payload);
-    const resp = await fetch(cfg.webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: body
-    });
+    if (dates.length > 1) {
+      // Push all dates in payrollHistory
+      for (const dk of dates) {
+        label.textContent = 'Sending ' + (sentCount + 1) + '/' + totalDates + '...';
+        selectPayrollDate(dk);
+        const payload = collectSharePointPayload();
+        console.log('[SP Push] Payload for ' + dk + ' (' + Object.keys(payload).length + ' fields):', JSON.stringify(payload, null, 2));
+        const resp = await fetch(cfg.webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        let respBody = '';
+        try { respBody = await resp.text(); } catch(e) {}
+        console.log('[SP Push] Response for ' + dk + ':', resp.status, resp.statusText, respBody);
+        if (!resp.ok && resp.status !== 202) {
+          lastError = new Error('HTTP ' + resp.status + ' for ' + dk + ' — ' + respBody);
+          console.error('[SP Push] Error for date ' + dk + ':', lastError);
+        } else {
+          sentCount++;
+        }
+      }
+      // Restore original selected date
+      if (originalDate && payrollHistory[originalDate]) {
+        selectPayrollDate(originalDate);
+      }
+    } else {
+      // Single date — push current
+      label.textContent = 'Sending...';
+      const payload = collectSharePointPayload();
+      console.log('[SP Push] Payload (' + Object.keys(payload).length + ' fields):', JSON.stringify(payload, null, 2));
+      const resp = await fetch(cfg.webhookUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      let respBody = '';
+      try { respBody = await resp.text(); } catch(e) {}
+      console.log('[SP Push] Response:', resp.status, resp.statusText, respBody);
+      if (resp.ok || resp.status === 202) {
+        sentCount = 1;
+      } else {
+        lastError = new Error('HTTP ' + resp.status + ' — ' + respBody);
+      }
+    }
 
-    let respBody = '';
-    try { respBody = await resp.text(); } catch(e) {}
-    console.log('[SP Push] Response:', resp.status, resp.statusText, respBody);
-
-    if (resp.ok || resp.status === 202) {
+    if (sentCount === totalDates) {
       btn.classList.remove('sending');
       btn.classList.add('success');
-      label.textContent = 'Sent!';
-      updateSpStatus('Last push: ' + new Date().toLocaleTimeString(), 'ok');
+      label.textContent = sentCount > 1 ? 'Sent ' + sentCount + ' dates!' : 'Sent!';
+      updateSpStatus('Last push: ' + sentCount + ' record' + (sentCount > 1 ? 's' : '') + ' at ' + new Date().toLocaleTimeString(), 'ok');
+    } else if (sentCount > 0) {
+      btn.classList.remove('sending');
+      btn.classList.add('success');
+      label.textContent = 'Sent ' + sentCount + '/' + totalDates;
+      updateSpStatus(sentCount + '/' + totalDates + ' sent — check console for errors', 'err');
     } else {
-      throw new Error('HTTP ' + resp.status + ' — ' + respBody);
+      throw lastError || new Error('No records sent');
     }
   } catch (err) {
     btn.classList.remove('sending');
