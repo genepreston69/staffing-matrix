@@ -290,6 +290,7 @@
   .exec-report .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; }
 
   body.printing-exec * { display: none !important; }
+  body.printing-exec { color: #1a2332 !important; }
   body.printing-exec, body.printing-exec .container,
   body.printing-exec #tab-execsummary,
   body.printing-exec #tab-execsummary *,
@@ -301,6 +302,14 @@
   body.printing-exec tr { display: table-row !important; }
   body.printing-exec th, body.printing-exec td { display: table-cell !important; }
   body.printing-exec .print-btn { display: none !important; }
+  body.printing-exec #execSummaryOutput * { color: #1a2332 !important; }
+  body.printing-exec .exec-report .row-over, body.printing-exec .exec-report .row-over * { color: #c0392b !important; }
+  body.printing-exec .exec-report .row-under, body.printing-exec .exec-report .row-under * { color: #27ae60 !important; }
+  body.printing-exec .exec-report .report-facility { color: #999 !important; }
+  body.printing-exec .exec-report .report-subtitle { color: #666 !important; }
+  body.printing-exec .exec-report .exec-note { color: #999 !important; }
+  body.printing-exec .exec-report .exec-footer { color: #aaa !important; }
+  body.printing-exec .exec-report .exec-section-title { color: #0f4c5c !important; }
   body.printing-exec .two-col { display: flex !important; }
   body.printing-exec .two-col > div { display: block !important; }
   @media print {
