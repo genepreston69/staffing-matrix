@@ -1600,17 +1600,6 @@ function collectSharePointPayload() {
     payload.EPOB_Total_Variance = totalCensus > 0 ? parseFloat((actualTotalFTE / totalCensus - totalEpob).toFixed(2)) : 0;
   }
 
-  // Round ALL numeric values to integers for Power Automate schema compatibility.
-  // PA's "generate schema from sample" types whole numbers as Integer, rejecting
-  // decimals at runtime. After regenerating the PA trigger schema with the updated
-  // sample payload (which uses fractional values), this block can be removed to
-  // restore decimal precision.
-  Object.keys(payload).forEach(k => {
-    if (typeof payload[k] === 'number' && Number.isFinite(payload[k])) {
-      payload[k] = Math.round(payload[k]);
-    }
-  });
-
   return payload;
 }
 
