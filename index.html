@@ -264,36 +264,30 @@
   .var-period-badge { display:inline-flex; align-items:center; gap:6px; background:var(--teal-wash); color:var(--teal); font-size:11px; font-weight:600; padding:4px 12px; border-radius:12px; letter-spacing:0.3px; }
 
   /* Executive Summary Styles */
-  .exec-report { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1a2332; }
-  .exec-report .report-header { text-align: center; border-bottom: 3px solid #0f4c5c; padding-bottom: 16px; margin-bottom: 24px; }
-  .exec-report .report-title { font-size: 22px; font-weight: 700; color: #0f4c5c; margin: 0; letter-spacing: 0.5px; }
-  .exec-report .report-subtitle { font-size: 13px; color: #666; margin: 4px 0 0; }
-  .exec-report .report-facility { font-size: 11px; color: #999; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
-  .exec-report .exec-section { margin-bottom: 20px; break-inside: avoid; }
-  .exec-report .exec-section-title { font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #0f4c5c; border-bottom: 2px solid #0f4c5c; padding-bottom: 4px; margin-bottom: 10px; }
-  .exec-report .exec-kpi-row { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
-  .exec-report .exec-kpi { flex: 1; min-width: 120px; background: #f8f9fa; border: 1px solid #e0e0e0; border-radius: 6px; padding: 10px 12px; text-align: center; }
-  .exec-report .exec-kpi-label { font-size: 9px; text-transform: uppercase; letter-spacing: 0.5px; color: #888; margin-bottom: 2px; }
-  .exec-report .exec-kpi-val { font-size: 22px; font-weight: 700; }
-  .exec-report .exec-kpi-sub { font-size: 9px; color: #999; margin-top: 2px; }
-  .exec-report .exec-kpi.highlight { background: #0f4c5c; border-color: #0f4c5c; }
-  .exec-report .exec-kpi.highlight .exec-kpi-label, .exec-report .exec-kpi.highlight .exec-kpi-sub { color: rgba(255,255,255,0.7); }
-  .exec-report .exec-kpi.highlight .exec-kpi-val { color: #fff; }
-  .exec-report .exec-kpi.accent { background: #e8f5f0; border-color: #2ecc71; }
-  .exec-report .exec-kpi.warn { background: #fef9e7; border-color: #e67e22; }
-  .exec-report .exec-kpi.danger { background: #fdecea; border-color: #e74c3c; }
-  .exec-report table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 12px; }
-  .exec-report th { background: #f0f2f5; font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; padding: 6px 8px; text-align: left; border-bottom: 2px solid #ccc; }
-  .exec-report td { padding: 5px 8px; border-bottom: 1px solid #eee; }
+  .exec-report { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; color: #1a2332; max-width: 900px; margin: 0 auto; }
+  .exec-report .report-header { text-align: center; border-bottom: 3px solid #0f4c5c; padding-bottom: 12px; margin-bottom: 20px; }
+  .exec-report .report-title { font-size: 20px; font-weight: 700; color: #0f4c5c; margin: 0; }
+  .exec-report .report-subtitle { font-size: 12px; color: #666; margin: 3px 0 0; }
+  .exec-report .report-facility { font-size: 10px; color: #999; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 2px; }
+  .exec-report .exec-section { margin-bottom: 18px; break-inside: avoid; }
+  .exec-report .exec-section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #0f4c5c; border-bottom: 2px solid #0f4c5c; padding-bottom: 3px; margin-bottom: 8px; }
+  .exec-report table { width: 100%; border-collapse: collapse; font-size: 11px; margin-bottom: 10px; }
+  .exec-report th { background: #f0f2f5; font-weight: 600; text-transform: uppercase; font-size: 9px; letter-spacing: 0.5px; padding: 5px 6px; text-align: left; border-bottom: 2px solid #bbb; }
+  .exec-report td { padding: 4px 6px; border-bottom: 1px solid #e8e8e8; }
   .exec-report th.num, .exec-report td.num { text-align: right; }
-  .exec-report .row-over { color: #c0392b; }
-  .exec-report .row-under { color: #27ae60; }
+  .exec-report .row-over { color: #c0392b; font-weight: 600; }
+  .exec-report .row-under { color: #27ae60; font-weight: 600; }
   .exec-report .row-total { font-weight: 700; background: #f0f2f5; border-top: 2px solid #999; }
+  .exec-report .row-sub { font-weight: 600; background: #f8f9fa; }
+  .exec-report .row-label { color: #666; font-size: 10px; }
+  .exec-report .val-highlight { font-size: 14px; font-weight: 700; }
   .exec-report .page-break { page-break-before: always; }
-  .exec-report .exec-note { font-size: 9px; color: #999; font-style: italic; margin-top: 4px; }
-  .exec-report .print-btn { background: #0f4c5c; color: #fff; border: none; padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 20px; }
+  .exec-report .exec-note { font-size: 9px; color: #999; font-style: italic; margin-top: 3px; }
+  .exec-report .two-col { display: flex; gap: 16px; }
+  .exec-report .two-col > div { flex: 1; }
+  .exec-report .print-btn { background: #0f4c5c; color: #fff; border: none; padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 16px; }
   .exec-report .print-btn:hover { background: #0a3a47; }
-  .exec-report .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 8px; margin-top: 20px; }
+  .exec-report .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; }
 
   @media print {
     body { background: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
@@ -301,9 +295,10 @@
     .sp-push-btn, .sp-settings, .print-btn, .export-btn, .tab-panel:not(.print-active) { display: none !important; }
     .tab-panel.print-active { display: block !important; }
     .table-wrap { box-shadow: none; border: 1px solid #ccc; }
-    .exec-report { padding: 0; }
-    .exec-report .exec-kpi { border: 1px solid #ccc; }
-    .exec-report .exec-kpi.highlight { background: #0f4c5c !important; color: #fff !important; }
+    .exec-report { padding: 0; max-width: 100%; }
+    .exec-report th { background: #f0f2f5 !important; }
+    .exec-report .row-total { background: #f0f2f5 !important; }
+    .exec-report .row-sub { background: #f8f9fa !important; }
     @page { margin: 0.5in 0.6in; size: letter; }
     .exec-report .page-break { page-break-before: always; }
   }
@@ -1439,6 +1434,7 @@ function renderExecSummary() {
   const grandAdj = totalVarAdj + fixed.fte;
   const dcEpob = totalVarAdj / totalCensus;
   const totalEpob = grandAdj / totalCensus;
+  const ooFTE = (ooHrs * 7) / 40;
 
   const hasPayroll = !!payrollData && !!payrollMeta;
   const days = hasPayroll ? payrollMeta.dayCount : 1;
@@ -1461,69 +1457,75 @@ function renderExecSummary() {
   const actVarFTE = (actVarProdHrs * 7) / 40;
   const actFixFTE = (actFixHrs * 7) / 40 + BASELINE_SALARY_FTE;
   const actTotalFTE = actVarFTE + actFixFTE;
-  const ooFTE = (ooHrs * 7) / 40;
-  const actVarFTEex11 = actVarFTE - ooFTE;
   const actDcEpob = hasPayroll && totalCensus > 0 ? actVarFTE / totalCensus : 0;
-  const actDcEpobEx11 = hasPayroll && totalCensus > 0 ? actVarFTEex11 / totalCensus : 0;
   const actTotalEpob = hasPayroll && totalCensus > 0 ? actTotalFTE / totalCensus : 0;
+  const actDcEpobEx11 = hasPayroll && totalCensus > 0 ? (actVarFTE - ooFTE) / totalCensus : 0;
   const actTotalEpobEx11 = hasPayroll && totalCensus > 0 ? (actTotalFTE - ooFTE) / totalCensus : 0;
 
-  // Report date
   const reportDate = payrollMeta && payrollMeta.minDate
     ? payrollMeta.minDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
     : new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
   const generatedAt = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const sign = v => (v >= 0 ? '+' : '') + v.toFixed(2);
 
   let h = '<div class="exec-report">';
   h += '<button class="print-btn" onclick="printExecSummary()">Print Executive Summary</button>';
 
-  // ═══ REPORT HEADER ═══
+  // ═══ HEADER ═══
   h += '<div class="report-header">';
   h += '<div class="report-facility">Highland Hospital · Behavioral Health</div>';
   h += '<div class="report-title">Daily Staffing & Position Control — Executive Summary</div>';
-  h += `<div class="report-subtitle">${reportDate}</div>`;
+  h += `<div class="report-subtitle">${reportDate}${hasPayroll ? ' · Source: ' + esc(payrollMeta.fileName) : ''}</div>`;
   h += '</div>';
 
-  // ═══ SECTION 1: FACILITY OVERVIEW ═══
+  // ═══ SECTION 1: FACILITY SNAPSHOT + EPOB (side by side) ═══
   h += '<div class="exec-section">';
-  h += '<div class="exec-section-title">Facility Overview</div>';
-  h += '<div class="exec-kpi-row">';
-  h += `<div class="exec-kpi highlight"><div class="exec-kpi-label">Total Census</div><div class="exec-kpi-val">${totalCensus}</div><div class="exec-kpi-sub">${TOTAL_STAFFED} licensed beds · ${(totalCensus/TOTAL_STAFFED*100).toFixed(0)}% occupancy</div></div>`;
-  h += `<div class="exec-kpi"><div class="exec-kpi-label">Units Open</div><div class="exec-kpi-val">${vals.filter(v=>v.census>0).length} / ${UNITS.length}</div><div class="exec-kpi-sub">${acuteOpen} acute + ${vals.filter(v=>v.type==='detox'&&v.census>0).length} detox</div></div>`;
-  h += `<div class="exec-kpi"><div class="exec-kpi-label">1:1 Observation</div><div class="exec-kpi-val">${ooHrs > 0 ? ooHrs + 'h' : 'None'}</div><div class="exec-kpi-sub">${ooFTE.toFixed(1)} FTE impact</div></div>`;
-  h += `<div class="exec-kpi"><div class="exec-kpi-label">Non-Productive %</div><div class="exec-kpi-val">${npPct}%</div><div class="exec-kpi-sub">Gross-up: ×${(1/(1-npPct/100)).toFixed(3)}</div></div>`;
-  if (hasPayroll) {
-    h += `<div class="exec-kpi ${actOT > 20 ? 'danger' : actOT > 0 ? 'warn' : ''}""><div class="exec-kpi-label">OT Hours (Period)</div><div class="exec-kpi-val">${actOT.toFixed(1)}</div><div class="exec-kpi-sub">${days} day${days>1?'s':''} · variable units</div></div>`;
+  h += '<div class="two-col">';
+  // Left: Facility snapshot
+  h += '<div>';
+  h += '<div class="exec-section-title">Facility Snapshot</div>';
+  h += '<table><tbody>';
+  h += `<tr><td>Total Census (ADC)</td><td class="num val-highlight">${totalCensus}</td></tr>`;
+  h += `<tr><td>Licensed Beds</td><td class="num">${TOTAL_STAFFED}</td></tr>`;
+  h += `<tr><td>Occupancy</td><td class="num">${(totalCensus/TOTAL_STAFFED*100).toFixed(0)}%</td></tr>`;
+  h += `<tr><td>Units Open</td><td class="num">${vals.filter(v=>v.census>0).length} of ${UNITS.length} (${acuteOpen} acute, ${vals.filter(v=>v.type==='detox'&&v.census>0).length} detox)</td></tr>`;
+  h += `<tr><td>1:1 Observation Hours</td><td class="num">${ooHrs > 0 ? ooHrs + ' hrs/day ('+ooFTE.toFixed(1)+' FTE)' : 'None'}</td></tr>`;
+  h += `<tr><td>Non-Productive %</td><td class="num">${npPct}% (gross-up ×${(1/(1-npPct/100)).toFixed(3)})</td></tr>`;
+  if (hasPayroll) h += `<tr><td>Overtime (Variable Units)</td><td class="num">${actOT.toFixed(1)} hrs</td></tr>`;
+  h += '</tbody></table></div>';
+  // Right: EPOB
+  h += '<div>';
+  h += '<div class="exec-section-title">EPOB — Employees Per Occupied Bed</div>';
+  h += '<table><thead><tr><th>Metric</th><th class="num">Model</th>';
+  if (hasPayroll) h += '<th class="num">Actual</th><th class="num">Variance</th>';
+  h += '</tr></thead><tbody>';
+  h += `<tr><td>Direct Care EPOB</td><td class="num">${dcEpob.toFixed(2)}</td>`;
+  if (hasPayroll) h += `<td class="num">${actDcEpob.toFixed(2)}</td><td class="num">${sign(actDcEpob-dcEpob)}</td>`;
+  h += '</tr>';
+  h += `<tr><td>Total Facility EPOB</td><td class="num">${totalEpob.toFixed(2)}</td>`;
+  if (hasPayroll) h += `<td class="num">${actTotalEpob.toFixed(2)}</td><td class="num">${sign(actTotalEpob-totalEpob)}</td>`;
+  h += '</tr>';
+  if (ooHrs > 0) {
+    h += `<tr class="row-label"><td colspan="${hasPayroll ? 4 : 2}" style="padding-top:6px;font-style:italic">Excluding 1:1 Observation (${ooHrs} hrs/day)</td></tr>`;
+    h += `<tr><td>DC EPOB (ex 1:1)</td><td class="num">${(dcEpob - ooFTE/totalCensus).toFixed(2)}</td>`;
+    if (hasPayroll) h += `<td class="num">${actDcEpobEx11.toFixed(2)}</td><td class="num">${sign(actDcEpobEx11-(dcEpob-ooFTE/totalCensus))}</td>`;
+    h += '</tr>';
+    h += `<tr><td>Total EPOB (ex 1:1)</td><td class="num">${(totalEpob - ooFTE/totalCensus).toFixed(2)}</td>`;
+    if (hasPayroll) h += `<td class="num">${actTotalEpobEx11.toFixed(2)}</td><td class="num">${sign(actTotalEpobEx11-(totalEpob-ooFTE/totalCensus))}</td>`;
+    h += '</tr>';
   }
+  h += '</tbody></table></div>';
   h += '</div></div>';
 
-  // ═══ SECTION 2: EPOB DASHBOARD ═══
+  // ═══ SECTION 2: UNIT-LEVEL DETAIL ═══
   h += '<div class="exec-section">';
-  h += '<div class="exec-section-title">Employees Per Occupied Bed (EPOB)</div>';
-  h += '<div class="exec-kpi-row">';
-  h += `<div class="exec-kpi highlight"><div class="exec-kpi-label">DC EPOB (Model)</div><div class="exec-kpi-val">${dcEpob.toFixed(2)}</div><div class="exec-kpi-sub">${totalVarAdj.toFixed(1)} var FTEs ÷ ${totalCensus} ADC</div></div>`;
-  h += `<div class="exec-kpi highlight"><div class="exec-kpi-label">Total EPOB (Model)</div><div class="exec-kpi-val">${totalEpob.toFixed(2)}</div><div class="exec-kpi-sub">${grandAdj.toFixed(1)} total FTEs ÷ ${totalCensus} ADC</div></div>`;
-  if (hasPayroll) {
-    const dcCls = Math.abs(actDcEpob - dcEpob) > 0.05 ? (actDcEpob > dcEpob ? 'danger' : 'warn') : 'accent';
-    const totCls = Math.abs(actTotalEpob - totalEpob) > 0.05 ? (actTotalEpob > totalEpob ? 'danger' : 'warn') : 'accent';
-    h += `<div class="exec-kpi ${dcCls}"><div class="exec-kpi-label">DC EPOB (Actual)</div><div class="exec-kpi-val">${actDcEpob.toFixed(2)}</div><div class="exec-kpi-sub">Δ ${(actDcEpob-dcEpob)>=0?'+':''}${(actDcEpob-dcEpob).toFixed(2)} vs model</div></div>`;
-    h += `<div class="exec-kpi ${totCls}"><div class="exec-kpi-label">Total EPOB (Actual)</div><div class="exec-kpi-val">${actTotalEpob.toFixed(2)}</div><div class="exec-kpi-sub">Δ ${(actTotalEpob-totalEpob)>=0?'+':''}${(actTotalEpob-totalEpob).toFixed(2)} vs model</div></div>`;
-    if (ooHrs > 0) {
-      h += `<div class="exec-kpi"><div class="exec-kpi-label">DC EPOB (ex 1:1)</div><div class="exec-kpi-val">${actDcEpobEx11.toFixed(2)}</div><div class="exec-kpi-sub">Excluding ${ooHrs}h obs hours</div></div>`;
-      h += `<div class="exec-kpi"><div class="exec-kpi-label">Total EPOB (ex 1:1)</div><div class="exec-kpi-val">${actTotalEpobEx11.toFixed(2)}</div><div class="exec-kpi-sub">Excluding ${ooFTE.toFixed(1)} FTE obs</div></div>`;
-    }
-  }
-  h += '</div></div>';
-
-  // ═══ SECTION 3: UNIT-LEVEL DETAIL ═══
-  h += '<div class="exec-section page-break">';
   h += '<div class="exec-section-title">Unit-Level Census, Staffing & Variance</div>';
   h += '<table><thead><tr><th>Unit</th><th class="num">Beds</th><th class="num">Census</th><th class="num">Occ %</th><th class="num">1:1 Hrs</th>';
-  h += '<th class="num">Staff/Day</th><th class="num">RN</th><th class="num">LPN</th><th class="num">Tech</th><th class="num">Model Hrs</th>';
-  if (hasPayroll) h += '<th class="num">Actual Hrs</th><th class="num">Var Hrs</th><th class="num">Var ex 1:1</th>';
+  h += '<th class="num">Staff</th><th class="num">RN</th><th class="num">LPN</th><th class="num">Tech</th><th class="num">Model Hrs</th>';
+  if (hasPayroll) h += '<th class="num">Actual Hrs</th><th class="num">Variance</th><th class="num">Var ex 1:1</th>';
   h += '</tr></thead><tbody>';
 
-  let totBeds = 0, totStaff = 0;
+  let totBeds = 0, totStaff = 0, totModelHrs = 0;
   vals.forEach(v => {
     const row = aggRows.find(r => r.id === v.id);
     const modelHrs = row ? row.total * 8 : 0;
@@ -1534,39 +1536,30 @@ function renderExecSummary() {
     const occPct = v.maxBeds > 0 ? (v.census / v.maxBeds * 100) : 0;
     const vCls = variance > 2 ? 'row-over' : variance < -2 ? 'row-under' : '';
     const vEx11Cls = varEx11 > 2 ? 'row-over' : varEx11 < -2 ? 'row-under' : '';
-    totBeds += v.maxBeds;
-    totStaff += row ? row.total : 0;
-    h += `<tr>`;
-    h += `<td>${esc(v.payrollBU)}</td>`;
-    h += `<td class="num">${v.maxBeds}</td>`;
+    totBeds += v.maxBeds; totStaff += row ? row.total : 0; totModelHrs += modelHrs;
+    h += `<tr><td>${esc(v.payrollBU)}</td><td class="num">${v.maxBeds}</td>`;
     h += `<td class="num" style="font-weight:700">${v.census > 0 ? v.census : '—'}</td>`;
-    h += `<td class="num">${v.census > 0 ? occPct.toFixed(0) + '%' : '—'}</td>`;
+    h += `<td class="num">${v.census > 0 ? occPct.toFixed(0)+'%' : '—'}</td>`;
     h += `<td class="num">${v.ooHrs > 0 ? v.ooHrs : '—'}</td>`;
-    h += `<td class="num">${row ? row.total : '—'}</td>`;
-    h += `<td class="num">${row ? row.rn : '—'}</td>`;
-    h += `<td class="num">${row ? row.lpn : '—'}</td>`;
-    h += `<td class="num">${row ? row.tech : '—'}</td>`;
-    h += `<td class="num">${modelHrs > 0 ? modelHrs.toFixed(0) : '—'}</td>`;
+    h += `<td class="num">${row ? row.total : '—'}</td><td class="num">${row ? row.rn : '—'}</td><td class="num">${row ? row.lpn : '—'}</td><td class="num">${row ? row.tech : '—'}</td>`;
+    h += `<td class="num">${modelHrs > 0 ? modelHrs : '—'}</td>`;
     if (hasPayroll) {
       h += `<td class="num">${actualHrs > 0 ? actualHrs.toFixed(1) : '—'}</td>`;
-      h += `<td class="num ${vCls}">${v.census > 0 ? (variance >= 0 ? '+' : '') + variance.toFixed(1) : '—'}</td>`;
-      h += `<td class="num ${vEx11Cls}">${v.census > 0 ? (varEx11 >= 0 ? '+' : '') + varEx11.toFixed(1) : '—'}</td>`;
+      h += `<td class="num ${vCls}">${v.census > 0 ? (variance>=0?'+':'')+variance.toFixed(1) : '—'}</td>`;
+      h += `<td class="num ${vEx11Cls}">${v.census > 0 ? (varEx11>=0?'+':'')+varEx11.toFixed(1) : '—'}</td>`;
     }
     h += '</tr>';
   });
-  // Total row
-  const totModelHrs = aggRows.reduce((s, r) => s + r.total * 8, 0);
-  h += `<tr class="row-total"><td>TOTAL</td><td class="num">${totBeds}</td><td class="num">${totalCensus}</td><td class="num">${(totalCensus/totBeds*100).toFixed(0)}%</td><td class="num">${ooHrs > 0 ? ooHrs : '—'}</td>`;
+  h += `<tr class="row-total"><td>TOTAL</td><td class="num">${totBeds}</td><td class="num">${totalCensus}</td><td class="num">${(totalCensus/totBeds*100).toFixed(0)}%</td><td class="num">${ooHrs>0?ooHrs:'—'}</td>`;
   h += `<td class="num">${totStaff}</td><td class="num">${tRN}</td><td class="num">${tLPN}</td><td class="num">${tTech}</td><td class="num">${totModelHrs}</td>`;
   if (hasPayroll) {
-    h += `<td class="num">${actVarHrs.toFixed(1)}</td>`;
-    h += `<td class="num">${(actVarHrs - totModelHrs) >= 0 ? '+' : ''}${(actVarHrs - totModelHrs).toFixed(1)}</td>`;
-    h += `<td class="num">${(actVarHrs - ooHrs - totModelHrs) >= 0 ? '+' : ''}${(actVarHrs - ooHrs - totModelHrs).toFixed(1)}</td>`;
+    const tv = actVarHrs - totModelHrs, tvx = actVarHrs - ooHrs - totModelHrs;
+    h += `<td class="num">${actVarHrs.toFixed(1)}</td><td class="num">${(tv>=0?'+':'')+tv.toFixed(1)}</td><td class="num">${(tvx>=0?'+':'')+tvx.toFixed(1)}</td>`;
   }
   h += '</tr></tbody></table></div>';
 
-  // ═══ SECTION 4: FTE POSITION CONTROL ═══
-  h += '<div class="exec-section">';
+  // ═══ SECTION 3: FTE POSITION CONTROL ═══
+  h += '<div class="exec-section page-break">';
   h += '<div class="exec-section-title">FTE Position Control Summary</div>';
   h += '<table><thead><tr><th>Component</th><th class="num">Positions</th><th class="num">Productive FTE</th><th class="num">Adjusted FTE</th><th class="num">NP Add</th></tr></thead><tbody>';
   h += `<tr><td>Registered Nurses (RN)</td><td class="num">${tRN}</td><td class="num">${rnFTE.toFixed(1)}</td><td class="num">${grossUp(rnFTE).toFixed(1)}</td><td class="num">${(grossUp(rnFTE)-rnFTE).toFixed(1)}</td></tr>`;
@@ -1574,62 +1567,18 @@ function renderExecSummary() {
   h += `<tr><td>Behavioral Health Technicians</td><td class="num">${tTech}</td><td class="num">${techFTE.toFixed(1)}</td><td class="num">${grossUp(techFTE).toFixed(1)}</td><td class="num">${(grossUp(techFTE)-techFTE).toFixed(1)}</td></tr>`;
   h += `<tr><td>Float Coverage</td><td class="num">${floatShift}</td><td class="num">${floatFTE.toFixed(1)}</td><td class="num">${grossUp(floatFTE).toFixed(1)}</td><td class="num">${(grossUp(floatFTE)-floatFTE).toFixed(1)}</td></tr>`;
   if (ooHrs > 0) h += `<tr><td>1:1 Observation (${ooHrs} hrs/day)</td><td class="num">—</td><td class="num">${oneOneProd.toFixed(1)}</td><td class="num">${oneOneAdj.toFixed(1)}</td><td class="num">${(oneOneAdj-oneOneProd).toFixed(1)}</td></tr>`;
-  h += `<tr class="row-total"><td>Total Variable (Direct Care)</td><td class="num">${shiftTot + floatShift}</td><td class="num">${totalVarProd.toFixed(1)}</td><td class="num">${totalVarAdj.toFixed(1)}</td><td class="num">${(totalVarAdj-totalVarProd).toFixed(1)}</td></tr>`;
+  h += `<tr class="row-total"><td>Total Variable (Direct Care)</td><td class="num">${shiftTot+floatShift}</td><td class="num">${totalVarProd.toFixed(1)}</td><td class="num">${totalVarAdj.toFixed(1)}</td><td class="num">${(totalVarAdj-totalVarProd).toFixed(1)}</td></tr>`;
   h += `<tr><td>Fixed & Support Departments</td><td class="num">${fixed.hc} HC</td><td class="num">${fixed.fte.toFixed(1)}</td><td class="num">${fixed.fte.toFixed(1)}</td><td class="num">—</td></tr>`;
   h += `<tr class="row-total"><td>GRAND TOTAL FACILITY</td><td class="num"></td><td class="num">${grandProd.toFixed(1)}</td><td class="num">${grandAdj.toFixed(1)}</td><td class="num">${(totalVarAdj-totalVarProd).toFixed(1)}</td></tr>`;
   h += '</tbody></table>';
-  h += `<div class="exec-note">Variable FTEs calculated using ${FTE_MULTIPLIER} coverage multiplier. Non-productive gross-up at ${npPct}%. Fixed FTEs sourced from ${fixed.source === 'payroll' ? 'uploaded time entry file' : 'baseline (5 PP ending 3/17/26)'}.</div>`;
+  h += `<div class="exec-note">Coverage multiplier: ${FTE_MULTIPLIER}. NP gross-up: ${npPct}%. Fixed source: ${fixed.source === 'payroll' ? 'uploaded time entry' : 'baseline (5 PP ending 3/17/26)'}.</div>`;
   h += '</div>';
 
-  // ═══ SECTION 5: PAYROLL VARIANCE BY UNIT (if payroll data) ═══
+  // ═══ SECTION 4: FIXED DEPARTMENTS (if payroll) ═══
   if (hasPayroll) {
-    h += '<div class="exec-section page-break">';
-    h += '<div class="exec-section-title">Payroll Variance Analysis — Model vs Actual</div>';
-    h += '<table><thead><tr><th>Unit</th><th class="num">Census</th><th class="num">Model Hrs</th><th class="num">Actual Hrs</th><th class="num">1:1 Hrs</th><th class="num">Variance</th><th class="num">Var %</th><th class="num">Var ex 1:1</th><th class="num">Var % ex 1:1</th><th class="num">OT</th><th class="num">HC</th></tr></thead><tbody>';
-    let pvTotModel = 0, pvTotActual = 0, pvTotOo = 0, pvTotOT = 0, pvTotHC = 0;
-    variableBUs.forEach(bu => {
-      const unitVal = vals.find(v => v.payrollBU === bu);
-      const actual = payrollData[bu] || null;
-      const census = unitVal ? unitVal.census : 0;
-      const oo = unitVal ? unitVal.ooHrs : 0;
-      const row = aggRows.find(r => r.payrollBU === bu);
-      const modelHrs = row ? row.total * 8 : 0;
-      const actualHrs = actual ? actual.hours / days : 0;
-      const variance = actualHrs - modelHrs;
-      const varPct = modelHrs > 0 ? variance / modelHrs * 100 : 0;
-      const varEx11 = actualHrs - oo - modelHrs;
-      const varEx11Pct = modelHrs > 0 ? varEx11 / modelHrs * 100 : 0;
-      const ot = actual ? actual.otHrs : 0;
-      const hc = actual ? actual.headcount : 0;
-      const vCls = variance > 2 ? 'row-over' : variance < -2 ? 'row-under' : '';
-      const vEx11Cls = varEx11 > 2 ? 'row-over' : varEx11 < -2 ? 'row-under' : '';
-      pvTotModel += modelHrs; pvTotActual += actualHrs; pvTotOo += oo; pvTotOT += ot; pvTotHC += hc;
-      h += `<tr><td>${esc(bu)}</td><td class="num" style="font-weight:700">${census}</td><td class="num">${modelHrs > 0 ? modelHrs.toFixed(0) : '—'}</td><td class="num">${actualHrs > 0 ? actualHrs.toFixed(1) : '—'}</td>`;
-      h += `<td class="num">${oo > 0 ? oo : '—'}</td>`;
-      h += `<td class="num ${vCls}">${(variance>=0?'+':'')+variance.toFixed(1)}</td>`;
-      h += `<td class="num ${vCls}">${(varPct>=0?'+':'')+varPct.toFixed(0)}%</td>`;
-      h += `<td class="num ${vEx11Cls}">${(varEx11>=0?'+':'')+varEx11.toFixed(1)}</td>`;
-      h += `<td class="num ${vEx11Cls}">${(varEx11Pct>=0?'+':'')+varEx11Pct.toFixed(0)}%</td>`;
-      h += `<td class="num">${ot > 0 ? ot.toFixed(1) : '—'}</td>`;
-      h += `<td class="num">${hc}</td></tr>`;
-    });
-    const pvTotVar = pvTotActual - pvTotModel;
-    const pvTotVarEx11 = pvTotActual - pvTotOo - pvTotModel;
-    h += `<tr class="row-total"><td>TOTAL VARIABLE</td><td class="num">${totalCensus}</td><td class="num">${pvTotModel.toFixed(0)}</td><td class="num">${pvTotActual.toFixed(1)}</td>`;
-    h += `<td class="num">${pvTotOo > 0 ? pvTotOo : '—'}</td>`;
-    h += `<td class="num">${(pvTotVar>=0?'+':'')+pvTotVar.toFixed(1)}</td>`;
-    h += `<td class="num">${pvTotModel>0?(pvTotVar/pvTotModel*100).toFixed(0)+'%':'—'}</td>`;
-    h += `<td class="num">${(pvTotVarEx11>=0?'+':'')+pvTotVarEx11.toFixed(1)}</td>`;
-    h += `<td class="num">${pvTotModel>0?(pvTotVarEx11/pvTotModel*100).toFixed(0)+'%':'—'}</td>`;
-    h += `<td class="num">${pvTotOT.toFixed(1)}</td><td class="num">${pvTotHC}</td></tr>`;
-    h += '</tbody></table>';
-    h += `<div class="exec-note">Source: ${esc(payrollMeta.fileName)} · ${payrollMeta.rowCount} records · ${days} day${days>1?'s':''} · Hourly employees only. Variance = Actual − Model. Negative = under model.</div>`;
-    h += '</div>';
-
-    // ═══ SECTION 6: FIXED DEPARTMENTS ═══
     h += '<div class="exec-section">';
     h += '<div class="exec-section-title">Fixed & Support Departments</div>';
-    h += '<table><thead><tr><th>Department</th><th class="num">Baseline FTE</th><th class="num">Actual Hrs/Day</th><th class="num">Actual FTE</th><th class="num">Headcount</th></tr></thead><tbody>';
+    h += '<table><thead><tr><th>Department</th><th class="num">Baseline FTE</th><th class="num">Actual Hrs/Day</th><th class="num">Actual FTE</th><th class="num">HC</th></tr></thead><tbody>';
     let fTotHrs = 0, fTotFTE = 0, fTotHC = 0;
     const fixedCats = {};
     Object.keys(payrollData).forEach(bu => {
@@ -1647,8 +1596,9 @@ function renderExecSummary() {
     });
     ['Clinical Operations', 'Support Services', 'Admin / G&A', 'Other'].forEach(cat => {
       if (!fixedCats[cat]) return;
+      h += `<tr class="row-sub"><td colspan="5">${cat}</td></tr>`;
       fixedCats[cat].forEach(r => {
-        h += `<tr><td>${esc(r.name)}</td><td class="num">${r.baselineFTE !== null ? r.baselineFTE.toFixed(1) : '—'}</td><td class="num">${r.dailyHrs.toFixed(1)}</td><td class="num">${r.fte.toFixed(1)}</td><td class="num">${r.hc}</td></tr>`;
+        h += `<tr><td style="padding-left:16px">${esc(r.name)}</td><td class="num">${r.baselineFTE !== null ? r.baselineFTE.toFixed(1) : '—'}</td><td class="num">${r.dailyHrs.toFixed(1)}</td><td class="num">${r.fte.toFixed(1)}</td><td class="num">${r.hc}</td></tr>`;
       });
     });
     h += `<tr class="row-total"><td>TOTAL FIXED/SUPPORT</td><td class="num">${fixed.fte.toFixed(1)}</td><td class="num">${fTotHrs.toFixed(1)}</td><td class="num">${fTotFTE.toFixed(1)}</td><td class="num">${fTotHC}</td></tr>`;
@@ -1656,11 +1606,7 @@ function renderExecSummary() {
   }
 
   // ═══ FOOTER ═══
-  h += '<div class="exec-footer">';
-  h += `Highland Hospital · Behavioral Health · Staffing Matrix Executive Summary · Generated ${generatedAt}`;
-  if (hasPayroll) h += ` · Source: ${esc(payrollMeta.fileName)}`;
-  h += '</div>';
-
+  h += `<div class="exec-footer">Highland Hospital · Behavioral Health · Executive Summary · Generated ${generatedAt}</div>`;
   h += '</div>';
   out.innerHTML = h;
 }
