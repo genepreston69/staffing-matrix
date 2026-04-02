@@ -1,0 +1,1653 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/report/1.0.0/schema.json",
+  "themeCollection": {
+    "baseTheme": {
+      "name": "Highland Staffing",
+      "dataColors": [
+        "#1B2A4A",
+        "#2E8B8B",
+        "#4CAF50",
+        "#FF9800",
+        "#D32F2F",
+        "#9C27B0",
+        "#00BCD4",
+        "#795548"
+      ],
+      "background": "#FFFFFF",
+      "foreground": "#1B2A4A",
+      "tableAccent": "#2E8B8B"
+    }
+  },
+  "layoutOptimization": "None",
+  "pages": [
+    {
+      "name": "c9a1d519-f319-4715-8e97-8e5dcd782c37",
+      "displayName": "Executive Dashboard",
+      "displayOption": "FitToPage",
+      "background": "#F5F5F5",
+      "visuals": [
+        {
+          "name": "8f3e585f-eb39-421e-b39d-1f6159d5f622",
+          "visualType": "textbox",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 50
+          },
+          "content": "Highland Hospital \u2014 Staffing Matrix Executive Dashboard"
+        },
+        {
+          "name": "9360a1ed-e5ce-43ee-8d1b-f3d1ce510e47",
+          "visualType": "slicer",
+          "position": {
+            "x": 20,
+            "y": 60,
+            "width": 300,
+            "height": 60
+          },
+          "title": "Select Date",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            }
+          ],
+          "config": {
+            "slicerType": "DateRange"
+          }
+        },
+        {
+          "name": "30ea630b-ec8a-4ebc-9bbe-ed891452ba9f",
+          "visualType": "card",
+          "position": {
+            "x": 20,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Total Census",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Total Census"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "172b6509-4953-49db-8c70-09d50bc058e2",
+          "visualType": "card",
+          "position": {
+            "x": 225,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Occupancy %",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Occupancy %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "22f766d1-14e5-4136-87ec-c6a35213b0e7",
+          "visualType": "card",
+          "position": {
+            "x": 430,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "DC EPOB",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.DC EPOB"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "dd48f450-f3bf-4f13-b984-4204f25f1360",
+          "visualType": "card",
+          "position": {
+            "x": 635,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Total EPOB",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Total EPOB"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "7706254f-b530-4aab-a24d-4228798ef9d3",
+          "visualType": "card",
+          "position": {
+            "x": 840,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Variable FTE",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Variable FTE"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "5e820351-6eb5-414d-8965-064a11a8cbcb",
+          "visualType": "card",
+          "position": {
+            "x": 1045,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Grand Total FTE",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Grand Total FTE"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "515cbe76-e3ba-466d-9991-ed44efb28374",
+          "visualType": "card",
+          "position": {
+            "x": 20,
+            "y": 260,
+            "width": 195,
+            "height": 110
+          },
+          "title": "MTD Avg Daily Census",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Avg Daily Census"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "a9c24108-d6a7-4e14-bb4c-f0811516250e",
+          "visualType": "card",
+          "position": {
+            "x": 225,
+            "y": 260,
+            "width": 195,
+            "height": 110
+          },
+          "title": "MTD Avg Occupancy %",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Avg Occupancy %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "0c5d70e3-dc18-4e75-a872-7969fd9af216",
+          "visualType": "card",
+          "position": {
+            "x": 430,
+            "y": 260,
+            "width": 195,
+            "height": 110
+          },
+          "title": "MTD Avg DC EPOB",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Avg DC EPOB"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "6594d0cc-18a9-46a8-b39b-a16d5d28238d",
+          "visualType": "card",
+          "position": {
+            "x": 635,
+            "y": 260,
+            "width": 195,
+            "height": 110
+          },
+          "title": "YTD Avg Daily Census",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Avg Daily Census"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "2c1866a2-d021-4c39-923f-3b3ccac42244",
+          "visualType": "card",
+          "position": {
+            "x": 840,
+            "y": 260,
+            "width": 195,
+            "height": 110
+          },
+          "title": "YTD Avg Occupancy %",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Avg Occupancy %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "7dd84c4c-e7ca-4859-9223-2ea31d0a7f25",
+          "visualType": "card",
+          "position": {
+            "x": 1045,
+            "y": 260,
+            "width": 195,
+            "height": 110
+          },
+          "title": "YTD Avg DC EPOB",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Avg DC EPOB"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "4a76401f-769a-451f-b89e-6dc6f724fd76",
+          "visualType": "lineChart",
+          "position": {
+            "x": 20,
+            "y": 385,
+            "width": 760,
+            "height": 300
+          },
+          "title": "Daily Census Trend",
+          "dataRoles": [
+            {
+              "role": "Category",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            },
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Total Census"
+                },
+                {
+                  "queryRef": "StaffingData.MTD Avg Daily Census"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "14698f48-2fb8-474f-a602-b7b9a9a89cb1",
+          "visualType": "lineChart",
+          "position": {
+            "x": 800,
+            "y": 385,
+            "width": 440,
+            "height": 300
+          },
+          "title": "EPOB Trend",
+          "dataRoles": [
+            {
+              "role": "Category",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            },
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.DC EPOB"
+                },
+                {
+                  "queryRef": "StaffingData.Total EPOB"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "220f3eb7-647c-4f11-8b35-87c5d5eb6136",
+      "displayName": "Shift Staffing",
+      "displayOption": "FitToPage",
+      "background": "#F5F5F5",
+      "visuals": [
+        {
+          "name": "14c69bad-bf3e-442e-bfc4-e0b48a5f0420",
+          "visualType": "textbox",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 50
+          },
+          "content": "Shift Staffing Requirements \u2014 Census-Driven Staffing by Unit"
+        },
+        {
+          "name": "b46b84a7-a8b8-4283-8649-4feacb3a5ba6",
+          "visualType": "slicer",
+          "position": {
+            "x": 20,
+            "y": 60,
+            "width": 300,
+            "height": 60
+          },
+          "title": "Select Date",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            }
+          ],
+          "config": {
+            "slicerType": "DateRange"
+          }
+        },
+        {
+          "name": "e39bd497-9d33-4be7-b0c6-91cdf36ea6f1",
+          "visualType": "tableEx",
+          "position": {
+            "x": 20,
+            "y": 140,
+            "width": 1220,
+            "height": 260
+          },
+          "title": "Shift Staffing Detail",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Date"
+                },
+                {
+                  "queryRef": "StaffingData.Census_1East"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Day_RN"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Day_LPN"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Day_Tech"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Evening_RN"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Evening_LPN"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Evening_Tech"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Night_RN"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Night_LPN"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Night_Tech"
+                },
+                {
+                  "queryRef": "StaffingData.1East_ShiftTotal"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "9886aa84-4cd6-410b-908c-6e4a16ab8aee",
+          "visualType": "tableEx",
+          "position": {
+            "x": 20,
+            "y": 420,
+            "width": 1220,
+            "height": 260
+          },
+          "title": "Patient-to-Staff Ratios",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Date"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Ratio_Day"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Ratio_Eve"
+                },
+                {
+                  "queryRef": "StaffingData.1East_Ratio_Night"
+                },
+                {
+                  "queryRef": "StaffingData.2East_Ratio_Day"
+                },
+                {
+                  "queryRef": "StaffingData.2East_Ratio_Eve"
+                },
+                {
+                  "queryRef": "StaffingData.2East_Ratio_Night"
+                },
+                {
+                  "queryRef": "StaffingData.2West_Ratio_Day"
+                },
+                {
+                  "queryRef": "StaffingData.2West_Ratio_Eve"
+                },
+                {
+                  "queryRef": "StaffingData.2West_Ratio_Night"
+                },
+                {
+                  "queryRef": "StaffingData.3East_Ratio_Day"
+                },
+                {
+                  "queryRef": "StaffingData.3East_Ratio_Eve"
+                },
+                {
+                  "queryRef": "StaffingData.3East_Ratio_Night"
+                },
+                {
+                  "queryRef": "StaffingData.3West_Ratio_Day"
+                },
+                {
+                  "queryRef": "StaffingData.3West_Ratio_Eve"
+                },
+                {
+                  "queryRef": "StaffingData.3West_Ratio_Night"
+                },
+                {
+                  "queryRef": "StaffingData.HRC_Ratio_Day"
+                },
+                {
+                  "queryRef": "StaffingData.HRC_Ratio_Eve"
+                },
+                {
+                  "queryRef": "StaffingData.HRC_Ratio_Night"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2973e8f0-97a9-4914-89bc-4f874b5e1db2",
+      "displayName": "Position Control",
+      "displayOption": "FitToPage",
+      "background": "#F5F5F5",
+      "visuals": [
+        {
+          "name": "db3aa030-0c15-4fd0-8597-3b204ca2eb18",
+          "visualType": "textbox",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 50
+          },
+          "content": "Position Control \u2014 FTE Breakdown"
+        },
+        {
+          "name": "6bf7c9e8-777e-4de1-8981-1ee15d1db5b4",
+          "visualType": "slicer",
+          "position": {
+            "x": 20,
+            "y": 60,
+            "width": 300,
+            "height": 60
+          },
+          "title": "Select Date",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            }
+          ],
+          "config": {
+            "slicerType": "DateRange"
+          }
+        },
+        {
+          "name": "a1389ef6-8228-4896-b7c1-07b47b6d528d",
+          "visualType": "tableEx",
+          "position": {
+            "x": 20,
+            "y": 140,
+            "width": 1220,
+            "height": 250
+          },
+          "title": "Variable FTEs \u2014 Direct Care Units (Census-Driven)",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Date"
+                },
+                {
+                  "queryRef": "StaffingData.RN_ProdFTE"
+                },
+                {
+                  "queryRef": "StaffingData.RN_AdjFTE"
+                },
+                {
+                  "queryRef": "StaffingData.LPN_ProdFTE"
+                },
+                {
+                  "queryRef": "StaffingData.LPN_AdjFTE"
+                },
+                {
+                  "queryRef": "StaffingData.Tech_ProdFTE"
+                },
+                {
+                  "queryRef": "StaffingData.Tech_AdjFTE"
+                },
+                {
+                  "queryRef": "StaffingData.Float_ProdFTE"
+                },
+                {
+                  "queryRef": "StaffingData.Float_AdjFTE"
+                },
+                {
+                  "queryRef": "StaffingData.OneOne_ProdFTE"
+                },
+                {
+                  "queryRef": "StaffingData.OneOne_AdjFTE"
+                },
+                {
+                  "queryRef": "StaffingData.VarProdFTE"
+                },
+                {
+                  "queryRef": "StaffingData.VarAdjFTE"
+                },
+                {
+                  "queryRef": "StaffingData.VarNP_Add"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "0aefbe94-624a-4227-9f3a-57d7d85c9da4",
+          "visualType": "card",
+          "position": {
+            "x": 20,
+            "y": 410,
+            "width": 200,
+            "height": 100
+          },
+          "title": "Fixed FTE (Baseline)",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Fixed FTE"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "fb800de5-7a06-47aa-825b-f3ae85c49859",
+          "visualType": "card",
+          "position": {
+            "x": 230,
+            "y": 410,
+            "width": 200,
+            "height": 100
+          },
+          "title": "Fixed HC",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.FixedHC"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "35a9241c-62ff-4033-934f-fed6bb0c0166",
+          "visualType": "card",
+          "position": {
+            "x": 440,
+            "y": 410,
+            "width": 200,
+            "height": 100
+          },
+          "title": "Grand Prod FTE",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.GrandProdFTE"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "f4f425bb-aa0d-453b-91dd-48c5cda499c7",
+          "visualType": "card",
+          "position": {
+            "x": 650,
+            "y": 410,
+            "width": 200,
+            "height": 100
+          },
+          "title": "Grand Adj FTE",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Grand Total FTE"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3047b446-6487-41fc-9b42-8460024dce77",
+          "visualType": "clusteredBarChart",
+          "position": {
+            "x": 20,
+            "y": 530,
+            "width": 600,
+            "height": 250
+          },
+          "title": "Adjusted FTE by Role",
+          "dataRoles": [
+            {
+              "role": "Category",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            },
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.RN Adj FTE"
+                },
+                {
+                  "queryRef": "StaffingData.LPN Adj FTE"
+                },
+                {
+                  "queryRef": "StaffingData.Tech Adj FTE"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "6aa264dd-46ce-4f1a-a904-923f61c7f134",
+      "displayName": "Payroll Variance",
+      "displayOption": "FitToPage",
+      "background": "#F5F5F5",
+      "visuals": [
+        {
+          "name": "027ee562-53c5-494c-99cb-c21be6734fa4",
+          "visualType": "textbox",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 50
+          },
+          "content": "Payroll Variance \u2014 Actual vs Model Comparison"
+        },
+        {
+          "name": "c709ef41-c533-44c7-9139-62fe230a6d29",
+          "visualType": "slicer",
+          "position": {
+            "x": 20,
+            "y": 60,
+            "width": 300,
+            "height": 60
+          },
+          "title": "Select Date",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            }
+          ],
+          "config": {
+            "slicerType": "DateRange"
+          }
+        },
+        {
+          "name": "fafd7d9a-fd5b-4bd7-af94-4ccd150a5e04",
+          "visualType": "card",
+          "position": {
+            "x": 20,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Hours Variance",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Hours Variance"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "12f6d038-7c67-4c30-bded-77c6887c574d",
+          "visualType": "card",
+          "position": {
+            "x": 225,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Variance %",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Variance %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "334821ac-1e88-4f06-910d-02c5be3e9bd8",
+          "visualType": "card",
+          "position": {
+            "x": 430,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Actual Daily Hours",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Actual Daily Hours"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "b57fd159-efb5-4bfc-a615-c395157e48cc",
+          "visualType": "card",
+          "position": {
+            "x": 635,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "Model Daily Hours",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Model Daily Hours"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "cc5dabed-a804-4e12-a4d1-0011c3974af0",
+          "visualType": "card",
+          "position": {
+            "x": 840,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "OT Hours",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.OT Hours Total"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "aaf05e7a-cf80-4928-9ba5-6bd6393fb620",
+          "visualType": "card",
+          "position": {
+            "x": 1045,
+            "y": 140,
+            "width": 195,
+            "height": 110
+          },
+          "title": "EPOB DC Var",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.EPOB DC Variance"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "7cf1b7eb-48cb-4afc-afe5-1c1bdbcadd07",
+          "visualType": "tableEx",
+          "position": {
+            "x": 20,
+            "y": 270,
+            "width": 1220,
+            "height": 250
+          },
+          "title": "Variable Units Staffing Variance",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Date"
+                },
+                {
+                  "queryRef": "StaffingData.Model_HrsDay_1East"
+                },
+                {
+                  "queryRef": "StaffingData.Actual_HrsDay_1East"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_HrsDay_1East"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_Pct_1East"
+                },
+                {
+                  "queryRef": "StaffingData.Model_HrsDay_2East"
+                },
+                {
+                  "queryRef": "StaffingData.Actual_HrsDay_2East"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_HrsDay_2East"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_Pct_2East"
+                },
+                {
+                  "queryRef": "StaffingData.Model_HrsDay_2West"
+                },
+                {
+                  "queryRef": "StaffingData.Actual_HrsDay_2West"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_HrsDay_2West"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_Pct_2West"
+                },
+                {
+                  "queryRef": "StaffingData.Model_HrsDay_3East"
+                },
+                {
+                  "queryRef": "StaffingData.Actual_HrsDay_3East"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_HrsDay_3East"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_Pct_3East"
+                },
+                {
+                  "queryRef": "StaffingData.Model_HrsDay_3West"
+                },
+                {
+                  "queryRef": "StaffingData.Actual_HrsDay_3West"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_HrsDay_3West"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_Pct_3West"
+                },
+                {
+                  "queryRef": "StaffingData.Model_HrsDay_HRC"
+                },
+                {
+                  "queryRef": "StaffingData.Actual_HrsDay_HRC"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_HrsDay_HRC"
+                },
+                {
+                  "queryRef": "StaffingData.Variance_Pct_HRC"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "cef7a6a7-7028-4084-b70f-108ea63db22d",
+          "visualType": "clusteredBarChart",
+          "position": {
+            "x": 20,
+            "y": 540,
+            "width": 600,
+            "height": 250
+          },
+          "title": "Actual vs Model Hours by Unit",
+          "dataRoles": [
+            {
+              "role": "Category",
+              "items": [
+                {
+                  "queryRef": "DateTable.YearMonth"
+                }
+              ]
+            },
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Actual Daily Hours"
+                },
+                {
+                  "queryRef": "StaffingData.Model Daily Hours"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "fafc70ee-0591-438a-9157-99461951cd23",
+      "displayName": "Trends",
+      "displayOption": "FitToPage",
+      "background": "#F5F5F5",
+      "visuals": [
+        {
+          "name": "a002a973-198f-4ba4-93f6-4661d2775763",
+          "visualType": "textbox",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 50
+          },
+          "content": "Trends \u2014 Historical Metrics Over Time"
+        },
+        {
+          "name": "8d9b80e5-2784-4a61-812f-cd1adcc7159d",
+          "visualType": "slicer",
+          "position": {
+            "x": 20,
+            "y": 60,
+            "width": 300,
+            "height": 60
+          },
+          "title": "Select Date",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            }
+          ],
+          "config": {
+            "slicerType": "DateRange"
+          }
+        },
+        {
+          "name": "0fc674a5-9af2-4f4d-85a0-52e697e76a40",
+          "visualType": "lineChart",
+          "position": {
+            "x": 20,
+            "y": 140,
+            "width": 600,
+            "height": 260
+          },
+          "title": "Total Census Over Time",
+          "dataRoles": [
+            {
+              "role": "Category",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            },
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Total Census"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "8e69845e-71d1-44d9-bd84-69321ef4f8a4",
+          "visualType": "lineChart",
+          "position": {
+            "x": 640,
+            "y": 140,
+            "width": 600,
+            "height": 260
+          },
+          "title": "Occupancy % Over Time",
+          "dataRoles": [
+            {
+              "role": "Category",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            },
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Occupancy %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "1a4aac5c-0e16-415d-bac4-493c0a711021",
+          "visualType": "lineChart",
+          "position": {
+            "x": 20,
+            "y": 420,
+            "width": 600,
+            "height": 280
+          },
+          "title": "EPOB Trend (DC vs Total)",
+          "dataRoles": [
+            {
+              "role": "Category",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            },
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.DC EPOB"
+                },
+                {
+                  "queryRef": "StaffingData.Total EPOB"
+                },
+                {
+                  "queryRef": "StaffingData.Actual DC EPOB"
+                },
+                {
+                  "queryRef": "StaffingData.Actual Total EPOB"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "4ebcb1f7-c650-4c46-a18d-19a6220889eb",
+          "visualType": "lineChart",
+          "position": {
+            "x": 640,
+            "y": 420,
+            "width": 600,
+            "height": 280
+          },
+          "title": "FTE Trend",
+          "dataRoles": [
+            {
+              "role": "Category",
+              "items": [
+                {
+                  "queryRef": "DateTable.Date"
+                }
+              ]
+            },
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Variable FTE"
+                },
+                {
+                  "queryRef": "StaffingData.Fixed FTE"
+                },
+                {
+                  "queryRef": "StaffingData.Grand Total FTE"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "78fc4928-647a-4bdb-b62d-a4a7a6e5d5e7",
+      "displayName": "MTD / YTD Analytics",
+      "displayOption": "FitToPage",
+      "background": "#F5F5F5",
+      "visuals": [
+        {
+          "name": "b727b97b-d4ed-4be1-9464-c06b85de091f",
+          "visualType": "textbox",
+          "position": {
+            "x": 0,
+            "y": 0,
+            "width": 1280,
+            "height": 50
+          },
+          "content": "MTD / YTD Analytics \u2014 Average Daily Census Metrics"
+        },
+        {
+          "name": "8d132818-556d-4da2-bf8a-e8cfbc70423f",
+          "visualType": "textbox",
+          "position": {
+            "x": 20,
+            "y": 60,
+            "width": 600,
+            "height": 35
+          },
+          "content": "Month-to-Date (MTD)"
+        },
+        {
+          "name": "5e73be02-276f-48f9-8076-8a238a662933",
+          "visualType": "card",
+          "position": {
+            "x": 20,
+            "y": 100,
+            "width": 180,
+            "height": 100
+          },
+          "title": "MTD Avg Census",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Avg Daily Census"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "301cb04e-13a9-48c8-9e46-6771f9ed1ebd",
+          "visualType": "card",
+          "position": {
+            "x": 210,
+            "y": 100,
+            "width": 180,
+            "height": 100
+          },
+          "title": "MTD Avg Occ %",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Avg Occupancy %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "3e4f0bb7-1b40-45dc-b3c7-bb2db1fe6050",
+          "visualType": "card",
+          "position": {
+            "x": 400,
+            "y": 100,
+            "width": 180,
+            "height": 100
+          },
+          "title": "MTD Avg DC EPOB",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Avg DC EPOB"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "7dda8122-806a-459e-8785-436a6f136046",
+          "visualType": "card",
+          "position": {
+            "x": 590,
+            "y": 100,
+            "width": 180,
+            "height": 100
+          },
+          "title": "MTD Total OT",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Total OT Hours"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "5dceb60f-5183-4093-824e-0a9172796897",
+          "visualType": "card",
+          "position": {
+            "x": 780,
+            "y": 100,
+            "width": 180,
+            "height": 100
+          },
+          "title": "MTD Avg FTE",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Avg Grand FTE"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "d4fb235d-8c73-4dda-b6fb-a2b71c0caf61",
+          "visualType": "card",
+          "position": {
+            "x": 970,
+            "y": 100,
+            "width": 130,
+            "height": 100
+          },
+          "title": "MTD Days",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Days Count"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "0670d3cb-a079-4155-8335-4e47ea636da3",
+          "visualType": "card",
+          "position": {
+            "x": 1110,
+            "y": 100,
+            "width": 140,
+            "height": 100
+          },
+          "title": "vs Prior Month",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.Census MTD vs Prior Month %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "ff77af9a-3374-49a8-8d42-def4afc7f6dc",
+          "visualType": "tableEx",
+          "position": {
+            "x": 20,
+            "y": 210,
+            "width": 1220,
+            "height": 150
+          },
+          "title": "MTD Average Census by Unit",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.MTD Avg Census 1East"
+                },
+                {
+                  "queryRef": "StaffingData.MTD Avg Census 2East"
+                },
+                {
+                  "queryRef": "StaffingData.MTD Avg Census 2West"
+                },
+                {
+                  "queryRef": "StaffingData.MTD Avg Census 3East"
+                },
+                {
+                  "queryRef": "StaffingData.MTD Avg Census 3West"
+                },
+                {
+                  "queryRef": "StaffingData.MTD Avg Census HRC"
+                },
+                {
+                  "queryRef": "StaffingData.MTD Avg Daily Census"
+                },
+                {
+                  "queryRef": "StaffingData.MTD Avg Occupancy %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "fd774e1d-7745-4e0e-869d-e566770cfa94",
+          "visualType": "textbox",
+          "position": {
+            "x": 20,
+            "y": 375,
+            "width": 600,
+            "height": 35
+          },
+          "content": "Year-to-Date (YTD)"
+        },
+        {
+          "name": "d3417ae7-2b2b-4526-ac8a-79d65a756bda",
+          "visualType": "card",
+          "position": {
+            "x": 20,
+            "y": 415,
+            "width": 180,
+            "height": 100
+          },
+          "title": "YTD Avg Census",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Avg Daily Census"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "609cf5ce-05ee-4748-b8bd-d37d8e767192",
+          "visualType": "card",
+          "position": {
+            "x": 210,
+            "y": 415,
+            "width": 180,
+            "height": 100
+          },
+          "title": "YTD Avg Occ %",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Avg Occupancy %"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "11af1a6d-c37c-4021-b208-36d2194151fd",
+          "visualType": "card",
+          "position": {
+            "x": 400,
+            "y": 415,
+            "width": 180,
+            "height": 100
+          },
+          "title": "YTD Avg DC EPOB",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Avg DC EPOB"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "ce54d4da-76eb-47c0-be25-39def2f61571",
+          "visualType": "card",
+          "position": {
+            "x": 590,
+            "y": 415,
+            "width": 180,
+            "height": 100
+          },
+          "title": "YTD Total OT",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Total OT Hours"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "6173cdf2-efe6-49cb-818b-f332a5afb9e8",
+          "visualType": "card",
+          "position": {
+            "x": 780,
+            "y": 415,
+            "width": 180,
+            "height": 100
+          },
+          "title": "YTD Avg FTE",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Avg Grand FTE"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "61a4ee5d-b2bc-4265-9a9e-843408554e4b",
+          "visualType": "card",
+          "position": {
+            "x": 970,
+            "y": 415,
+            "width": 130,
+            "height": 100
+          },
+          "title": "YTD Days",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Days Count"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "name": "a335d50d-a0c8-4b68-9c33-13879c5e98ca",
+          "visualType": "tableEx",
+          "position": {
+            "x": 20,
+            "y": 525,
+            "width": 1220,
+            "height": 150
+          },
+          "title": "YTD Average Census by Unit",
+          "dataRoles": [
+            {
+              "role": "Values",
+              "items": [
+                {
+                  "queryRef": "StaffingData.YTD Avg Census 1East"
+                },
+                {
+                  "queryRef": "StaffingData.YTD Avg Census 2East"
+                },
+                {
+                  "queryRef": "StaffingData.YTD Avg Census 2West"
+                },
+                {
+                  "queryRef": "StaffingData.YTD Avg Census 3East"
+                },
+                {
+                  "queryRef": "StaffingData.YTD Avg Census 3West"
+                },
+                {
+                  "queryRef": "StaffingData.YTD Avg Census HRC"
+                },
+                {
+                  "queryRef": "StaffingData.YTD Avg Daily Census"
+                },
+                {
+                  "queryRef": "StaffingData.YTD Avg Occupancy %"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "config": {
+    "version": "5.50",
+    "themeCollection": {
+      "baseTheme": {
+        "name": "Highland Staffing"
+      }
+    },
+    "activeSectionIndex": 0,
+    "defaultDrillFilterOtherVisuals": true
+  }
+}

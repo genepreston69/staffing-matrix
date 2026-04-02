@@ -1,0 +1,9 @@
+{
+  "version": "1.0",
+  "datasetReference": {
+    "byPath": {
+      "path": "../Highland_Staffing_Matrix.SemanticModel"
+    },
+    "byConnection": null
+  }
+}
