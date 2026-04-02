@@ -1,0 +1,142 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/pnp/provisioning/202209/extract-configuration.schema.json",
+  "listName": "PO Line Items",
+  "listDescription": "Individual line items associated with each purchase order.",
+  "listTemplate": 100,
+  "contentTypesEnabled": true,
+  "enableAttachments": false,
+  "enableVersioning": true,
+  "majorVersionLimit": 10,
+  "contentTypeBindings": [
+    {
+      "contentTypeId": "0x01",
+      "name": "Item"
+    }
+  ],
+  "fields": [
+    {
+      "internalName": "Title",
+      "displayName": "Title",
+      "type": "Text",
+      "required": false,
+      "description": "Short label or name for this line item."
+    },
+    {
+      "internalName": "POHeaderID",
+      "displayName": "PO Header",
+      "type": "Lookup",
+      "required": true,
+      "lookupListTitle": "Purchase Orders",
+      "lookupField": "PONumber",
+      "description": "Reference to the parent purchase order."
+    },
+    {
+      "internalName": "ItemDescription",
+      "displayName": "Item Description",
+      "type": "Note",
+      "required": true,
+      "numberOfLines": 4,
+      "richTextMode": "Compatible",
+      "appendOnly": false,
+      "description": "Detailed description of the item or service being purchased."
+    },
+    {
+      "internalName": "Quantity",
+      "displayName": "Quantity",
+      "type": "Number",
+      "required": true,
+      "min": 1,
+      "decimals": 0,
+      "description": "Number of units being ordered."
+    },
+    {
+      "internalName": "UnitCost",
+      "displayName": "Unit Cost",
+      "type": "Currency",
+      "required": true,
+      "currencyLocaleId": 1033,
+      "min": 0,
+      "decimals": 2,
+      "description": "Cost per unit."
+    },
+    {
+      "internalName": "LineTotal",
+      "displayName": "Line Total",
+      "type": "Calculated",
+      "resultType": "Currency",
+      "formula": "=[Quantity]*[UnitCost]",
+      "decimals": 2,
+      "currencyLocaleId": 1033,
+      "description": "Calculated total for this line item (Quantity x Unit Cost)."
+    },
+    {
+      "internalName": "GLCode",
+      "displayName": "GL Code",
+      "type": "Text",
+      "required": false,
+      "description": "General ledger account code for this expense."
+    },
+    {
+      "internalName": "Category",
+      "displayName": "Category",
+      "type": "Choice",
+      "required": false,
+      "format": "Dropdown",
+      "choices": [
+        "Supplies",
+        "Equipment",
+        "Services",
+        "Food",
+        "Maintenance",
+        "IT",
+        "Other"
+      ],
+      "description": "Expense category for the line item."
+    },
+    {
+      "internalName": "Notes",
+      "displayName": "Notes",
+      "type": "Note",
+      "required": false,
+      "numberOfLines": 4,
+      "richTextMode": "Compatible",
+      "appendOnly": false,
+      "description": "Additional notes or comments for this line item."
+    }
+  ],
+  "views": [
+    {
+      "title": "All Items",
+      "default": true,
+      "paged": true,
+      "rowLimit": 50,
+      "query": "<OrderBy><FieldRef Name='POHeaderID' Ascending='TRUE' /></OrderBy>",
+      "viewFields": [
+        "POHeaderID",
+        "Title",
+        "ItemDescription",
+        "Quantity",
+        "UnitCost",
+        "LineTotal",
+        "GLCode",
+        "Category"
+      ]
+    },
+    {
+      "title": "By Category",
+      "default": false,
+      "paged": true,
+      "rowLimit": 50,
+      "query": "<GroupBy Collapse='TRUE'><FieldRef Name='Category' /></GroupBy><OrderBy><FieldRef Name='POHeaderID' Ascending='TRUE' /></OrderBy>",
+      "viewFields": [
+        "POHeaderID",
+        "Title",
+        "ItemDescription",
+        "Quantity",
+        "UnitCost",
+        "LineTotal",
+        "Category"
+      ]
+    }
+  ]
+}

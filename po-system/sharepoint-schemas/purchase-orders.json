@@ -1,0 +1,320 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/pnp/provisioning/202209/extract-configuration.schema.json",
+  "listName": "Purchase Orders",
+  "listDescription": "Tracks all purchase order requests, their approval status, and workflow history.",
+  "listTemplate": 100,
+  "contentTypesEnabled": true,
+  "enableAttachments": true,
+  "enableVersioning": true,
+  "majorVersionLimit": 50,
+  "contentTypeBindings": [
+    {
+      "contentTypeId": "0x01",
+      "name": "Item"
+    }
+  ],
+  "fields": [
+    {
+      "internalName": "Title",
+      "displayName": "Title",
+      "type": "Text",
+      "required": false,
+      "description": "Short title or summary of the purchase order."
+    },
+    {
+      "internalName": "PONumber",
+      "displayName": "PO Number",
+      "type": "Text",
+      "required": true,
+      "indexed": true,
+      "enforceUniqueValues": true,
+      "description": "Unique purchase order number (e.g., 127-100)."
+    },
+    {
+      "internalName": "RequestDate",
+      "displayName": "Request Date",
+      "type": "DateTime",
+      "required": false,
+      "format": "DateOnly",
+      "default": "[today]",
+      "description": "Date the purchase order was initiated."
+    },
+    {
+      "internalName": "Originator",
+      "displayName": "Originator",
+      "type": "User",
+      "required": false,
+      "userSelectionMode": "PeopleOnly",
+      "userSelectionScope": 0,
+      "description": "Person who created the purchase order request."
+    },
+    {
+      "internalName": "Department",
+      "displayName": "Department",
+      "type": "Lookup",
+      "required": false,
+      "lookupListTitle": "Department Approval Matrix",
+      "lookupField": "DepartmentName",
+      "description": "Department associated with this purchase order."
+    },
+    {
+      "internalName": "DeptCode",
+      "displayName": "Dept Code",
+      "type": "Text",
+      "required": false,
+      "description": "3-digit department code (auto-populated from Department lookup)."
+    },
+    {
+      "internalName": "VendorName",
+      "displayName": "Vendor Name",
+      "type": "Text",
+      "required": true,
+      "description": "Name of the vendor or supplier."
+    },
+    {
+      "internalName": "VendorAddress",
+      "displayName": "Vendor Address",
+      "type": "Note",
+      "required": false,
+      "numberOfLines": 4,
+      "richTextMode": "Compatible",
+      "appendOnly": false,
+      "description": "Full mailing address of the vendor."
+    },
+    {
+      "internalName": "VendorContact",
+      "displayName": "Vendor Contact",
+      "type": "Text",
+      "required": false,
+      "description": "Primary contact person at the vendor."
+    },
+    {
+      "internalName": "VendorEmail",
+      "displayName": "Vendor Email",
+      "type": "Text",
+      "required": false,
+      "description": "Email address for the vendor contact."
+    },
+    {
+      "internalName": "PurchaseJustification",
+      "displayName": "Purchase Justification",
+      "type": "Note",
+      "required": true,
+      "numberOfLines": 6,
+      "richTextMode": "Compatible",
+      "appendOnly": false,
+      "description": "Business justification for the purchase."
+    },
+    {
+      "internalName": "TotalAmount",
+      "displayName": "Total Amount",
+      "type": "Currency",
+      "required": false,
+      "currencyLocaleId": 1033,
+      "min": 0,
+      "decimals": 2,
+      "description": "Total dollar amount of the purchase order (sum of all line items)."
+    },
+    {
+      "internalName": "Status",
+      "displayName": "Status",
+      "type": "Choice",
+      "required": false,
+      "format": "Dropdown",
+      "default": "Draft",
+      "choices": [
+        "Draft",
+        "Submitted",
+        "Pending Dept Head",
+        "Pending Controller",
+        "Pending CFO",
+        "Pending Corporate CFO",
+        "Returned for Revision",
+        "Approved \u2013 Ready for Purchase",
+        "Rejected",
+        "Cancelled"
+      ],
+      "description": "Current workflow status of the purchase order."
+    },
+    {
+      "internalName": "CurrentApprover",
+      "displayName": "Current Approver",
+      "type": "User",
+      "required": false,
+      "userSelectionMode": "PeopleOnly",
+      "userSelectionScope": 0,
+      "description": "Person currently responsible for approving this PO."
+    },
+    {
+      "internalName": "CurrentApprovalLevel",
+      "displayName": "Current Approval Level",
+      "type": "Choice",
+      "required": false,
+      "format": "Dropdown",
+      "choices": [
+        "Auto Approved",
+        "Dept Head",
+        "Controller",
+        "CFO",
+        "Corporate CFO"
+      ],
+      "description": "The approval tier currently processing this PO."
+    },
+    {
+      "internalName": "SubmissionDate",
+      "displayName": "Submission Date",
+      "type": "DateTime",
+      "required": false,
+      "format": "DateOnly",
+      "description": "Date the PO was submitted for approval."
+    },
+    {
+      "internalName": "FinalApprovalDate",
+      "displayName": "Final Approval Date",
+      "type": "DateTime",
+      "required": false,
+      "format": "DateOnly",
+      "description": "Date the PO received its final approval."
+    },
+    {
+      "internalName": "ReturnNotes",
+      "displayName": "Return Notes",
+      "type": "Note",
+      "required": false,
+      "numberOfLines": 6,
+      "richTextMode": "Compatible",
+      "appendOnly": false,
+      "description": "Comments provided when a PO is returned for revision."
+    },
+    {
+      "internalName": "ApprovalHistory",
+      "displayName": "Approval History",
+      "type": "Note",
+      "required": false,
+      "numberOfLines": 10,
+      "richTextMode": "Compatible",
+      "appendOnly": true,
+      "description": "Running log of all approval actions taken on this PO."
+    },
+    {
+      "internalName": "AttachmentVerified",
+      "displayName": "Attachment Verified",
+      "type": "Boolean",
+      "required": false,
+      "default": false,
+      "description": "Indicates whether required attachments (quotes, invoices) have been verified."
+    },
+    {
+      "internalName": "Escalated",
+      "displayName": "Escalated",
+      "type": "Boolean",
+      "required": false,
+      "default": false,
+      "description": "Indicates whether the PO has been escalated due to inactivity."
+    },
+    {
+      "internalName": "EscalationDate",
+      "displayName": "Escalation Date",
+      "type": "DateTime",
+      "required": false,
+      "format": "DateOnly",
+      "description": "Date the PO was escalated."
+    },
+    {
+      "internalName": "ReadyForPurchaseDate",
+      "displayName": "Ready for Purchase Date",
+      "type": "DateTime",
+      "required": false,
+      "format": "DateOnly",
+      "description": "Date the PO was fully approved and marked ready for purchase."
+    }
+  ],
+  "views": [
+    {
+      "title": "All Items",
+      "default": true,
+      "paged": true,
+      "rowLimit": 30,
+      "query": "",
+      "viewFields": [
+        "PONumber",
+        "Title",
+        "VendorName",
+        "TotalAmount",
+        "Status",
+        "Originator",
+        "RequestDate",
+        "CurrentApprover"
+      ]
+    },
+    {
+      "title": "My Requests",
+      "default": false,
+      "paged": true,
+      "rowLimit": 30,
+      "query": "<Where><Eq><FieldRef Name='Originator' /><Value Type='Integer'><UserID /></Value></Eq></Where><OrderBy><FieldRef Name='RequestDate' Ascending='FALSE' /></OrderBy>",
+      "viewFields": [
+        "PONumber",
+        "Title",
+        "VendorName",
+        "TotalAmount",
+        "Status",
+        "RequestDate",
+        "CurrentApprover",
+        "CurrentApprovalLevel"
+      ]
+    },
+    {
+      "title": "Pending Approval",
+      "default": false,
+      "paged": true,
+      "rowLimit": 30,
+      "query": "<Where><And><In><FieldRef Name='Status' /><Values><Value Type='Choice'>Submitted</Value><Value Type='Choice'>Pending Dept Head</Value><Value Type='Choice'>Pending Controller</Value><Value Type='Choice'>Pending CFO</Value><Value Type='Choice'>Pending Corporate CFO</Value></Values></In><Eq><FieldRef Name='CurrentApprover' /><Value Type='Integer'><UserID /></Value></Eq></And></Where><OrderBy><FieldRef Name='SubmissionDate' Ascending='TRUE' /></OrderBy>",
+      "viewFields": [
+        "PONumber",
+        "Title",
+        "Originator",
+        "Department",
+        "VendorName",
+        "TotalAmount",
+        "Status",
+        "CurrentApprovalLevel",
+        "SubmissionDate"
+      ]
+    },
+    {
+      "title": "Approved",
+      "default": false,
+      "paged": true,
+      "rowLimit": 30,
+      "query": "<Where><Eq><FieldRef Name='Status' /><Value Type='Choice'>Approved \u2013 Ready for Purchase</Value></Eq></Where><OrderBy><FieldRef Name='FinalApprovalDate' Ascending='FALSE' /></OrderBy>",
+      "viewFields": [
+        "PONumber",
+        "Title",
+        "Originator",
+        "Department",
+        "VendorName",
+        "TotalAmount",
+        "FinalApprovalDate",
+        "ReadyForPurchaseDate"
+      ]
+    },
+    {
+      "title": "Returned",
+      "default": false,
+      "paged": true,
+      "rowLimit": 30,
+      "query": "<Where><Eq><FieldRef Name='Status' /><Value Type='Choice'>Returned for Revision</Value></Eq></Where><OrderBy><FieldRef Name='RequestDate' Ascending='FALSE' /></OrderBy>",
+      "viewFields": [
+        "PONumber",
+        "Title",
+        "Originator",
+        "Department",
+        "VendorName",
+        "TotalAmount",
+        "ReturnNotes",
+        "CurrentApprover"
+      ]
+    }
+  ]
+}

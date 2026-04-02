@@ -1,0 +1,207 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/pnp/provisioning/202209/extract-configuration.schema.json",
+  "listName": "Department Approval Matrix",
+  "listDescription": "Maps each department to its approval chain (Dept Head, Controller, CFO, Corporate CFO).",
+  "listTemplate": 100,
+  "contentTypesEnabled": true,
+  "enableAttachments": false,
+  "enableVersioning": true,
+  "majorVersionLimit": 20,
+  "contentTypeBindings": [
+    {
+      "contentTypeId": "0x01",
+      "name": "Item"
+    }
+  ],
+  "fields": [
+    {
+      "internalName": "Title",
+      "displayName": "Title",
+      "type": "Text",
+      "required": false,
+      "description": "Department name (display column)."
+    },
+    {
+      "internalName": "DepartmentName",
+      "displayName": "Department Name",
+      "type": "Text",
+      "required": true,
+      "description": "Full name of the department."
+    },
+    {
+      "internalName": "DepartmentCode",
+      "displayName": "Department Code",
+      "type": "Text",
+      "required": true,
+      "maxLength": 3,
+      "description": "3-digit department code."
+    },
+    {
+      "internalName": "DeptHead",
+      "displayName": "Dept Head",
+      "type": "User",
+      "required": true,
+      "userSelectionMode": "PeopleOnly",
+      "userSelectionScope": 0,
+      "description": "Department head responsible for first-level approval."
+    },
+    {
+      "internalName": "Controller",
+      "displayName": "Controller",
+      "type": "User",
+      "required": true,
+      "userSelectionMode": "PeopleOnly",
+      "userSelectionScope": 0,
+      "description": "Controller responsible for second-level approval."
+    },
+    {
+      "internalName": "CFO",
+      "displayName": "CFO",
+      "type": "User",
+      "required": true,
+      "userSelectionMode": "PeopleOnly",
+      "userSelectionScope": 0,
+      "description": "CFO responsible for third-level approval."
+    },
+    {
+      "internalName": "CorporateCFO",
+      "displayName": "Corporate CFO",
+      "type": "User",
+      "required": true,
+      "userSelectionMode": "PeopleOnly",
+      "userSelectionScope": 0,
+      "description": "Corporate CFO responsible for highest-level approval."
+    },
+    {
+      "internalName": "Active",
+      "displayName": "Active",
+      "type": "Boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether this department is currently active in the approval workflow."
+    },
+    {
+      "internalName": "Notes",
+      "displayName": "Notes",
+      "type": "Note",
+      "required": false,
+      "numberOfLines": 4,
+      "richTextMode": "Compatible",
+      "appendOnly": false,
+      "description": "Additional notes about this department's approval process."
+    }
+  ],
+  "views": [
+    {
+      "title": "All Departments",
+      "default": true,
+      "paged": true,
+      "rowLimit": 30,
+      "query": "<OrderBy><FieldRef Name='DepartmentCode' Ascending='TRUE' /></OrderBy>",
+      "viewFields": [
+        "DepartmentName",
+        "DepartmentCode",
+        "DeptHead",
+        "Controller",
+        "CFO",
+        "CorporateCFO",
+        "Active"
+      ]
+    },
+    {
+      "title": "Active Departments",
+      "default": false,
+      "paged": true,
+      "rowLimit": 30,
+      "query": "<Where><Eq><FieldRef Name='Active' /><Value Type='Boolean'>1</Value></Eq></Where><OrderBy><FieldRef Name='DepartmentCode' Ascending='TRUE' /></OrderBy>",
+      "viewFields": [
+        "DepartmentName",
+        "DepartmentCode",
+        "DeptHead",
+        "Controller",
+        "CFO",
+        "CorporateCFO"
+      ]
+    }
+  ],
+  "sampleData": [
+    {
+      "Title": "Nursing",
+      "DepartmentName": "Nursing",
+      "DepartmentCode": "201",
+      "Active": true
+    },
+    {
+      "Title": "Dietary",
+      "DepartmentName": "Dietary",
+      "DepartmentCode": "202",
+      "Active": true
+    },
+    {
+      "Title": "Housekeeping",
+      "DepartmentName": "Housekeeping",
+      "DepartmentCode": "203",
+      "Active": true
+    },
+    {
+      "Title": "Plant Operations",
+      "DepartmentName": "Plant Operations",
+      "DepartmentCode": "204",
+      "Active": true
+    },
+    {
+      "Title": "Intake",
+      "DepartmentName": "Intake",
+      "DepartmentCode": "205",
+      "Active": true
+    },
+    {
+      "Title": "Case Management",
+      "DepartmentName": "Case Management",
+      "DepartmentCode": "206",
+      "Active": true
+    },
+    {
+      "Title": "Medical Records",
+      "DepartmentName": "Medical Records",
+      "DepartmentCode": "207",
+      "Active": true
+    },
+    {
+      "Title": "Administration",
+      "DepartmentName": "Administration",
+      "DepartmentCode": "208",
+      "Active": true
+    },
+    {
+      "Title": "HR",
+      "DepartmentName": "HR",
+      "DepartmentCode": "209",
+      "Active": true
+    },
+    {
+      "Title": "Business Office",
+      "DepartmentName": "Business Office",
+      "DepartmentCode": "210",
+      "Active": true
+    },
+    {
+      "Title": "IT",
+      "DepartmentName": "IT",
+      "DepartmentCode": "211",
+      "Active": true
+    },
+    {
+      "Title": "Recreation Therapy",
+      "DepartmentName": "Recreation Therapy",
+      "DepartmentCode": "212",
+      "Active": true
+    },
+    {
+      "Title": "Communications",
+      "DepartmentName": "Communications",
+      "DepartmentCode": "213",
+      "Active": true
+    }
+  ]
+}

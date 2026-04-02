@@ -1,0 +1,74 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/pnp/provisioning/202209/extract-configuration.schema.json",
+  "listName": "PO Number Tracker",
+  "listDescription": "Maintains the global sequential counter used to generate unique PO numbers.",
+  "listTemplate": 100,
+  "contentTypesEnabled": true,
+  "enableAttachments": false,
+  "enableVersioning": true,
+  "majorVersionLimit": 500,
+  "contentTypeBindings": [
+    {
+      "contentTypeId": "0x01",
+      "name": "Item"
+    }
+  ],
+  "fields": [
+    {
+      "internalName": "Title",
+      "displayName": "Title",
+      "type": "Text",
+      "required": false,
+      "description": "Label for this counter record."
+    },
+    {
+      "internalName": "LastSequenceNumber",
+      "displayName": "Last Sequence Number",
+      "type": "Number",
+      "required": false,
+      "min": 0,
+      "decimals": 0,
+      "default": 99,
+      "description": "The last sequence number issued. The next PO will use this value + 1."
+    },
+    {
+      "internalName": "Prefix",
+      "displayName": "Prefix",
+      "type": "Text",
+      "required": false,
+      "default": "127",
+      "description": "Prefix prepended to the sequence number to form the PO number (e.g., 127-100)."
+    },
+    {
+      "internalName": "Active",
+      "displayName": "Active",
+      "type": "Boolean",
+      "required": false,
+      "default": true,
+      "description": "Whether this counter is the active counter for generating new PO numbers."
+    }
+  ],
+  "views": [
+    {
+      "title": "All Items",
+      "default": true,
+      "paged": true,
+      "rowLimit": 10,
+      "query": "",
+      "viewFields": [
+        "Title",
+        "Prefix",
+        "LastSequenceNumber",
+        "Active"
+      ]
+    }
+  ],
+  "defaultData": [
+    {
+      "Title": "Global PO Counter",
+      "LastSequenceNumber": 99,
+      "Prefix": "127",
+      "Active": true
+    }
+  ]
+}
