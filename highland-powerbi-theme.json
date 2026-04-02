@@ -1,0 +1,101 @@
+{
+  "name": "Highland Hospital Staffing Matrix",
+  "dataColors": [
+    "#008080",
+    "#1b2a4a",
+    "#28a745",
+    "#dc3545",
+    "#ffc107",
+    "#6c757d",
+    "#17a2b8",
+    "#5a6c7d"
+  ],
+  "background": "#FFFFFF",
+  "foreground": "#1b2a4a",
+  "tableAccent": "#008080",
+  "good": "#28a745",
+  "neutral": "#ffc107",
+  "bad": "#dc3545",
+  "maximum": "#dc3545",
+  "center": "#ffc107",
+  "minimum": "#28a745",
+  "visualStyles": {
+    "*": {
+      "*": {
+        "general": [
+          {
+            "responsive": true
+          }
+        ],
+        "title": [
+          {
+            "fontFamily": "Segoe UI Semibold",
+            "fontSize": 12,
+            "fontColor": "#1b2a4a"
+          }
+        ],
+        "labels": [
+          {
+            "fontFamily": "Segoe UI",
+            "fontSize": 10,
+            "fontColor": "#5a6c7d"
+          }
+        ]
+      }
+    },
+    "card": {
+      "*": {
+        "labels": [
+          {
+            "fontSize": 28,
+            "fontFamily": "Segoe UI Semibold",
+            "fontColor": "#1b2a4a"
+          }
+        ],
+        "categoryLabels": [
+          {
+            "fontSize": 11,
+            "fontFamily": "Segoe UI",
+            "fontColor": "#6c757d"
+          }
+        ]
+      }
+    },
+    "page": {
+      "*": {
+        "background": [
+          {
+            "color": "#f8f9fa",
+            "transparency": 0
+          }
+        ]
+      }
+    },
+    "table": {
+      "*": {
+        "grid": [
+          {
+            "gridVertical": false,
+            "gridHorizontal": true,
+            "gridHorizontalColor": "#e9ecef"
+          }
+        ],
+        "columnHeaders": [
+          {
+            "fontFamily": "Segoe UI Semibold",
+            "fontSize": 11,
+            "fontColor": "#FFFFFF",
+            "backColor": "#1b2a4a"
+          }
+        ],
+        "values": [
+          {
+            "fontFamily": "Segoe UI",
+            "fontSize": 11,
+            "fontColor": "#1b2a4a"
+          }
+        ]
+      }
+    }
+  }
+}
