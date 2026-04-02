@@ -18,18 +18,13 @@
       {
         "name": "SharePointSiteURL",
         "kind": "m",
-        "expression": [
-          "let",
-          "    Source = \"https://YOUR_TENANT.sharepoint.com/sites/YOUR_SITE\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]",
-          "in",
-          "    Source"
-        ],
+        "expression": "let\n    Source = \"https://YOUR_TENANT.sharepoint.com/sites/YOUR_SITE\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]\nin\n    Source",
         "lineageTag": "param-sp-url"
       }
     ],
     "relationships": [
       {
-        "name": "DateTable_to_StaffingData",
+        "name": "DateToStaffing",
         "fromTable": "StaffingData",
         "fromColumn": "DateKey",
         "toTable": "DateTable",
@@ -42,6 +37,7 @@
         "name": "DateTable",
         "lineageTag": "tbl-date",
         "dataCategory": "Time",
+        "isHidden": false,
         "partitions": [
           {
             "name": "DateTable-Partition",
@@ -58,97 +54,76 @@
             "dataType": "dateTime",
             "sourceColumn": "[Date]",
             "isKey": true,
-            "lineageTag": "col-date-date",
+            "lineageTag": "col-dt-date",
             "summarizeBy": "none",
             "type": "calculatedTableColumn",
             "isNameInferred": true,
             "isDataTypeInferred": true,
-            "annotations": [
-              {
-                "name": "Format",
-                "value": "<Format Format=\"DateTimeShortDatePattern\" />"
-              }
-            ]
+            "formatString": "Short Date"
           },
           {
             "name": "Year",
             "dataType": "int64",
-            "lineageTag": "col-date-year",
+            "lineageTag": "col-dt-year",
             "summarizeBy": "none",
-            "type": "calculated",
+            "type": "calculatedTableColumn",
+            "isNameInferred": false,
             "expression": "YEAR([Date])"
           },
           {
             "name": "MonthNum",
             "dataType": "int64",
-            "lineageTag": "col-date-monthnum",
+            "lineageTag": "col-dt-mnum",
             "summarizeBy": "none",
-            "type": "calculated",
+            "type": "calculatedTableColumn",
+            "isNameInferred": false,
             "expression": "MONTH([Date])"
           },
           {
             "name": "MonthName",
             "dataType": "string",
-            "lineageTag": "col-date-monthname",
+            "lineageTag": "col-dt-mname",
             "summarizeBy": "none",
-            "type": "calculated",
+            "type": "calculatedTableColumn",
+            "isNameInferred": false,
             "expression": "FORMAT([Date], \"MMMM\")",
             "sortByColumn": "MonthNum"
           },
           {
             "name": "Day",
             "dataType": "int64",
-            "lineageTag": "col-date-day",
+            "lineageTag": "col-dt-day",
             "summarizeBy": "none",
-            "type": "calculated",
+            "type": "calculatedTableColumn",
+            "isNameInferred": false,
             "expression": "DAY([Date])"
           },
           {
             "name": "Quarter",
             "dataType": "string",
-            "lineageTag": "col-date-quarter",
+            "lineageTag": "col-dt-qtr",
             "summarizeBy": "none",
-            "type": "calculated",
-            "expression": "\"Q\" & FORMAT([Date], \"Q\")"
+            "type": "calculatedTableColumn",
+            "isNameInferred": false,
+            "expression": "\"Q\" & FORMAT(QUARTER([Date]), \"0\")"
           },
           {
             "name": "YearMonth",
             "dataType": "string",
-            "lineageTag": "col-date-yearmonth",
+            "lineageTag": "col-dt-ym",
             "summarizeBy": "none",
-            "type": "calculated",
+            "type": "calculatedTableColumn",
+            "isNameInferred": false,
             "expression": "FORMAT([Date], \"YYYY-MM\")"
           },
           {
             "name": "DayOfWeek",
             "dataType": "string",
-            "lineageTag": "col-date-dow",
+            "lineageTag": "col-dt-dow",
             "summarizeBy": "none",
-            "type": "calculated",
+            "type": "calculatedTableColumn",
+            "isNameInferred": false,
             "expression": "FORMAT([Date], \"dddd\")"
-          },
-          {
-            "name": "IsCurrentMonth",
-            "dataType": "boolean",
-            "lineageTag": "col-date-iscurmonth",
-            "summarizeBy": "none",
-            "type": "calculated",
-            "expression": "YEAR([Date]) = YEAR(TODAY()) && MONTH([Date]) = MONTH(TODAY())"
-          },
-          {
-            "name": "IsCurrentYear",
-            "dataType": "boolean",
-            "lineageTag": "col-date-iscuryear",
-            "summarizeBy": "none",
-            "type": "calculated",
-            "expression": "YEAR([Date]) = YEAR(TODAY())"
-          }
-        ],
-        "measures": [],
-        "annotations": [
-          {
-            "name": "PBI_Id",
-            "value": "date-table-auto"
           }
         ]
       },
@@ -160,8 +135,8 @@
             "name": "Units-Partition",
             "mode": "import",
             "source": {
-              "type": "calculated",
-              "expression": "DATATABLE(\"UnitKey\", STRING, \"UnitLabel\", STRING, \"UnitType\", STRING, \"MaxBeds\", INTEGER, \"PayrollBU\", STRING, {{\"1East\", \"1 East - Child Acute\", \"acute\", 18, \"Acute Adult-100E\"}, {\"2East\", \"2 East - Adult Acute\", \"acute\", 20, \"Acute Child-200E\"}, {\"2West\", \"2 West - Adolescent\", \"acute\", 20, \"Acute Adol-200W\"}, {\"3East\", \"3 East - Adult Acute\", \"acute\", 20, \"Acute Adult-300E\"}, {\"3West\", \"3 West - Adult Acute\", \"acute\", 20, \"Acute Adult-300W\"}, {\"HRC\", \"HRC - SUD/Detox ASAM 3.7\", \"detox\", 16, \"Acute Adult-100\"}})"
+              "type": "m",
+              "expression": "let\n    Source = #table(\n        type table [UnitKey = text, UnitLabel = text, UnitType = text, MaxBeds = number, PayrollBU = text],\n        {\n            {\"1East\", \"1 East - Child Acute\", \"acute\", 18, \"Acute Adult-100E\"},\n            {\"2East\", \"2 East - Adult Acute\", \"acute\", 20, \"Acute Child-200E\"},\n            {\"2West\", \"2 West - Adolescent\", \"acute\", 20, \"Acute Adol-200W\"},\n            {\"3East\", \"3 East - Adult Acute\", \"acute\", 20, \"Acute Adult-300E\"},\n            {\"3West\", \"3 West - Adult Acute\", \"acute\", 20, \"Acute Adult-300W\"},\n            {\"HRC\", \"HRC - SUD/Detox ASAM 3.7\", \"detox\", 16, \"Acute Adult-100\"}\n        }\n    )\nin\n    Source"
             }
           }
         ],
@@ -170,35 +145,35 @@
             "name": "UnitKey",
             "dataType": "string",
             "sourceColumn": "UnitKey",
-            "lineageTag": "col-unit-key",
+            "lineageTag": "col-u-key",
             "summarizeBy": "none"
           },
           {
             "name": "UnitLabel",
             "dataType": "string",
             "sourceColumn": "UnitLabel",
-            "lineageTag": "col-unit-label",
+            "lineageTag": "col-u-label",
             "summarizeBy": "none"
           },
           {
             "name": "UnitType",
             "dataType": "string",
             "sourceColumn": "UnitType",
-            "lineageTag": "col-unit-type",
+            "lineageTag": "col-u-type",
             "summarizeBy": "none"
           },
           {
             "name": "MaxBeds",
             "dataType": "int64",
             "sourceColumn": "MaxBeds",
-            "lineageTag": "col-unit-maxbeds",
+            "lineageTag": "col-u-beds",
             "summarizeBy": "sum"
           },
           {
             "name": "PayrollBU",
             "dataType": "string",
             "sourceColumn": "PayrollBU",
-            "lineageTag": "col-unit-payrollbu",
+            "lineageTag": "col-u-bu",
             "summarizeBy": "none"
           }
         ]
@@ -212,15 +187,7 @@
             "mode": "import",
             "source": {
               "type": "m",
-              "expression": [
-                "let",
-                "    Source = SharePoint.Tables(SharePointSiteURL, [Implementation=\"2.0\", ApiVersion=15]),",
-                "    StaffingMatrix = Source{[Title=\"StaffingMatrix\"]}[Items],",
-                "    #\"Removed Other Columns\" = Table.SelectColumns(StaffingMatrix, {\"Timestamp\", \"Date\", \"TimeEntryDate\", \"TotalStaffedBeds\", \"TotalCensus\", \"OccupancyPct\", \"Census_1East\", \"OccPct_1East\", \"Census_2East\", \"OccPct_2East\", \"Census_2West\", \"OccPct_2West\", \"Census_3East\", \"OccPct_3East\", \"Census_3West\", \"OccPct_3West\", \"Census_HRC\", \"OccPct_HRC\", \"ObsHrs_Total\", \"ObsHrs_1East\", \"ObsHrs_2East\", \"ObsHrs_2West\", \"ObsHrs_3East\", \"ObsHrs_3West\", \"ObsHrs_HRC\", \"NP_ModelPct\", \"NP_Multiplier\", \"NP_1East\", \"NP_2East\", \"NP_2West\", \"NP_3East\", \"NP_3West\", \"NP_HRC\", \"1East_Day_RN\", \"1East_Day_LPN\", \"1East_Day_Tech\", \"1East_Evening_RN\", \"1East_Evening_LPN\", \"1East_Evening_Tech\", \"1East_Night_RN\", \"1East_Night_LPN\", \"1East_Night_Tech\", \"1East_ShiftTotal\", \"1East_Ratio_Day\", \"1East_Ratio_Eve\", \"1East_Ratio_Night\", \"2East_Day_RN\", \"2East_Day_LPN\", \"2East_Day_Tech\", \"2East_Evening_RN\", \"2East_Evening_LPN\", \"2East_Evening_Tech\", \"2East_Night_RN\", \"2East_Night_LPN\", \"2East_Night_Tech\", \"2East_ShiftTotal\", \"2East_Ratio_Day\", \"2East_Ratio_Eve\", \"2East_Ratio_Night\", \"2West_Day_RN\", \"2West_Day_LPN\", \"2West_Day_Tech\", \"2West_Evening_RN\", \"2West_Evening_LPN\", \"2West_Evening_Tech\", \"2West_Night_RN\", \"2West_Night_LPN\", \"2West_Night_Tech\", \"2West_ShiftTotal\", \"2West_Ratio_Day\", \"2West_Ratio_Eve\", \"2West_Ratio_Night\", \"3East_Day_RN\", \"3East_Day_LPN\", \"3East_Day_Tech\", \"3East_Evening_RN\", \"3East_Evening_LPN\", \"3East_Evening_Tech\", \"3East_Night_RN\", \"3East_Night_LPN\", \"3East_Night_Tech\", \"3East_ShiftTotal\", \"3East_Ratio_Day\", \"3East_Ratio_Eve\", \"3East_Ratio_Night\", \"3West_Day_RN\", \"3West_Day_LPN\", \"3West_Day_Tech\", \"3West_Evening_RN\", \"3West_Evening_LPN\", \"3West_Evening_Tech\", \"3West_Night_RN\", \"3West_Night_LPN\", \"3West_Night_Tech\", \"3West_ShiftTotal\", \"3West_Ratio_Day\", \"3West_Ratio_Eve\", \"3West_Ratio_Night\", \"HRC_Day_RN\", \"HRC_Day_LPN\", \"HRC_Day_Tech\", \"HRC_Evening_RN\", \"HRC_Evening_LPN\", \"HRC_Evening_Tech\", \"HRC_Night_RN\", \"HRC_Night_LPN\", \"HRC_Night_Tech\", \"HRC_ShiftTotal\", \"HRC_Ratio_Day\", \"HRC_Ratio_Eve\", \"HRC_Ratio_Night\", \"Total_RN\", \"Total_LPN\", \"Total_Tech\", \"Total_ShiftStaff\", \"StaffPerShift\", \"FloatShiftPositions\", \"RN_ProdFTE\", \"RN_AdjFTE\", \"LPN_ProdFTE\", \"LPN_AdjFTE\", \"Tech_ProdFTE\", \"Tech_AdjFTE\", \"Float_ProdFTE\", \"Float_AdjFTE\", \"OneOne_ProdFTE\", \"OneOne_AdjFTE\", \"VarProdFTE\", \"VarAdjFTE\", \"VarNP_Add\", \"FixedFTE\", \"FixedHC\", \"FixedSource\", \"GrandProdFTE\", \"GrandAdjFTE\", \"EPOB_DirectCare\", \"EPOB_TotalFacility\", \"EPOB_Productive\", \"EPOB_VarPerPatient\", \"EPOB_FixPerPatient\", \"HasPayrollData\", \"PayrollFileName\", \"PayrollDayCount\", \"PayrollStartDate\", \"PayrollEndDate\", \"Actual_HrsDay_1East\", \"Actual_HC_1East\", \"Actual_OT_1East\", \"Actual_NpHrs_1East\", \"Actual_Wages_1East\", \"Model_HrsDay_1East\", \"Variance_HrsDay_1East\", \"Variance_Pct_1East\", \"Actual_HrsDay_2East\", \"Actual_HC_2East\", \"Actual_OT_2East\", \"Actual_NpHrs_2East\", \"Actual_Wages_2East\", \"Model_HrsDay_2East\", \"Variance_HrsDay_2East\", \"Variance_Pct_2East\", \"Actual_HrsDay_2West\", \"Actual_HC_2West\", \"Actual_OT_2West\", \"Actual_NpHrs_2West\", \"Actual_Wages_2West\", \"Model_HrsDay_2West\", \"Variance_HrsDay_2West\", \"Variance_Pct_2West\", \"Actual_HrsDay_3East\", \"Actual_HC_3East\", \"Actual_OT_3East\", \"Actual_NpHrs_3East\", \"Actual_Wages_3East\", \"Model_HrsDay_3East\", \"Variance_HrsDay_3East\", \"Variance_Pct_3East\", \"Actual_HrsDay_3West\", \"Actual_HC_3West\", \"Actual_OT_3West\", \"Actual_NpHrs_3West\", \"Actual_Wages_3West\", \"Model_HrsDay_3West\", \"Variance_HrsDay_3West\", \"Variance_Pct_3West\", \"Actual_HrsDay_HRC\", \"Actual_HC_HRC\", \"Actual_OT_HRC\", \"Actual_NpHrs_HRC\", \"Actual_Wages_HRC\", \"Model_HrsDay_HRC\", \"Variance_HrsDay_HRC\", \"Variance_Pct_HRC\", \"Actual_VarHrsDay_Total\", \"Actual_FixHrsDay_Total\", \"Actual_VarHC_Total\", \"Actual_FixHC_Total\", \"Actual_OT_Total\", \"Model_VarHrsDay_Total\", \"Variance_VarHrsDay_Total\", \"Variance_VarPct_Total\", \"Actual_VarFTE\", \"Actual_FixFTE\", \"Actual_TotalFTE\", \"Actual_EPOB_DC\", \"Actual_EPOB_Total\", \"EPOB_DC_Variance\", \"EPOB_Total_Variance\"}),",
-                "    #\"Changed Type\" = Table.TransformColumnTypes(#\"Removed Other Columns\", {{\"Timestamp\", type text}, {\"Date\", type text}, {\"TimeEntryDate\", type text}, {\"TotalStaffedBeds\", type number}, {\"TotalCensus\", type number}, {\"OccupancyPct\", type number}, {\"Census_1East\", type number}, {\"OccPct_1East\", type number}, {\"Census_2East\", type number}, {\"OccPct_2East\", type number}, {\"Census_2West\", type number}, {\"OccPct_2West\", type number}, {\"Census_3East\", type number}, {\"OccPct_3East\", type number}, {\"Census_3West\", type number}, {\"OccPct_3West\", type number}, {\"Census_HRC\", type number}, {\"OccPct_HRC\", type number}, {\"ObsHrs_Total\", type number}, {\"ObsHrs_1East\", type number}, {\"ObsHrs_2East\", type number}, {\"ObsHrs_2West\", type number}, {\"ObsHrs_3East\", type number}, {\"ObsHrs_3West\", type number}, {\"ObsHrs_HRC\", type number}, {\"NP_ModelPct\", type number}, {\"NP_Multiplier\", type number}, {\"NP_1East\", type number}, {\"NP_2East\", type number}, {\"NP_2West\", type number}, {\"NP_3East\", type number}, {\"NP_3West\", type number}, {\"NP_HRC\", type number}, {\"1East_Day_RN\", type number}, {\"1East_Day_LPN\", type number}, {\"1East_Day_Tech\", type number}, {\"1East_Evening_RN\", type number}, {\"1East_Evening_LPN\", type number}, {\"1East_Evening_Tech\", type number}, {\"1East_Night_RN\", type number}, {\"1East_Night_LPN\", type number}, {\"1East_Night_Tech\", type number}, {\"1East_ShiftTotal\", type number}, {\"1East_Ratio_Day\", type number}, {\"1East_Ratio_Eve\", type number}, {\"1East_Ratio_Night\", type number}, {\"2East_Day_RN\", type number}, {\"2East_Day_LPN\", type number}, {\"2East_Day_Tech\", type number}, {\"2East_Evening_RN\", type number}, {\"2East_Evening_LPN\", type number}, {\"2East_Evening_Tech\", type number}, {\"2East_Night_RN\", type number}, {\"2East_Night_LPN\", type number}, {\"2East_Night_Tech\", type number}, {\"2East_ShiftTotal\", type number}, {\"2East_Ratio_Day\", type number}, {\"2East_Ratio_Eve\", type number}, {\"2East_Ratio_Night\", type number}, {\"2West_Day_RN\", type number}, {\"2West_Day_LPN\", type number}, {\"2West_Day_Tech\", type number}, {\"2West_Evening_RN\", type number}, {\"2West_Evening_LPN\", type number}, {\"2West_Evening_Tech\", type number}, {\"2West_Night_RN\", type number}, {\"2West_Night_LPN\", type number}, {\"2West_Night_Tech\", type number}, {\"2West_ShiftTotal\", type number}, {\"2West_Ratio_Day\", type number}, {\"2West_Ratio_Eve\", type number}, {\"2West_Ratio_Night\", type number}, {\"3East_Day_RN\", type number}, {\"3East_Day_LPN\", type number}, {\"3East_Day_Tech\", type number}, {\"3East_Evening_RN\", type number}, {\"3East_Evening_LPN\", type number}, {\"3East_Evening_Tech\", type number}, {\"3East_Night_RN\", type number}, {\"3East_Night_LPN\", type number}, {\"3East_Night_Tech\", type number}, {\"3East_ShiftTotal\", type number}, {\"3East_Ratio_Day\", type number}, {\"3East_Ratio_Eve\", type number}, {\"3East_Ratio_Night\", type number}, {\"3West_Day_RN\", type number}, {\"3West_Day_LPN\", type number}, {\"3West_Day_Tech\", type number}, {\"3West_Evening_RN\", type number}, {\"3West_Evening_LPN\", type number}, {\"3West_Evening_Tech\", type number}, {\"3West_Night_RN\", type number}, {\"3West_Night_LPN\", type number}, {\"3West_Night_Tech\", type number}, {\"3West_ShiftTotal\", type number}, {\"3West_Ratio_Day\", type number}, {\"3West_Ratio_Eve\", type number}, {\"3West_Ratio_Night\", type number}, {\"HRC_Day_RN\", type number}, {\"HRC_Day_LPN\", type number}, {\"HRC_Day_Tech\", type number}, {\"HRC_Evening_RN\", type number}, {\"HRC_Evening_LPN\", type number}, {\"HRC_Evening_Tech\", type number}, {\"HRC_Night_RN\", type number}, {\"HRC_Night_LPN\", type number}, {\"HRC_Night_Tech\", type number}, {\"HRC_ShiftTotal\", type number}, {\"HRC_Ratio_Day\", type number}, {\"HRC_Ratio_Eve\", type number}, {\"HRC_Ratio_Night\", type number}, {\"Total_RN\", type number}, {\"Total_LPN\", type number}, {\"Total_Tech\", type number}, {\"Total_ShiftStaff\", type number}, {\"StaffPerShift\", type number}, {\"FloatShiftPositions\", type number}, {\"RN_ProdFTE\", type number}, {\"RN_AdjFTE\", type number}, {\"LPN_ProdFTE\", type number}, {\"LPN_AdjFTE\", type number}, {\"Tech_ProdFTE\", type number}, {\"Tech_AdjFTE\", type number}, {\"Float_ProdFTE\", type number}, {\"Float_AdjFTE\", type number}, {\"OneOne_ProdFTE\", type number}, {\"OneOne_AdjFTE\", type number}, {\"VarProdFTE\", type number}, {\"VarAdjFTE\", type number}, {\"VarNP_Add\", type number}, {\"FixedFTE\", type number}, {\"FixedHC\", type number}, {\"FixedSource\", type text}, {\"GrandProdFTE\", type number}, {\"GrandAdjFTE\", type number}, {\"EPOB_DirectCare\", type number}, {\"EPOB_TotalFacility\", type number}, {\"EPOB_Productive\", type number}, {\"EPOB_VarPerPatient\", type number}, {\"EPOB_FixPerPatient\", type number}, {\"HasPayrollData\", type logical}, {\"PayrollFileName\", type text}, {\"PayrollDayCount\", type number}, {\"PayrollStartDate\", type text}, {\"PayrollEndDate\", type text}, {\"Actual_HrsDay_1East\", type number}, {\"Actual_HC_1East\", type number}, {\"Actual_OT_1East\", type number}, {\"Actual_NpHrs_1East\", type number}, {\"Actual_Wages_1East\", type number}, {\"Model_HrsDay_1East\", type number}, {\"Variance_HrsDay_1East\", type number}, {\"Variance_Pct_1East\", type number}, {\"Actual_HrsDay_2East\", type number}, {\"Actual_HC_2East\", type number}, {\"Actual_OT_2East\", type number}, {\"Actual_NpHrs_2East\", type number}, {\"Actual_Wages_2East\", type number}, {\"Model_HrsDay_2East\", type number}, {\"Variance_HrsDay_2East\", type number}, {\"Variance_Pct_2East\", type number}, {\"Actual_HrsDay_2West\", type number}, {\"Actual_HC_2West\", type number}, {\"Actual_OT_2West\", type number}, {\"Actual_NpHrs_2West\", type number}, {\"Actual_Wages_2West\", type number}, {\"Model_HrsDay_2West\", type number}, {\"Variance_HrsDay_2West\", type number}, {\"Variance_Pct_2West\", type number}, {\"Actual_HrsDay_3East\", type number}, {\"Actual_HC_3East\", type number}, {\"Actual_OT_3East\", type number}, {\"Actual_NpHrs_3East\", type number}, {\"Actual_Wages_3East\", type number}, {\"Model_HrsDay_3East\", type number}, {\"Variance_HrsDay_3East\", type number}, {\"Variance_Pct_3East\", type number}, {\"Actual_HrsDay_3West\", type number}, {\"Actual_HC_3West\", type number}, {\"Actual_OT_3West\", type number}, {\"Actual_NpHrs_3West\", type number}, {\"Actual_Wages_3West\", type number}, {\"Model_HrsDay_3West\", type number}, {\"Variance_HrsDay_3West\", type number}, {\"Variance_Pct_3West\", type number}, {\"Actual_HrsDay_HRC\", type number}, {\"Actual_HC_HRC\", type number}, {\"Actual_OT_HRC\", type number}, {\"Actual_NpHrs_HRC\", type number}, {\"Actual_Wages_HRC\", type number}, {\"Model_HrsDay_HRC\", type number}, {\"Variance_HrsDay_HRC\", type number}, {\"Variance_Pct_HRC\", type number}, {\"Actual_VarHrsDay_Total\", type number}, {\"Actual_FixHrsDay_Total\", type number}, {\"Actual_VarHC_Total\", type number}, {\"Actual_FixHC_Total\", type number}, {\"Actual_OT_Total\", type number}, {\"Model_VarHrsDay_Total\", type number}, {\"Variance_VarHrsDay_Total\", type number}, {\"Variance_VarPct_Total\", type number}, {\"Actual_VarFTE\", type number}, {\"Actual_FixFTE\", type number}, {\"Actual_TotalFTE\", type number}, {\"Actual_EPOB_DC\", type number}, {\"Actual_EPOB_Total\", type number}, {\"EPOB_DC_Variance\", type number}, {\"EPOB_Total_Variance\", type number}})",
-                "in",
-                "    #\"Changed Type\""
-              ]
+              "expression": "let\n    Source = SharePoint.Tables(SharePointSiteURL, [Implementation=\"2.0\", ApiVersion=15]),\n    StaffingMatrix = Source{[Title=\"StaffingMatrix\"]}[Items],\n    #\"Selected Columns\" = Table.SelectColumns(StaffingMatrix, {\"Timestamp\", \"Date\", \"TimeEntryDate\", \"TotalStaffedBeds\", \"TotalCensus\", \"OccupancyPct\", \"Census_1East\", \"OccPct_1East\", \"Census_2East\", \"OccPct_2East\", \"Census_2West\", \"OccPct_2West\", \"Census_3East\", \"OccPct_3East\", \"Census_3West\", \"OccPct_3West\", \"Census_HRC\", \"OccPct_HRC\", \"ObsHrs_Total\", \"ObsHrs_1East\", \"ObsHrs_2East\", \"ObsHrs_2West\", \"ObsHrs_3East\", \"ObsHrs_3West\", \"ObsHrs_HRC\", \"NP_ModelPct\", \"NP_Multiplier\", \"NP_1East\", \"NP_2East\", \"NP_2West\", \"NP_3East\", \"NP_3West\", \"NP_HRC\", \"1East_Day_RN\", \"1East_Day_LPN\", \"1East_Day_Tech\", \"1East_Evening_RN\", \"1East_Evening_LPN\", \"1East_Evening_Tech\", \"1East_Night_RN\", \"1East_Night_LPN\", \"1East_Night_Tech\", \"1East_ShiftTotal\", \"1East_Ratio_Day\", \"1East_Ratio_Eve\", \"1East_Ratio_Night\", \"2East_Day_RN\", \"2East_Day_LPN\", \"2East_Day_Tech\", \"2East_Evening_RN\", \"2East_Evening_LPN\", \"2East_Evening_Tech\", \"2East_Night_RN\", \"2East_Night_LPN\", \"2East_Night_Tech\", \"2East_ShiftTotal\", \"2East_Ratio_Day\", \"2East_Ratio_Eve\", \"2East_Ratio_Night\", \"2West_Day_RN\", \"2West_Day_LPN\", \"2West_Day_Tech\", \"2West_Evening_RN\", \"2West_Evening_LPN\", \"2West_Evening_Tech\", \"2West_Night_RN\", \"2West_Night_LPN\", \"2West_Night_Tech\", \"2West_ShiftTotal\", \"2West_Ratio_Day\", \"2West_Ratio_Eve\", \"2West_Ratio_Night\", \"3East_Day_RN\", \"3East_Day_LPN\", \"3East_Day_Tech\", \"3East_Evening_RN\", \"3East_Evening_LPN\", \"3East_Evening_Tech\", \"3East_Night_RN\", \"3East_Night_LPN\", \"3East_Night_Tech\", \"3East_ShiftTotal\", \"3East_Ratio_Day\", \"3East_Ratio_Eve\", \"3East_Ratio_Night\", \"3West_Day_RN\", \"3West_Day_LPN\", \"3West_Day_Tech\", \"3West_Evening_RN\", \"3West_Evening_LPN\", \"3West_Evening_Tech\", \"3West_Night_RN\", \"3West_Night_LPN\", \"3West_Night_Tech\", \"3West_ShiftTotal\", \"3West_Ratio_Day\", \"3West_Ratio_Eve\", \"3West_Ratio_Night\", \"HRC_Day_RN\", \"HRC_Day_LPN\", \"HRC_Day_Tech\", \"HRC_Evening_RN\", \"HRC_Evening_LPN\", \"HRC_Evening_Tech\", \"HRC_Night_RN\", \"HRC_Night_LPN\", \"HRC_Night_Tech\", \"HRC_ShiftTotal\", \"HRC_Ratio_Day\", \"HRC_Ratio_Eve\", \"HRC_Ratio_Night\", \"Total_RN\", \"Total_LPN\", \"Total_Tech\", \"Total_ShiftStaff\", \"StaffPerShift\", \"FloatShiftPositions\", \"RN_ProdFTE\", \"RN_AdjFTE\", \"LPN_ProdFTE\", \"LPN_AdjFTE\", \"Tech_ProdFTE\", \"Tech_AdjFTE\", \"Float_ProdFTE\", \"Float_AdjFTE\", \"OneOne_ProdFTE\", \"OneOne_AdjFTE\", \"VarProdFTE\", \"VarAdjFTE\", \"VarNP_Add\", \"FixedFTE\", \"FixedHC\", \"FixedSource\", \"GrandProdFTE\", \"GrandAdjFTE\", \"EPOB_DirectCare\", \"EPOB_TotalFacility\", \"EPOB_Productive\", \"EPOB_VarPerPatient\", \"EPOB_FixPerPatient\", \"HasPayrollData\", \"PayrollFileName\", \"PayrollDayCount\", \"PayrollStartDate\", \"PayrollEndDate\", \"Actual_HrsDay_1East\", \"Actual_HC_1East\", \"Actual_OT_1East\", \"Actual_NpHrs_1East\", \"Actual_Wages_1East\", \"Model_HrsDay_1East\", \"Variance_HrsDay_1East\", \"Variance_Pct_1East\", \"Actual_HrsDay_2East\", \"Actual_HC_2East\", \"Actual_OT_2East\", \"Actual_NpHrs_2East\", \"Actual_Wages_2East\", \"Model_HrsDay_2East\", \"Variance_HrsDay_2East\", \"Variance_Pct_2East\", \"Actual_HrsDay_2West\", \"Actual_HC_2West\", \"Actual_OT_2West\", \"Actual_NpHrs_2West\", \"Actual_Wages_2West\", \"Model_HrsDay_2West\", \"Variance_HrsDay_2West\", \"Variance_Pct_2West\", \"Actual_HrsDay_3East\", \"Actual_HC_3East\", \"Actual_OT_3East\", \"Actual_NpHrs_3East\", \"Actual_Wages_3East\", \"Model_HrsDay_3East\", \"Variance_HrsDay_3East\", \"Variance_Pct_3East\", \"Actual_HrsDay_3West\", \"Actual_HC_3West\", \"Actual_OT_3West\", \"Actual_NpHrs_3West\", \"Actual_Wages_3West\", \"Model_HrsDay_3West\", \"Variance_HrsDay_3West\", \"Variance_Pct_3West\", \"Actual_HrsDay_HRC\", \"Actual_HC_HRC\", \"Actual_OT_HRC\", \"Actual_NpHrs_HRC\", \"Actual_Wages_HRC\", \"Model_HrsDay_HRC\", \"Variance_HrsDay_HRC\", \"Variance_Pct_HRC\", \"Actual_VarHrsDay_Total\", \"Actual_FixHrsDay_Total\", \"Actual_VarHC_Total\", \"Actual_FixHC_Total\", \"Actual_OT_Total\", \"Model_VarHrsDay_Total\", \"Variance_VarHrsDay_Total\", \"Variance_VarPct_Total\", \"Actual_VarFTE\", \"Actual_FixFTE\", \"Actual_TotalFTE\", \"Actual_EPOB_DC\", \"Actual_EPOB_Total\", \"EPOB_DC_Variance\", \"EPOB_Total_Variance\"}),\n    #\"Added DateKey\" = Table.AddColumn(#\"Selected Columns\", \"DateKey\", each Date.From(Text.Trim([Date])), type date)\nin\n    #\"Added DateKey\""
             }
           }
         ],
@@ -229,700 +196,700 @@
             "name": "Timestamp",
             "dataType": "string",
             "sourceColumn": "Timestamp",
-            "lineageTag": "col-sd-0",
+            "lineageTag": "col-sd-000",
             "summarizeBy": "none"
           },
           {
             "name": "Date",
             "dataType": "string",
             "sourceColumn": "Date",
-            "lineageTag": "col-sd-1",
+            "lineageTag": "col-sd-001",
             "summarizeBy": "none"
           },
           {
             "name": "TimeEntryDate",
             "dataType": "string",
             "sourceColumn": "TimeEntryDate",
-            "lineageTag": "col-sd-2",
+            "lineageTag": "col-sd-002",
             "summarizeBy": "none"
           },
           {
             "name": "TotalStaffedBeds",
             "dataType": "double",
             "sourceColumn": "TotalStaffedBeds",
-            "lineageTag": "col-sd-3",
+            "lineageTag": "col-sd-003",
             "summarizeBy": "sum"
           },
           {
             "name": "TotalCensus",
             "dataType": "double",
             "sourceColumn": "TotalCensus",
-            "lineageTag": "col-sd-4",
+            "lineageTag": "col-sd-004",
             "summarizeBy": "sum"
           },
           {
             "name": "OccupancyPct",
             "dataType": "double",
             "sourceColumn": "OccupancyPct",
-            "lineageTag": "col-sd-5",
+            "lineageTag": "col-sd-005",
             "summarizeBy": "none"
           },
           {
             "name": "Census_1East",
             "dataType": "double",
             "sourceColumn": "Census_1East",
-            "lineageTag": "col-sd-6",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-006",
+            "summarizeBy": "sum"
           },
           {
             "name": "OccPct_1East",
             "dataType": "double",
             "sourceColumn": "OccPct_1East",
-            "lineageTag": "col-sd-7",
+            "lineageTag": "col-sd-007",
             "summarizeBy": "none"
           },
           {
             "name": "Census_2East",
             "dataType": "double",
             "sourceColumn": "Census_2East",
-            "lineageTag": "col-sd-8",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-008",
+            "summarizeBy": "sum"
           },
           {
             "name": "OccPct_2East",
             "dataType": "double",
             "sourceColumn": "OccPct_2East",
-            "lineageTag": "col-sd-9",
+            "lineageTag": "col-sd-009",
             "summarizeBy": "none"
           },
           {
             "name": "Census_2West",
             "dataType": "double",
             "sourceColumn": "Census_2West",
-            "lineageTag": "col-sd-10",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-010",
+            "summarizeBy": "sum"
           },
           {
             "name": "OccPct_2West",
             "dataType": "double",
             "sourceColumn": "OccPct_2West",
-            "lineageTag": "col-sd-11",
+            "lineageTag": "col-sd-011",
             "summarizeBy": "none"
           },
           {
             "name": "Census_3East",
             "dataType": "double",
             "sourceColumn": "Census_3East",
-            "lineageTag": "col-sd-12",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-012",
+            "summarizeBy": "sum"
           },
           {
             "name": "OccPct_3East",
             "dataType": "double",
             "sourceColumn": "OccPct_3East",
-            "lineageTag": "col-sd-13",
+            "lineageTag": "col-sd-013",
             "summarizeBy": "none"
           },
           {
             "name": "Census_3West",
             "dataType": "double",
             "sourceColumn": "Census_3West",
-            "lineageTag": "col-sd-14",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-014",
+            "summarizeBy": "sum"
           },
           {
             "name": "OccPct_3West",
             "dataType": "double",
             "sourceColumn": "OccPct_3West",
-            "lineageTag": "col-sd-15",
+            "lineageTag": "col-sd-015",
             "summarizeBy": "none"
           },
           {
             "name": "Census_HRC",
             "dataType": "double",
             "sourceColumn": "Census_HRC",
-            "lineageTag": "col-sd-16",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-016",
+            "summarizeBy": "sum"
           },
           {
             "name": "OccPct_HRC",
             "dataType": "double",
             "sourceColumn": "OccPct_HRC",
-            "lineageTag": "col-sd-17",
+            "lineageTag": "col-sd-017",
             "summarizeBy": "none"
           },
           {
             "name": "ObsHrs_Total",
             "dataType": "double",
             "sourceColumn": "ObsHrs_Total",
-            "lineageTag": "col-sd-18",
+            "lineageTag": "col-sd-018",
             "summarizeBy": "sum"
           },
           {
             "name": "ObsHrs_1East",
             "dataType": "double",
             "sourceColumn": "ObsHrs_1East",
-            "lineageTag": "col-sd-19",
+            "lineageTag": "col-sd-019",
             "summarizeBy": "sum"
           },
           {
             "name": "ObsHrs_2East",
             "dataType": "double",
             "sourceColumn": "ObsHrs_2East",
-            "lineageTag": "col-sd-20",
+            "lineageTag": "col-sd-020",
             "summarizeBy": "sum"
           },
           {
             "name": "ObsHrs_2West",
             "dataType": "double",
             "sourceColumn": "ObsHrs_2West",
-            "lineageTag": "col-sd-21",
+            "lineageTag": "col-sd-021",
             "summarizeBy": "sum"
           },
           {
             "name": "ObsHrs_3East",
             "dataType": "double",
             "sourceColumn": "ObsHrs_3East",
-            "lineageTag": "col-sd-22",
+            "lineageTag": "col-sd-022",
             "summarizeBy": "sum"
           },
           {
             "name": "ObsHrs_3West",
             "dataType": "double",
             "sourceColumn": "ObsHrs_3West",
-            "lineageTag": "col-sd-23",
+            "lineageTag": "col-sd-023",
             "summarizeBy": "sum"
           },
           {
             "name": "ObsHrs_HRC",
             "dataType": "double",
             "sourceColumn": "ObsHrs_HRC",
-            "lineageTag": "col-sd-24",
+            "lineageTag": "col-sd-024",
             "summarizeBy": "sum"
           },
           {
             "name": "NP_ModelPct",
             "dataType": "double",
             "sourceColumn": "NP_ModelPct",
-            "lineageTag": "col-sd-25",
+            "lineageTag": "col-sd-025",
             "summarizeBy": "none"
           },
           {
             "name": "NP_Multiplier",
             "dataType": "double",
             "sourceColumn": "NP_Multiplier",
-            "lineageTag": "col-sd-26",
+            "lineageTag": "col-sd-026",
             "summarizeBy": "none"
           },
           {
             "name": "NP_1East",
             "dataType": "double",
             "sourceColumn": "NP_1East",
-            "lineageTag": "col-sd-27",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-027",
+            "summarizeBy": "sum"
           },
           {
             "name": "NP_2East",
             "dataType": "double",
             "sourceColumn": "NP_2East",
-            "lineageTag": "col-sd-28",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-028",
+            "summarizeBy": "sum"
           },
           {
             "name": "NP_2West",
             "dataType": "double",
             "sourceColumn": "NP_2West",
-            "lineageTag": "col-sd-29",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-029",
+            "summarizeBy": "sum"
           },
           {
             "name": "NP_3East",
             "dataType": "double",
             "sourceColumn": "NP_3East",
-            "lineageTag": "col-sd-30",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-030",
+            "summarizeBy": "sum"
           },
           {
             "name": "NP_3West",
             "dataType": "double",
             "sourceColumn": "NP_3West",
-            "lineageTag": "col-sd-31",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-031",
+            "summarizeBy": "sum"
           },
           {
             "name": "NP_HRC",
             "dataType": "double",
             "sourceColumn": "NP_HRC",
-            "lineageTag": "col-sd-32",
-            "summarizeBy": "none"
+            "lineageTag": "col-sd-032",
+            "summarizeBy": "sum"
           },
           {
             "name": "1East_Day_RN",
             "dataType": "double",
             "sourceColumn": "1East_Day_RN",
-            "lineageTag": "col-sd-33",
+            "lineageTag": "col-sd-033",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Day_LPN",
             "dataType": "double",
             "sourceColumn": "1East_Day_LPN",
-            "lineageTag": "col-sd-34",
+            "lineageTag": "col-sd-034",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Day_Tech",
             "dataType": "double",
             "sourceColumn": "1East_Day_Tech",
-            "lineageTag": "col-sd-35",
+            "lineageTag": "col-sd-035",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Evening_RN",
             "dataType": "double",
             "sourceColumn": "1East_Evening_RN",
-            "lineageTag": "col-sd-36",
+            "lineageTag": "col-sd-036",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Evening_LPN",
             "dataType": "double",
             "sourceColumn": "1East_Evening_LPN",
-            "lineageTag": "col-sd-37",
+            "lineageTag": "col-sd-037",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Evening_Tech",
             "dataType": "double",
             "sourceColumn": "1East_Evening_Tech",
-            "lineageTag": "col-sd-38",
+            "lineageTag": "col-sd-038",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Night_RN",
             "dataType": "double",
             "sourceColumn": "1East_Night_RN",
-            "lineageTag": "col-sd-39",
+            "lineageTag": "col-sd-039",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Night_LPN",
             "dataType": "double",
             "sourceColumn": "1East_Night_LPN",
-            "lineageTag": "col-sd-40",
+            "lineageTag": "col-sd-040",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Night_Tech",
             "dataType": "double",
             "sourceColumn": "1East_Night_Tech",
-            "lineageTag": "col-sd-41",
+            "lineageTag": "col-sd-041",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_ShiftTotal",
             "dataType": "double",
             "sourceColumn": "1East_ShiftTotal",
-            "lineageTag": "col-sd-42",
+            "lineageTag": "col-sd-042",
             "summarizeBy": "sum"
           },
           {
             "name": "1East_Ratio_Day",
             "dataType": "double",
             "sourceColumn": "1East_Ratio_Day",
-            "lineageTag": "col-sd-43",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-043",
+            "summarizeBy": "none"
           },
           {
             "name": "1East_Ratio_Eve",
             "dataType": "double",
             "sourceColumn": "1East_Ratio_Eve",
-            "lineageTag": "col-sd-44",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-044",
+            "summarizeBy": "none"
           },
           {
             "name": "1East_Ratio_Night",
             "dataType": "double",
             "sourceColumn": "1East_Ratio_Night",
-            "lineageTag": "col-sd-45",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-045",
+            "summarizeBy": "none"
           },
           {
             "name": "2East_Day_RN",
             "dataType": "double",
             "sourceColumn": "2East_Day_RN",
-            "lineageTag": "col-sd-46",
+            "lineageTag": "col-sd-046",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Day_LPN",
             "dataType": "double",
             "sourceColumn": "2East_Day_LPN",
-            "lineageTag": "col-sd-47",
+            "lineageTag": "col-sd-047",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Day_Tech",
             "dataType": "double",
             "sourceColumn": "2East_Day_Tech",
-            "lineageTag": "col-sd-48",
+            "lineageTag": "col-sd-048",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Evening_RN",
             "dataType": "double",
             "sourceColumn": "2East_Evening_RN",
-            "lineageTag": "col-sd-49",
+            "lineageTag": "col-sd-049",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Evening_LPN",
             "dataType": "double",
             "sourceColumn": "2East_Evening_LPN",
-            "lineageTag": "col-sd-50",
+            "lineageTag": "col-sd-050",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Evening_Tech",
             "dataType": "double",
             "sourceColumn": "2East_Evening_Tech",
-            "lineageTag": "col-sd-51",
+            "lineageTag": "col-sd-051",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Night_RN",
             "dataType": "double",
             "sourceColumn": "2East_Night_RN",
-            "lineageTag": "col-sd-52",
+            "lineageTag": "col-sd-052",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Night_LPN",
             "dataType": "double",
             "sourceColumn": "2East_Night_LPN",
-            "lineageTag": "col-sd-53",
+            "lineageTag": "col-sd-053",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Night_Tech",
             "dataType": "double",
             "sourceColumn": "2East_Night_Tech",
-            "lineageTag": "col-sd-54",
+            "lineageTag": "col-sd-054",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_ShiftTotal",
             "dataType": "double",
             "sourceColumn": "2East_ShiftTotal",
-            "lineageTag": "col-sd-55",
+            "lineageTag": "col-sd-055",
             "summarizeBy": "sum"
           },
           {
             "name": "2East_Ratio_Day",
             "dataType": "double",
             "sourceColumn": "2East_Ratio_Day",
-            "lineageTag": "col-sd-56",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-056",
+            "summarizeBy": "none"
           },
           {
             "name": "2East_Ratio_Eve",
             "dataType": "double",
             "sourceColumn": "2East_Ratio_Eve",
-            "lineageTag": "col-sd-57",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-057",
+            "summarizeBy": "none"
           },
           {
             "name": "2East_Ratio_Night",
             "dataType": "double",
             "sourceColumn": "2East_Ratio_Night",
-            "lineageTag": "col-sd-58",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-058",
+            "summarizeBy": "none"
           },
           {
             "name": "2West_Day_RN",
             "dataType": "double",
             "sourceColumn": "2West_Day_RN",
-            "lineageTag": "col-sd-59",
+            "lineageTag": "col-sd-059",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Day_LPN",
             "dataType": "double",
             "sourceColumn": "2West_Day_LPN",
-            "lineageTag": "col-sd-60",
+            "lineageTag": "col-sd-060",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Day_Tech",
             "dataType": "double",
             "sourceColumn": "2West_Day_Tech",
-            "lineageTag": "col-sd-61",
+            "lineageTag": "col-sd-061",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Evening_RN",
             "dataType": "double",
             "sourceColumn": "2West_Evening_RN",
-            "lineageTag": "col-sd-62",
+            "lineageTag": "col-sd-062",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Evening_LPN",
             "dataType": "double",
             "sourceColumn": "2West_Evening_LPN",
-            "lineageTag": "col-sd-63",
+            "lineageTag": "col-sd-063",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Evening_Tech",
             "dataType": "double",
             "sourceColumn": "2West_Evening_Tech",
-            "lineageTag": "col-sd-64",
+            "lineageTag": "col-sd-064",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Night_RN",
             "dataType": "double",
             "sourceColumn": "2West_Night_RN",
-            "lineageTag": "col-sd-65",
+            "lineageTag": "col-sd-065",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Night_LPN",
             "dataType": "double",
             "sourceColumn": "2West_Night_LPN",
-            "lineageTag": "col-sd-66",
+            "lineageTag": "col-sd-066",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Night_Tech",
             "dataType": "double",
             "sourceColumn": "2West_Night_Tech",
-            "lineageTag": "col-sd-67",
+            "lineageTag": "col-sd-067",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_ShiftTotal",
             "dataType": "double",
             "sourceColumn": "2West_ShiftTotal",
-            "lineageTag": "col-sd-68",
+            "lineageTag": "col-sd-068",
             "summarizeBy": "sum"
           },
           {
             "name": "2West_Ratio_Day",
             "dataType": "double",
             "sourceColumn": "2West_Ratio_Day",
-            "lineageTag": "col-sd-69",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-069",
+            "summarizeBy": "none"
           },
           {
             "name": "2West_Ratio_Eve",
             "dataType": "double",
             "sourceColumn": "2West_Ratio_Eve",
-            "lineageTag": "col-sd-70",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-070",
+            "summarizeBy": "none"
           },
           {
             "name": "2West_Ratio_Night",
             "dataType": "double",
             "sourceColumn": "2West_Ratio_Night",
-            "lineageTag": "col-sd-71",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-071",
+            "summarizeBy": "none"
           },
           {
             "name": "3East_Day_RN",
             "dataType": "double",
             "sourceColumn": "3East_Day_RN",
-            "lineageTag": "col-sd-72",
+            "lineageTag": "col-sd-072",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Day_LPN",
             "dataType": "double",
             "sourceColumn": "3East_Day_LPN",
-            "lineageTag": "col-sd-73",
+            "lineageTag": "col-sd-073",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Day_Tech",
             "dataType": "double",
             "sourceColumn": "3East_Day_Tech",
-            "lineageTag": "col-sd-74",
+            "lineageTag": "col-sd-074",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Evening_RN",
             "dataType": "double",
             "sourceColumn": "3East_Evening_RN",
-            "lineageTag": "col-sd-75",
+            "lineageTag": "col-sd-075",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Evening_LPN",
             "dataType": "double",
             "sourceColumn": "3East_Evening_LPN",
-            "lineageTag": "col-sd-76",
+            "lineageTag": "col-sd-076",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Evening_Tech",
             "dataType": "double",
             "sourceColumn": "3East_Evening_Tech",
-            "lineageTag": "col-sd-77",
+            "lineageTag": "col-sd-077",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Night_RN",
             "dataType": "double",
             "sourceColumn": "3East_Night_RN",
-            "lineageTag": "col-sd-78",
+            "lineageTag": "col-sd-078",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Night_LPN",
             "dataType": "double",
             "sourceColumn": "3East_Night_LPN",
-            "lineageTag": "col-sd-79",
+            "lineageTag": "col-sd-079",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Night_Tech",
             "dataType": "double",
             "sourceColumn": "3East_Night_Tech",
-            "lineageTag": "col-sd-80",
+            "lineageTag": "col-sd-080",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_ShiftTotal",
             "dataType": "double",
             "sourceColumn": "3East_ShiftTotal",
-            "lineageTag": "col-sd-81",
+            "lineageTag": "col-sd-081",
             "summarizeBy": "sum"
           },
           {
             "name": "3East_Ratio_Day",
             "dataType": "double",
             "sourceColumn": "3East_Ratio_Day",
-            "lineageTag": "col-sd-82",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-082",
+            "summarizeBy": "none"
           },
           {
             "name": "3East_Ratio_Eve",
             "dataType": "double",
             "sourceColumn": "3East_Ratio_Eve",
-            "lineageTag": "col-sd-83",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-083",
+            "summarizeBy": "none"
           },
           {
             "name": "3East_Ratio_Night",
             "dataType": "double",
             "sourceColumn": "3East_Ratio_Night",
-            "lineageTag": "col-sd-84",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-084",
+            "summarizeBy": "none"
           },
           {
             "name": "3West_Day_RN",
             "dataType": "double",
             "sourceColumn": "3West_Day_RN",
-            "lineageTag": "col-sd-85",
+            "lineageTag": "col-sd-085",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Day_LPN",
             "dataType": "double",
             "sourceColumn": "3West_Day_LPN",
-            "lineageTag": "col-sd-86",
+            "lineageTag": "col-sd-086",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Day_Tech",
             "dataType": "double",
             "sourceColumn": "3West_Day_Tech",
-            "lineageTag": "col-sd-87",
+            "lineageTag": "col-sd-087",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Evening_RN",
             "dataType": "double",
             "sourceColumn": "3West_Evening_RN",
-            "lineageTag": "col-sd-88",
+            "lineageTag": "col-sd-088",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Evening_LPN",
             "dataType": "double",
             "sourceColumn": "3West_Evening_LPN",
-            "lineageTag": "col-sd-89",
+            "lineageTag": "col-sd-089",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Evening_Tech",
             "dataType": "double",
             "sourceColumn": "3West_Evening_Tech",
-            "lineageTag": "col-sd-90",
+            "lineageTag": "col-sd-090",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Night_RN",
             "dataType": "double",
             "sourceColumn": "3West_Night_RN",
-            "lineageTag": "col-sd-91",
+            "lineageTag": "col-sd-091",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Night_LPN",
             "dataType": "double",
             "sourceColumn": "3West_Night_LPN",
-            "lineageTag": "col-sd-92",
+            "lineageTag": "col-sd-092",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Night_Tech",
             "dataType": "double",
             "sourceColumn": "3West_Night_Tech",
-            "lineageTag": "col-sd-93",
+            "lineageTag": "col-sd-093",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_ShiftTotal",
             "dataType": "double",
             "sourceColumn": "3West_ShiftTotal",
-            "lineageTag": "col-sd-94",
+            "lineageTag": "col-sd-094",
             "summarizeBy": "sum"
           },
           {
             "name": "3West_Ratio_Day",
             "dataType": "double",
             "sourceColumn": "3West_Ratio_Day",
-            "lineageTag": "col-sd-95",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-095",
+            "summarizeBy": "none"
           },
           {
             "name": "3West_Ratio_Eve",
             "dataType": "double",
             "sourceColumn": "3West_Ratio_Eve",
-            "lineageTag": "col-sd-96",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-096",
+            "summarizeBy": "none"
           },
           {
             "name": "3West_Ratio_Night",
             "dataType": "double",
             "sourceColumn": "3West_Ratio_Night",
-            "lineageTag": "col-sd-97",
-            "summarizeBy": "sum"
+            "lineageTag": "col-sd-097",
+            "summarizeBy": "none"
           },
           {
             "name": "HRC_Day_RN",
             "dataType": "double",
             "sourceColumn": "HRC_Day_RN",
-            "lineageTag": "col-sd-98",
+            "lineageTag": "col-sd-098",
             "summarizeBy": "sum"
           },
           {
             "name": "HRC_Day_LPN",
             "dataType": "double",
             "sourceColumn": "HRC_Day_LPN",
-            "lineageTag": "col-sd-99",
+            "lineageTag": "col-sd-099",
             "summarizeBy": "sum"
           },
           {
@@ -986,21 +953,21 @@
             "dataType": "double",
             "sourceColumn": "HRC_Ratio_Day",
             "lineageTag": "col-sd-108",
-            "summarizeBy": "sum"
+            "summarizeBy": "none"
           },
           {
             "name": "HRC_Ratio_Eve",
             "dataType": "double",
             "sourceColumn": "HRC_Ratio_Eve",
             "lineageTag": "col-sd-109",
-            "summarizeBy": "sum"
+            "summarizeBy": "none"
           },
           {
             "name": "HRC_Ratio_Night",
             "dataType": "double",
             "sourceColumn": "HRC_Ratio_Night",
             "lineageTag": "col-sd-110",
-            "summarizeBy": "sum"
+            "summarizeBy": "none"
           },
           {
             "name": "Total_RN",
@@ -1684,857 +1651,467 @@
           {
             "name": "DateKey",
             "dataType": "dateTime",
+            "sourceColumn": "DateKey",
             "lineageTag": "col-sd-datekey",
             "summarizeBy": "none",
-            "type": "calculated",
-            "expression": "DATE(YEAR(DATEVALUE([Date])), MONTH(DATEVALUE([Date])), DAY(DATEVALUE([Date])))"
+            "formatString": "Short Date"
           }
         ],
         "measures": [
           {
             "name": "Total Census",
             "expression": "SUM(StaffingData[TotalCensus])",
-            "lineageTag": "msr-0",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-000",
             "formatString": "#,0",
             "displayFolder": "Core Metrics"
           },
           {
             "name": "Occupancy %",
             "expression": "DIVIDE(SUM(StaffingData[TotalCensus]), SUM(StaffingData[TotalStaffedBeds]), 0) * 100",
-            "lineageTag": "msr-1",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0\"%\"",
+            "lineageTag": "msr-001",
+            "formatString": "0.0",
             "displayFolder": "Core Metrics"
-          },
-          {
-            "name": "Census 1East",
-            "expression": "SUM(StaffingData[Census_1East])",
-            "lineageTag": "msr-2",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "#,0",
-            "displayFolder": "Census by Unit"
-          },
-          {
-            "name": "Census 2East",
-            "expression": "SUM(StaffingData[Census_2East])",
-            "lineageTag": "msr-3",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "#,0",
-            "displayFolder": "Census by Unit"
-          },
-          {
-            "name": "Census 2West",
-            "expression": "SUM(StaffingData[Census_2West])",
-            "lineageTag": "msr-4",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "#,0",
-            "displayFolder": "Census by Unit"
-          },
-          {
-            "name": "Census 3East",
-            "expression": "SUM(StaffingData[Census_3East])",
-            "lineageTag": "msr-5",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "#,0",
-            "displayFolder": "Census by Unit"
-          },
-          {
-            "name": "Census 3West",
-            "expression": "SUM(StaffingData[Census_3West])",
-            "lineageTag": "msr-6",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "#,0",
-            "displayFolder": "Census by Unit"
-          },
-          {
-            "name": "Census HRC",
-            "expression": "SUM(StaffingData[Census_HRC])",
-            "lineageTag": "msr-7",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "#,0",
-            "displayFolder": "Census by Unit"
           },
           {
             "name": "Total RN",
             "expression": "SUM(StaffingData[Total_RN])",
-            "lineageTag": "msr-8",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-002",
             "formatString": "#,0",
             "displayFolder": "Core Metrics"
           },
           {
             "name": "Total LPN",
             "expression": "SUM(StaffingData[Total_LPN])",
-            "lineageTag": "msr-9",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-003",
             "formatString": "#,0",
             "displayFolder": "Core Metrics"
           },
           {
             "name": "Total Tech",
             "expression": "SUM(StaffingData[Total_Tech])",
-            "lineageTag": "msr-10",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-004",
             "formatString": "#,0",
             "displayFolder": "Core Metrics"
           },
           {
             "name": "Total Shift Staff",
             "expression": "SUM(StaffingData[Total_ShiftStaff])",
-            "lineageTag": "msr-11",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-005",
             "formatString": "#,0",
             "displayFolder": "Core Metrics"
           },
           {
             "name": "DC EPOB",
             "expression": "AVERAGE(StaffingData[EPOB_DirectCare])",
-            "lineageTag": "msr-12",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-006",
             "formatString": "0.00",
             "displayFolder": "Core Metrics"
           },
           {
             "name": "Total EPOB",
             "expression": "AVERAGE(StaffingData[EPOB_TotalFacility])",
-            "lineageTag": "msr-13",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-007",
             "formatString": "0.00",
             "displayFolder": "Core Metrics"
           },
           {
+            "name": "NP Model %",
+            "expression": "AVERAGE(StaffingData[NP_ModelPct])",
+            "lineageTag": "msr-008",
+            "formatString": "0.0",
+            "displayFolder": "Core Metrics"
+          },
+          {
+            "name": "Observation Hours",
+            "expression": "SUM(StaffingData[ObsHrs_Total])",
+            "lineageTag": "msr-009",
+            "formatString": "0.0",
+            "displayFolder": "Core Metrics"
+          },
+          {
+            "name": "Census 1East",
+            "expression": "SUM(StaffingData[Census_1East])",
+            "lineageTag": "msr-010",
+            "formatString": "#,0",
+            "displayFolder": "Census by Unit"
+          },
+          {
+            "name": "Census 2East",
+            "expression": "SUM(StaffingData[Census_2East])",
+            "lineageTag": "msr-011",
+            "formatString": "#,0",
+            "displayFolder": "Census by Unit"
+          },
+          {
+            "name": "Census 2West",
+            "expression": "SUM(StaffingData[Census_2West])",
+            "lineageTag": "msr-012",
+            "formatString": "#,0",
+            "displayFolder": "Census by Unit"
+          },
+          {
+            "name": "Census 3East",
+            "expression": "SUM(StaffingData[Census_3East])",
+            "lineageTag": "msr-013",
+            "formatString": "#,0",
+            "displayFolder": "Census by Unit"
+          },
+          {
+            "name": "Census 3West",
+            "expression": "SUM(StaffingData[Census_3West])",
+            "lineageTag": "msr-014",
+            "formatString": "#,0",
+            "displayFolder": "Census by Unit"
+          },
+          {
+            "name": "Census HRC",
+            "expression": "SUM(StaffingData[Census_HRC])",
+            "lineageTag": "msr-015",
+            "formatString": "#,0",
+            "displayFolder": "Census by Unit"
+          },
+          {
             "name": "Variable FTE",
             "expression": "SUM(StaffingData[VarAdjFTE])",
-            "lineageTag": "msr-14",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-016",
             "formatString": "0.0",
             "displayFolder": "FTE"
           },
           {
             "name": "Fixed FTE",
             "expression": "SUM(StaffingData[FixedFTE])",
-            "lineageTag": "msr-15",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-017",
             "formatString": "0.0",
             "displayFolder": "FTE"
           },
           {
             "name": "Grand Total FTE",
             "expression": "SUM(StaffingData[GrandAdjFTE])",
-            "lineageTag": "msr-16",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-018",
             "formatString": "0.0",
             "displayFolder": "FTE"
           },
           {
             "name": "RN Adj FTE",
             "expression": "SUM(StaffingData[RN_AdjFTE])",
-            "lineageTag": "msr-17",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-019",
             "formatString": "0.0",
             "displayFolder": "FTE"
           },
           {
             "name": "LPN Adj FTE",
             "expression": "SUM(StaffingData[LPN_AdjFTE])",
-            "lineageTag": "msr-18",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-020",
             "formatString": "0.0",
             "displayFolder": "FTE"
           },
           {
             "name": "Tech Adj FTE",
             "expression": "SUM(StaffingData[Tech_AdjFTE])",
-            "lineageTag": "msr-19",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-021",
             "formatString": "0.0",
             "displayFolder": "FTE"
           },
           {
             "name": "OT Hours Total",
             "expression": "SUM(StaffingData[Actual_OT_Total])",
-            "lineageTag": "msr-20",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-022",
             "formatString": "0.0",
             "displayFolder": "Payroll Variance"
           },
           {
             "name": "Hours Variance",
             "expression": "SUM(StaffingData[Variance_VarHrsDay_Total])",
-            "lineageTag": "msr-21",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-023",
             "formatString": "0.0",
             "displayFolder": "Payroll Variance"
           },
           {
             "name": "Variance %",
             "expression": "AVERAGE(StaffingData[Variance_VarPct_Total])",
-            "lineageTag": "msr-22",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0\"%\"",
+            "lineageTag": "msr-024",
+            "formatString": "0.0",
             "displayFolder": "Payroll Variance"
           },
           {
             "name": "Actual Daily Hours",
             "expression": "SUM(StaffingData[Actual_VarHrsDay_Total])",
-            "lineageTag": "msr-23",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-025",
             "formatString": "0.0",
             "displayFolder": "Payroll Variance"
           },
           {
             "name": "Model Daily Hours",
             "expression": "SUM(StaffingData[Model_VarHrsDay_Total])",
-            "lineageTag": "msr-24",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-026",
             "formatString": "0.0",
             "displayFolder": "Payroll Variance"
           },
           {
-            "name": "NP Model %",
-            "expression": "AVERAGE(StaffingData[NP_ModelPct])",
-            "lineageTag": "msr-25",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0\"%\"",
-            "displayFolder": "Core Metrics"
-          },
-          {
-            "name": "Observation Hours",
-            "expression": "SUM(StaffingData[ObsHrs_Total])",
-            "lineageTag": "msr-26",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "Core Metrics"
-          },
-          {
-            "name": "MTD Avg Daily Census",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[TotalCensus]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-27",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Census 1East",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_1East]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-28",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Census 2East",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_2East]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-29",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Census 2West",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_2West]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-30",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Census 3East",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_3East]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-31",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Census 3West",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_3West]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-32",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Census HRC",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_HRC]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-33",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Occupancy %",
-            "expression": "DIVIDE([MTD Avg Daily Census], 114, 0) * 100",
-            "lineageTag": "msr-34",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0\"%\"",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg DC EPOB",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[EPOB_DirectCare]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-35",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.00",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Total EPOB",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[EPOB_TotalFacility]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-36",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.00",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Variable FTE",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[VarAdjFTE]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-37",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Grand FTE",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[GrandAdjFTE]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-38",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Total OT Hours",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(SUM(StaffingData[Actual_OT_Total]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-39",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Avg Hours Variance",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(AVERAGE(StaffingData[Variance_VarHrsDay_Total]), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-40",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "MTD Days Count",
-            "expression": "VAR _today = TODAY() VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1) RETURN CALCULATE(COUNTROWS(StaffingData), DateTable[Date] >= _monthStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-41",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "#,0",
-            "displayFolder": "MTD Metrics"
-          },
-          {
-            "name": "YTD Avg Daily Census",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[TotalCensus]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-42",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Census 1East",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_1East]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-43",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Census 2East",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_2East]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-44",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Census 2West",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_2West]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-45",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Census 3East",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_3East]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-46",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Census 3West",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_3West]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-47",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Census HRC",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[Census_HRC]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-48",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Occupancy %",
-            "expression": "DIVIDE([YTD Avg Daily Census], 114, 0) * 100",
-            "lineageTag": "msr-49",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0\"%\"",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg DC EPOB",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[EPOB_DirectCare]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-50",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.00",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Total EPOB",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[EPOB_TotalFacility]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-51",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.00",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Variable FTE",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[VarAdjFTE]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-52",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Grand FTE",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[GrandAdjFTE]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-53",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Total OT Hours",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(SUM(StaffingData[Actual_OT_Total]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-54",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Avg Hours Variance",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(AVERAGE(StaffingData[Variance_VarHrsDay_Total]), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-55",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "YTD Days Count",
-            "expression": "VAR _today = TODAY() VAR _yearStart = DATE(YEAR(_today), 1, 1) RETURN CALCULATE(COUNTROWS(StaffingData), DateTable[Date] >= _yearStart && DateTable[Date] <= _today, ALL(DateTable))",
-            "lineageTag": "msr-56",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "#,0",
-            "displayFolder": "YTD Metrics"
-          },
-          {
-            "name": "Prior Month Avg Census",
-            "expression": "VAR _today = TODAY() VAR _priorMonthEnd = DATE(YEAR(_today), MONTH(_today), 1) - 1 VAR _priorMonthStart = DATE(YEAR(_priorMonthEnd), MONTH(_priorMonthEnd), 1) RETURN CALCULATE(AVERAGE(StaffingData[TotalCensus]), DateTable[Date] >= _priorMonthStart && DateTable[Date] <= _priorMonthEnd, ALL(DateTable))",
-            "lineageTag": "msr-57",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "0.0",
-            "displayFolder": "Comparisons"
-          },
-          {
-            "name": "Census MTD vs Prior Month",
-            "expression": "[MTD Avg Daily Census] - [Prior Month Avg Census]",
-            "lineageTag": "msr-58",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "+0.0;-0.0;0.0",
-            "displayFolder": "Comparisons"
-          },
-          {
-            "name": "Census MTD vs Prior Month %",
-            "expression": "DIVIDE([MTD Avg Daily Census] - [Prior Month Avg Census], [Prior Month Avg Census], 0) * 100",
-            "lineageTag": "msr-59",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "+0.0\"%\";-0.0\"%\";0.0\"%\"",
-            "displayFolder": "Comparisons"
-          },
-          {
-            "name": "Actual vs Model FTE Variance",
-            "expression": "SUM(StaffingData[Actual_TotalFTE]) - SUM(StaffingData[GrandAdjFTE])",
-            "lineageTag": "msr-60",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
-            "formatString": "+0.0;-0.0;0.0",
-            "displayFolder": "Comparisons"
-          },
-          {
             "name": "Actual DC EPOB",
             "expression": "AVERAGE(StaffingData[Actual_EPOB_DC])",
-            "lineageTag": "msr-61",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-027",
             "formatString": "0.00",
             "displayFolder": "Payroll Variance"
           },
           {
             "name": "Actual Total EPOB",
             "expression": "AVERAGE(StaffingData[Actual_EPOB_Total])",
-            "lineageTag": "msr-62",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-028",
             "formatString": "0.00",
             "displayFolder": "Payroll Variance"
           },
           {
             "name": "EPOB DC Variance",
             "expression": "AVERAGE(StaffingData[EPOB_DC_Variance])",
-            "lineageTag": "msr-63",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-029",
             "formatString": "+0.00;-0.00;0.00",
             "displayFolder": "Payroll Variance"
           },
           {
             "name": "EPOB Total Variance",
             "expression": "AVERAGE(StaffingData[EPOB_Total_Variance])",
-            "lineageTag": "msr-64",
-            "annotations": [
-              {
-                "name": "PBI_FormatHint",
-                "value": "{\"isGeneralNumber\": true}"
-              }
-            ],
+            "lineageTag": "msr-030",
             "formatString": "+0.00;-0.00;0.00",
             "displayFolder": "Payroll Variance"
+          },
+          {
+            "name": "MTD Avg Daily Census",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[TotalCensus]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-031",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Census 1East",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_1East]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-032",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Census 2East",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_2East]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-033",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Census 2West",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_2West]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-034",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Census 3East",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_3East]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-035",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Census 3West",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_3West]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-036",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Census HRC",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_HRC]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-037",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Occupancy %",
+            "expression": "DIVIDE([MTD Avg Daily Census], 114, 0) * 100",
+            "lineageTag": "msr-038",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg DC EPOB",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[EPOB_DirectCare]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-039",
+            "formatString": "0.00",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Total EPOB",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[EPOB_TotalFacility]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-040",
+            "formatString": "0.00",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Variable FTE",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[VarAdjFTE]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-041",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Grand FTE",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[GrandAdjFTE]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-042",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Total OT Hours",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        SUM(StaffingData[Actual_OT_Total]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-043",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Avg Hours Variance",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Variance_VarHrsDay_Total]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-044",
+            "formatString": "0.0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "MTD Days Count",
+            "expression": "VAR _today = TODAY()\nVAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)\nRETURN\n    CALCULATE(\n        COUNTROWS(StaffingData),\n        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-045",
+            "formatString": "#,0",
+            "displayFolder": "MTD Metrics"
+          },
+          {
+            "name": "YTD Avg Daily Census",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[TotalCensus]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-046",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Census 1East",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_1East]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-047",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Census 2East",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_2East]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-048",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Census 2West",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_2West]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-049",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Census 3East",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_3East]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-050",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Census 3West",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_3West]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-051",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Census HRC",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Census_HRC]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-052",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Occupancy %",
+            "expression": "DIVIDE([YTD Avg Daily Census], 114, 0) * 100",
+            "lineageTag": "msr-053",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg DC EPOB",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[EPOB_DirectCare]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-054",
+            "formatString": "0.00",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Total EPOB",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[EPOB_TotalFacility]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-055",
+            "formatString": "0.00",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Variable FTE",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[VarAdjFTE]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-056",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Grand FTE",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[GrandAdjFTE]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-057",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Total OT Hours",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        SUM(StaffingData[Actual_OT_Total]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-058",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Avg Hours Variance",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[Variance_VarHrsDay_Total]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-059",
+            "formatString": "0.0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "YTD Days Count",
+            "expression": "VAR _today = TODAY()\nVAR _yearStart = DATE(YEAR(_today), 1, 1)\nRETURN\n    CALCULATE(\n        COUNTROWS(StaffingData),\n        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)\n    )",
+            "lineageTag": "msr-060",
+            "formatString": "#,0",
+            "displayFolder": "YTD Metrics"
+          },
+          {
+            "name": "Prior Month Avg Census",
+            "expression": "VAR _today = TODAY()\nVAR _priorMonthEnd = DATE(YEAR(_today), MONTH(_today), 1) - 1\nVAR _priorMonthStart = DATE(YEAR(_priorMonthEnd), MONTH(_priorMonthEnd), 1)\nRETURN\n    CALCULATE(\n        AVERAGE(StaffingData[TotalCensus]),\n        FILTER(ALL(DateTable), DateTable[Date] >= _priorMonthStart && DateTable[Date] <= _priorMonthEnd)\n    )",
+            "lineageTag": "msr-061",
+            "formatString": "0.0",
+            "displayFolder": "Comparisons"
+          },
+          {
+            "name": "Census MTD vs Prior Month",
+            "expression": "[MTD Avg Daily Census] - [Prior Month Avg Census]",
+            "lineageTag": "msr-062",
+            "formatString": "+0.0;-0.0;0.0",
+            "displayFolder": "Comparisons"
+          },
+          {
+            "name": "Census MTD vs Prior Month %",
+            "expression": "DIVIDE([MTD Avg Daily Census] - [Prior Month Avg Census], [Prior Month Avg Census], 0) * 100",
+            "lineageTag": "msr-063",
+            "formatString": "+0.0;-0.0;0.0",
+            "displayFolder": "Comparisons"
+          },
+          {
+            "name": "Actual vs Model FTE Variance",
+            "expression": "SUM(StaffingData[Actual_TotalFTE]) - SUM(StaffingData[GrandAdjFTE])",
+            "lineageTag": "msr-064",
+            "formatString": "+0.0;-0.0;0.0",
+            "displayFolder": "Comparisons"
           }
         ]
       }
