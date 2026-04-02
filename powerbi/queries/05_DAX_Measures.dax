@@ -1,0 +1,446 @@
+// ============================================================
+// HIGHLAND STAFFING MATRIX — DAX MEASURES
+// ============================================================
+// How to use: In Power BI Desktop, select the StaffingData table,
+// then for each measure below:
+//   1. Click Modeling > New Measure
+//   2. Paste the measure formula
+//   3. Set the format string as noted
+//
+// TIP: Create Display Folders by selecting a measure in the
+// Fields pane > Properties > Display Folder
+// ============================================================
+
+
+// ────────────────────────────────────────────────────────────
+// FOLDER: Core Metrics
+// ────────────────────────────────────────────────────────────
+
+Total Census = SUM(StaffingData[TotalCensus])
+// Format: #,0
+
+Occupancy % = DIVIDE(SUM(StaffingData[TotalCensus]), SUM(StaffingData[TotalStaffedBeds]), 0) * 100
+// Format: 0.0
+
+Total RN = SUM(StaffingData[Total_RN])
+// Format: #,0
+
+Total LPN = SUM(StaffingData[Total_LPN])
+// Format: #,0
+
+Total Tech = SUM(StaffingData[Total_Tech])
+// Format: #,0
+
+Total Shift Staff = SUM(StaffingData[Total_ShiftStaff])
+// Format: #,0
+
+DC EPOB = AVERAGE(StaffingData[EPOB_DirectCare])
+// Format: 0.00
+
+Total EPOB = AVERAGE(StaffingData[EPOB_TotalFacility])
+// Format: 0.00
+
+NP Model % = AVERAGE(StaffingData[NP_ModelPct])
+// Format: 0.0
+
+Observation Hours = SUM(StaffingData[ObsHrs_Total])
+// Format: 0.0
+
+
+// ────────────────────────────────────────────────────────────
+// FOLDER: Census by Unit
+// ────────────────────────────────────────────────────────────
+
+Census 1East = SUM(StaffingData[Census_1East])
+// Format: #,0
+
+Census 2East = SUM(StaffingData[Census_2East])
+// Format: #,0
+
+Census 2West = SUM(StaffingData[Census_2West])
+// Format: #,0
+
+Census 3East = SUM(StaffingData[Census_3East])
+// Format: #,0
+
+Census 3West = SUM(StaffingData[Census_3West])
+// Format: #,0
+
+Census HRC = SUM(StaffingData[Census_HRC])
+// Format: #,0
+
+
+// ────────────────────────────────────────────────────────────
+// FOLDER: FTE
+// ────────────────────────────────────────────────────────────
+
+Variable FTE = SUM(StaffingData[VarAdjFTE])
+// Format: 0.0
+
+Fixed FTE = SUM(StaffingData[FixedFTE])
+// Format: 0.0
+
+Grand Total FTE = SUM(StaffingData[GrandAdjFTE])
+// Format: 0.0
+
+RN Adj FTE = SUM(StaffingData[RN_AdjFTE])
+// Format: 0.0
+
+LPN Adj FTE = SUM(StaffingData[LPN_AdjFTE])
+// Format: 0.0
+
+Tech Adj FTE = SUM(StaffingData[Tech_AdjFTE])
+// Format: 0.0
+
+
+// ────────────────────────────────────────────────────────────
+// FOLDER: Payroll Variance
+// ────────────────────────────────────────────────────────────
+
+OT Hours Total = SUM(StaffingData[Actual_OT_Total])
+// Format: 0.0
+
+Hours Variance = SUM(StaffingData[Variance_VarHrsDay_Total])
+// Format: 0.0
+
+Variance % = AVERAGE(StaffingData[Variance_VarPct_Total])
+// Format: 0.0
+
+Actual Daily Hours = SUM(StaffingData[Actual_VarHrsDay_Total])
+// Format: 0.0
+
+Model Daily Hours = SUM(StaffingData[Model_VarHrsDay_Total])
+// Format: 0.0
+
+Actual DC EPOB = AVERAGE(StaffingData[Actual_EPOB_DC])
+// Format: 0.00
+
+Actual Total EPOB = AVERAGE(StaffingData[Actual_EPOB_Total])
+// Format: 0.00
+
+EPOB DC Variance = AVERAGE(StaffingData[EPOB_DC_Variance])
+// Format: +0.00;-0.00;0.00
+
+EPOB Total Variance = AVERAGE(StaffingData[EPOB_Total_Variance])
+// Format: +0.00;-0.00;0.00
+
+
+// ────────────────────────────────────────────────────────────
+// FOLDER: MTD Metrics (Average Daily Census)
+// ────────────────────────────────────────────────────────────
+
+MTD Avg Daily Census =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[TotalCensus]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Census 1East =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_1East]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Census 2East =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_2East]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Census 2West =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_2West]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Census 3East =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_3East]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Census 3West =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_3West]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Census HRC =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_HRC]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Occupancy % = DIVIDE([MTD Avg Daily Census], 114, 0) * 100
+// Format: 0.0
+
+MTD Avg DC EPOB =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[EPOB_DirectCare]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.00
+
+MTD Avg Total EPOB =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[EPOB_TotalFacility]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.00
+
+MTD Avg Variable FTE =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[VarAdjFTE]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Grand FTE =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[GrandAdjFTE]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Total OT Hours =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        SUM(StaffingData[Actual_OT_Total]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Avg Hours Variance =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Variance_VarHrsDay_Total]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+MTD Days Count =
+VAR _today = TODAY()
+VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+RETURN
+    CALCULATE(
+        COUNTROWS(StaffingData),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+    )
+// Format: #,0
+
+
+// ────────────────────────────────────────────────────────────
+// FOLDER: YTD Metrics (Average Daily Census)
+// ────────────────────────────────────────────────────────────
+
+YTD Avg Daily Census =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[TotalCensus]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Census 1East =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_1East]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Census 2East =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_2East]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Census 2West =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_2West]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Census 3East =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_3East]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Census 3West =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_3West]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Census HRC =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Census_HRC]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Occupancy % = DIVIDE([YTD Avg Daily Census], 114, 0) * 100
+// Format: 0.0
+
+YTD Avg DC EPOB =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[EPOB_DirectCare]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.00
+
+YTD Avg Total EPOB =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[EPOB_TotalFacility]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.00
+
+YTD Avg Variable FTE =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[VarAdjFTE]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Grand FTE =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[GrandAdjFTE]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Total OT Hours =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        SUM(StaffingData[Actual_OT_Total]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Avg Hours Variance =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Variance_VarHrsDay_Total]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: 0.0
+
+YTD Days Count =
+VAR _today = TODAY()
+VAR _yearStart = DATE(YEAR(_today), 1, 1)
+RETURN
+    CALCULATE(
+        COUNTROWS(StaffingData),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
+    )
+// Format: #,0
+
+
+// ────────────────────────────────────────────────────────────
+// FOLDER: Comparisons
+// ────────────────────────────────────────────────────────────
+
+Prior Month Avg Census =
+VAR _today = TODAY()
+VAR _priorMonthEnd = DATE(YEAR(_today), MONTH(_today), 1) - 1
+VAR _priorMonthStart = DATE(YEAR(_priorMonthEnd), MONTH(_priorMonthEnd), 1)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[TotalCensus]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _priorMonthStart && DateTable[Date] <= _priorMonthEnd)
+    )
+// Format: 0.0
+
+Census MTD vs Prior Month = [MTD Avg Daily Census] - [Prior Month Avg Census]
+// Format: +0.0;-0.0;0.0
+
+Census MTD vs Prior Month % = DIVIDE([MTD Avg Daily Census] - [Prior Month Avg Census], [Prior Month Avg Census], 0) * 100
+// Format: +0.0;-0.0;0.0
+
+Actual vs Model FTE Variance = SUM(StaffingData[Actual_TotalFTE]) - SUM(StaffingData[GrandAdjFTE])
+// Format: +0.0;-0.0;0.0

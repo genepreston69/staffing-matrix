@@ -1,180 +1,247 @@
-# Highland Staffing Matrix — Power BI Setup Guide
+# Highland Staffing Matrix — Power BI Build Guide
+
+Build a complete Power BI report in ~15 minutes using the ready-made queries and measures in the `queries/` folder.
 
 ## Prerequisites
 
-- **Power BI Desktop** version May 2023 or later (for PBIP format support)
-- Access to the SharePoint Online site containing the **StaffingMatrix** list
-- Microsoft 365 organizational account with SharePoint read permissions
+- **Power BI Desktop** (any recent version)
+- Access to the SharePoint site containing the **StaffingMatrix** list
+- Microsoft 365 account with SharePoint read permissions
 
 ---
 
-## Step 1: Enable PBIP Preview Feature
-
-Power BI Desktop must have the PBIP format enabled:
+## Step 1: Create a New Report
 
 1. Open **Power BI Desktop**
-2. Go to **File > Options and settings > Options**
-3. Select **Preview features** in the left pane
-4. Check **Power BI Project (.pbip) save option**
-5. Click **OK** and restart Power BI Desktop
+2. Click **File > New** (start with a blank report)
+3. **Save immediately** as `Highland_Staffing_Matrix.pbix`
 
 ---
 
-## Step 2: Open the Project
-
-1. In Power BI Desktop, go to **File > Open report**
-2. Navigate to the `powerbi/` folder in this repository
-3. Select **Highland_Staffing_Matrix.pbip**
-4. The project will load with 3 tables (DateTable, Units, StaffingData) and 6 report pages
-
----
-
-## Step 3: Configure the SharePoint Connection
-
-The data source points to a placeholder URL that must be updated:
+## Step 2: Create the SharePoint Parameter
 
 1. Go to **Home > Transform data** (opens Power Query Editor)
-2. In the left **Queries** pane, click on **SharePointSiteURL**
-3. Replace the value `https://YOUR_TENANT.sharepoint.com/sites/YOUR_SITE` with your actual SharePoint site URL
-   - Example: `https://contoso.sharepoint.com/sites/HighlandHospital`
-4. Click **Close & Apply**
-
-### SharePoint List Requirements
-
-The connection expects a SharePoint list named **StaffingMatrix** with columns matching the ~208 fields defined in `powerautomate-trigger-schema.json`. This list is automatically populated by the Power Automate flow from the staffing matrix application.
+2. Click **Home > Manage Parameters > New Parameter**
+3. Configure:
+   - **Name:** `SharePointSiteURL`
+   - **Type:** Text
+   - **Current Value:** Your SharePoint site URL (e.g. `https://yourorg.sharepoint.com/sites/HighlandHospital`)
+4. Click **OK**
 
 ---
 
-## Step 4: Authenticate
+## Step 3: Add the StaffingData Query
 
-When prompted:
-1. Select **Organizational account**
-2. Sign in with your Microsoft 365 credentials
-3. Click **Connect**
-
-If you encounter permission errors, verify you have at least **Read** access to the SharePoint site and list.
-
----
-
-## Step 5: Refresh Data
-
-1. Click **Home > Refresh** to load data from SharePoint
-2. The StaffingData table will populate with all historical daily records
-3. The DateTable (2025-2027) generates automatically via DAX
-4. The Units table is a static lookup (6 nursing units)
+1. In Power Query Editor, click **Home > New Source > Blank Query**
+2. Click **Home > Advanced Editor**
+3. Delete everything in the editor
+4. Open `queries/03_StaffingData.m` and **copy/paste the entire contents** (skip the comment lines at the top)
+5. Click **Done**
+6. In the right pane, rename the query to `StaffingData`
+7. When prompted, authenticate with your **Organizational account**
+8. The preview should show your SharePoint list data with all 208 columns plus the DateKey column
 
 ---
 
-## Step 6: Explore the Report
+## Step 4: Add the Units Query
 
-### Report Pages
-
-| Page | Description |
-|------|-------------|
-| **Executive Dashboard** | KPI cards (Census, Occupancy, EPOB, FTE), MTD/YTD summary cards, census trend line, EPOB trend |
-| **Shift Staffing** | Census-driven staffing by unit/shift/role (RN, LPN, Tech), patient-to-staff ratios |
-| **Position Control** | FTE breakdown by role (Productive vs Adjusted), Fixed vs Variable, NP additions |
-| **Payroll Variance** | Actual vs Model hours comparison, variance by unit, OT hours, EPOB variance |
-| **Trends** | Historical line charts for Census, Occupancy, EPOB, FTE over time |
-| **MTD / YTD Analytics** | **NEW** — Average Daily Census metrics for month-to-date and year-to-date periods |
-
-### Using Date Slicers
-
-Every page has a date slicer. For the core metrics pages (Shift Staffing, Position Control, Payroll Variance), select a single date to see that day's snapshot. For Trends, select a date range to see movement over time.
-
-**Note:** MTD and YTD measures on the "MTD / YTD Analytics" page always calculate relative to TODAY(), regardless of the date slicer — they show rolling period averages.
+1. Click **Home > New Source > Blank Query**
+2. Click **Home > Advanced Editor**
+3. Open `queries/02_Units.m` and **copy/paste the contents** (skip comments)
+4. Click **Done**
+5. Rename the query to `Units`
+6. You should see 6 rows (one per nursing unit)
 
 ---
 
-## DAX Measure Reference
+## Step 5: Close & Apply
 
-### Measure Folders
+1. Click **Home > Close & Apply**
+2. Wait for the data to load from SharePoint
 
-| Folder | Measures | Description |
-|--------|----------|-------------|
-| **Core Metrics** | Total Census, Occupancy %, Total RN/LPN/Tech, DC EPOB, Total EPOB, NP %, Obs Hours | Daily snapshot metrics |
-| **Census by Unit** | Census 1East, 2East, 2West, 3East, 3West, HRC | Per-unit census |
-| **FTE** | Variable FTE, Fixed FTE, Grand Total FTE, RN/LPN/Tech Adj FTE | FTE calculations |
-| **Payroll Variance** | Hours Variance, Variance %, Actual/Model Daily Hours, OT Hours, Actual EPOB | Payroll comparison |
-| **MTD Metrics** | MTD Avg Daily Census (facility + 6 units), MTD Avg Occupancy %, MTD Avg DC/Total EPOB, MTD Avg Variable/Grand FTE, MTD Total OT Hours, MTD Avg Hours Variance, MTD Days Count | Month-to-date averages based on Average Daily Census |
-| **YTD Metrics** | YTD Avg Daily Census (facility + 6 units), YTD Avg Occupancy %, YTD Avg DC/Total EPOB, YTD Avg Variable/Grand FTE, YTD Total OT Hours, YTD Avg Hours Variance, YTD Days Count | Year-to-date averages based on Average Daily Census |
-| **Comparisons** | Prior Month Avg Census, Census MTD vs Prior Month, Census MTD vs Prior Month %, Actual vs Model FTE Variance | Period-over-period comparisons |
+---
 
-### Key MTD/YTD Formulas
+## Step 6: Create the Date Table
 
-**MTD Average Daily Census:**
-```dax
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
-RETURN CALCULATE(
-    AVERAGE(StaffingData[TotalCensus]),
-    DateTable[Date] >= _monthStart && DateTable[Date] <= _today,
-    ALL(DateTable)
-)
+1. In the main Power BI Desktop view, click **Modeling > New Table**
+2. Open `queries/04_DateTable.dax`
+3. **Copy/paste the DAX formula** (everything after the comment block, starting with `DateTable =`)
+4. Press **Enter** — the DateTable will be created with ~1,096 rows (2025-2027)
+5. Select the DateTable in the Fields pane
+6. Click **Table Tools > Mark as Date Table**
+7. Select the **Date** column and click **OK**
+
+---
+
+## Step 7: Create the Relationship
+
+1. Go to **Model view** (left sidebar, the diagram icon)
+2. **Drag** `DateTable[Date]` onto `StaffingData[DateKey]`
+3. This creates a one-to-many relationship (DateTable → StaffingData)
+4. Double-click the relationship line to verify:
+   - **From:** DateTable > Date
+   - **To:** StaffingData > DateKey
+   - **Cardinality:** One to many
+   - **Cross filter direction:** Both
+5. Click **OK**
+
+---
+
+## Step 8: Add All DAX Measures
+
+Open `queries/05_DAX_Measures.dax` and create each measure:
+
+1. In **Report view**, select the **StaffingData** table in the Fields pane
+2. Click **Modeling > New Measure**
+3. Paste the first measure formula (e.g. `Total Census = SUM(StaffingData[TotalCensus])`)
+4. Press **Enter**
+5. Repeat for each measure in the file
+
+**There are 65 measures organized in 7 folders:**
+
+| Folder | Count | Key Measures |
+|--------|-------|-------------|
+| Core Metrics | 10 | Total Census, Occupancy %, DC EPOB, Total EPOB |
+| Census by Unit | 6 | Census per unit (1East, 2East, 2West, 3East, 3West, HRC) |
+| FTE | 6 | Variable FTE, Fixed FTE, Grand Total FTE, by role |
+| Payroll Variance | 11 | Hours Variance, OT Hours, Actual vs Model EPOB |
+| MTD Metrics | 16 | MTD Avg Daily Census (facility + 6 units), MTD EPOB, MTD FTE |
+| YTD Metrics | 16 | YTD Avg Daily Census (facility + 6 units), YTD EPOB, YTD FTE |
+| Comparisons | 4 | Prior Month Avg Census, MTD vs Prior Month, FTE Variance |
+
+**To set Display Folders:** Select a measure > Properties pane > Display Folder > type the folder name.
+
+**TIP:** You can create measures faster by staying in the formula bar — after pressing Enter on one measure, immediately click New Measure for the next one.
+
+---
+
+## Step 9: Build Report Pages
+
+### Page 1: Executive Dashboard
+
+1. Rename the default page to **Executive Dashboard**
+2. Add a **Date Slicer:** Drag `DateTable[Date]` onto the canvas, change visual type to Slicer, set to "Between"
+3. Add **KPI Cards** (Insert > Card visual for each):
+   - Total Census, Occupancy %, DC EPOB, Total EPOB, Variable FTE, Grand Total FTE
+4. Add a second row of cards for MTD/YTD:
+   - MTD Avg Daily Census, MTD Avg Occupancy %, MTD Avg DC EPOB
+   - YTD Avg Daily Census, YTD Avg Occupancy %, YTD Avg DC EPOB
+5. Add a **Line Chart:** Axis = `DateTable[Date]`, Values = `Total Census` + `MTD Avg Daily Census`
+6. Add a **Line Chart:** Axis = `DateTable[Date]`, Values = `DC EPOB` + `Total EPOB`
+
+### Page 2: Shift Staffing
+
+1. Add new page, rename to **Shift Staffing**
+2. Add Date Slicer
+3. Add a **Table** visual with columns:
+   - `Date`, `Census_1East`, `1East_Day_RN`, `1East_Day_LPN`, `1East_Day_Tech`, `1East_Evening_RN`, etc.
+   - Repeat for all units, end with `Total_ShiftStaff`
+4. Add a second **Table** for Patient-to-Staff Ratios:
+   - `Date`, all `*_Ratio_Day`, `*_Ratio_Eve`, `*_Ratio_Night` columns
+
+### Page 3: Position Control
+
+1. Add new page, rename to **Position Control**
+2. Add Date Slicer
+3. Add a **Table** with: `Date`, `RN_ProdFTE`, `RN_AdjFTE`, `LPN_ProdFTE`, `LPN_AdjFTE`, `Tech_ProdFTE`, `Tech_AdjFTE`, `Float_ProdFTE`, `Float_AdjFTE`, `OneOne_ProdFTE`, `OneOne_AdjFTE`, `VarProdFTE`, `VarAdjFTE`, `VarNP_Add`, `FixedFTE`, `GrandAdjFTE`
+4. Add **Cards** for Variable FTE, Fixed FTE, Grand Total FTE
+5. Add a **Clustered Bar Chart:** Axis = `DateTable[YearMonth]`, Values = RN/LPN/Tech Adj FTE measures
+
+### Page 4: Payroll Variance
+
+1. Add new page, rename to **Payroll Variance**
+2. Add Date Slicer
+3. Add **Cards:** Hours Variance, Variance %, Actual Daily Hours, Model Daily Hours, OT Hours, EPOB DC Variance
+4. Add a **Table** with all `Model_HrsDay_*`, `Actual_HrsDay_*`, `Variance_HrsDay_*`, `Variance_Pct_*` columns
+5. Add a **Clustered Bar Chart:** Axis = `DateTable[YearMonth]`, Values = Actual Daily Hours + Model Daily Hours
+
+### Page 5: Trends
+
+1. Add new page, rename to **Trends**
+2. Add Date Slicer
+3. Add **Line Charts:**
+   - Census Over Time: Axis = Date, Values = Total Census
+   - Occupancy Over Time: Axis = Date, Values = Occupancy %
+   - EPOB Trend: Axis = Date, Values = DC EPOB, Total EPOB, Actual DC EPOB, Actual Total EPOB
+   - FTE Trend: Axis = Date, Values = Variable FTE, Fixed FTE, Grand Total FTE
+
+### Page 6: MTD / YTD Analytics (NEW)
+
+1. Add new page, rename to **MTD / YTD Analytics**
+2. **MTD Section** — Add Cards:
+   - MTD Avg Daily Census, MTD Avg Occupancy %, MTD Avg DC EPOB, MTD Total OT Hours, MTD Avg Grand FTE, MTD Days Count
+3. **MTD Census by Unit** — Add Cards:
+   - MTD Avg Census 1East, 2East, 2West, 3East, 3West, HRC
+4. **Comparisons** — Add Cards:
+   - Census MTD vs Prior Month, Census MTD vs Prior Month %
+5. **YTD Section** — Add Cards:
+   - YTD Avg Daily Census, YTD Avg Occupancy %, YTD Avg DC EPOB, YTD Total OT Hours, YTD Avg Grand FTE, YTD Days Count
+6. **YTD Census by Unit** — Add Cards:
+   - YTD Avg Census 1East, 2East, 2West, 3East, 3West, HRC
+
+---
+
+## Step 10: Apply Theme (Optional)
+
+For the Highland navy/teal look:
+1. Go to **View > Themes > Customize current theme**
+2. Set:
+   - **Primary color:** #1B2A4A (navy)
+   - **Secondary color:** #2E8B8B (teal)
+   - **Background:** #FFFFFF
+3. Click **Apply**
+
+---
+
+## Step 11: Save & Publish
+
+1. **Save** the .pbix file
+2. To publish: **Home > Publish** > select your Power BI workspace
+3. In Power BI Service, set up **Scheduled Refresh** (daily recommended)
+
+---
+
+## File Reference
+
+| File | Purpose |
+|------|---------|
+| `queries/01_SharePointSiteURL_Parameter.m` | SharePoint site URL parameter |
+| `queries/02_Units.m` | Static unit lookup table (6 rows) |
+| `queries/03_StaffingData.m` | SharePoint list connection (208 columns + DateKey) |
+| `queries/04_DateTable.dax` | Calendar table (2025-2027) |
+| `queries/05_DAX_Measures.dax` | All 65 DAX measures (Core + MTD + YTD + Comparisons) |
+
+---
+
+## MTD / YTD Measure Logic
+
+All MTD and YTD measures use **AVERAGE** (not SUM) to compute the Average Daily Census:
+
+```
+MTD Avg Daily Census =
+    Average of TotalCensus for all days
+    from 1st of current month through today
 ```
 
-**YTD Average Daily Census:**
-```dax
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
-RETURN CALCULATE(
-    AVERAGE(StaffingData[TotalCensus]),
-    DateTable[Date] >= _yearStart && DateTable[Date] <= _today,
-    ALL(DateTable)
-)
-```
-
-These same patterns are applied across all unit-level census, EPOB, FTE, and variance metrics.
+This means:
+- **MTD Avg Daily Census** = Sum of daily census values in current month / number of days with data
+- **YTD Avg Daily Census** = Sum of daily census values in current year / number of days with data
+- All derived metrics (Occupancy %, EPOB, FTE) use the same MTD/YTD averaging pattern
+- These measures are **independent of the date slicer** — they always show current-period averages
 
 ---
 
-## Step 7: Publish to Power BI Service (Optional)
-
-1. Click **Home > Publish**
-2. Select your Power BI workspace
-3. The report and dataset will be published
-4. In the Power BI Service, configure **Scheduled Refresh** to keep the SharePoint data current:
-   - Go to **Dataset settings > Scheduled refresh**
-   - Set to refresh daily (recommended: early morning after the previous day's data is pushed)
-   - Configure SharePoint credentials under **Data source credentials**
-
----
-
-## Step 8: Save as .pbix (Optional)
-
-If you prefer the traditional .pbix format:
-1. With the PBIP project open, go to **File > Save as**
-2. Change the file type to **Power BI files (.pbix)**
-3. Save to your desired location
-
----
-
-## Troubleshooting
-
-| Issue | Solution |
-|-------|----------|
-| "Cannot find SharePoint list" | Verify the list is named exactly **StaffingMatrix** (case-sensitive) |
-| "Access denied" | Ensure your M365 account has Read access to the SharePoint site |
-| MTD/YTD measures show BLANK | No data exists in StaffingData for the current month/year yet — push census data from the app |
-| Date slicer empty | Click Refresh to load data; ensure the SharePoint list has records |
-| PBIP won't open | Enable the PBIP preview feature (Step 1) and restart Power BI Desktop |
-
----
-
-## Data Flow Architecture
+## Data Flow
 
 ```
 Staffing Matrix App (browser)
-        │
         │  Push via Power Automate webhook
         ▼
-SharePoint Online List ("StaffingMatrix")
-        │
-        │  Power Query / SharePoint connector
+SharePoint List ("StaffingMatrix")
+        │  Power Query connector
         ▼
-Power BI Semantic Model (StaffingData table)
-        │
-        │  DAX measures (Core + MTD + YTD)
+Power BI Desktop (.pbix)
+        │  65 DAX measures
         ▼
-Power BI Report (6 pages)
+6 Report Pages
 ```
