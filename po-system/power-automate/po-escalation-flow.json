@@ -1,0 +1,361 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "flowName": "PO Escalation",
+    "description": "Runs daily at 8:00 AM to identify Purchase Orders that have been pending approval beyond the escalation threshold (3 business days). Overdue POs are escalated to the CFO, and notifications are sent to the CFO, original approver, and the PO originator.",
+    "author": "PO System Admin",
+    "version": "1.0",
+    "lastModified": "2026-04-02"
+  },
+  "definition": {
+    "triggers": {
+      "Recurrence_Daily_8AM": {
+        "type": "Recurrence",
+        "description": "Scheduled trigger that runs every day at 8:00 AM Eastern Time to check for overdue pending POs.",
+        "recurrence": {
+          "frequency": "Day",
+          "interval": 1,
+          "schedule": {
+            "hours": ["8"],
+            "minutes": ["0"]
+          },
+          "timeZone": "Eastern Standard Time"
+        }
+      }
+    },
+    "actions": {
+      "Initialize_Variable_EscalationThresholdDate": {
+        "type": "InitializeVariable",
+        "description": "Calculate the escalation threshold date. POs submitted more than 3 business days ago are considered overdue. This uses a simplified calculation of 5 calendar days to approximate 3 business days (accounting for weekends).",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varEscalationThresholdDate",
+              "type": "string",
+              "value": "@addDays(utcNow(), -5, 'yyyy-MM-ddTHH:mm:ssZ')"
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_EscalatedCount": {
+        "type": "InitializeVariable",
+        "description": "Counter for how many POs were escalated in this run, used in the summary.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varEscalatedCount",
+              "type": "integer",
+              "value": 0
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_CFOEmail": {
+        "type": "InitializeVariable",
+        "description": "Variable to hold the CFO email address retrieved from the approval matrix.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varCFOEmail",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Get_Overdue_Pending_POs": {
+        "type": "OpenApiConnection",
+        "description": "Query all Purchase Orders where Status starts with 'Pending' and the SubmissionDate is older than the escalation threshold, and the PO has not already been escalated.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "GetItems",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "Purchase Orders",
+            "$filter": "startswith(Status, 'Pending') and SubmissionDate lt '@{variables('varEscalationThresholdDate')}' and Escalated ne 1",
+            "$orderby": "SubmissionDate asc",
+            "$top": 500
+          }
+        },
+        "runAfter": {
+          "Initialize_Variable_EscalationThresholdDate": ["Succeeded"],
+          "Initialize_Variable_EscalatedCount": ["Succeeded"],
+          "Initialize_Variable_CFOEmail": ["Succeeded"]
+        }
+      },
+      "Check_If_Any_Overdue_POs": {
+        "type": "If",
+        "description": "Check whether any overdue POs were found. If none, the flow ends without taking action.",
+        "expression": {
+          "and": [
+            {
+              "greater": [
+                "@length(body('Get_Overdue_Pending_POs')?['value'])",
+                0
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "Loop_Through_Overdue_POs": {
+            "type": "Foreach",
+            "description": "Process each overdue PO: mark as escalated, reassign to CFO, and send notifications to all relevant parties.",
+            "foreach": "@body('Get_Overdue_Pending_POs')?['value']",
+            "actions": {
+              "Get_Approval_Matrix_For_PO": {
+                "type": "OpenApiConnection",
+                "description": "Look up the CFO from the Department Approval Matrix for this PO's department.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "GetItems",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Department Approval Matrix",
+                    "$filter": "DeptCode eq '@{items('Loop_Through_Overdue_POs')?['DeptCode/Value']}'",
+                    "$top": 1
+                  }
+                },
+                "runAfter": {}
+              },
+              "Set_CFO_Email": {
+                "type": "SetVariable",
+                "description": "Store the CFO email for use in notifications and PO update.",
+                "inputs": {
+                  "name": "varCFOEmail",
+                  "value": "@first(body('Get_Approval_Matrix_For_PO')?['value'])?['CFO/Email']"
+                },
+                "runAfter": {
+                  "Get_Approval_Matrix_For_PO": ["Succeeded"]
+                }
+              },
+              "Compose_Days_Pending": {
+                "type": "Compose",
+                "description": "Calculate how many calendar days this PO has been pending approval.",
+                "inputs": "@div(sub(ticks(utcNow()), ticks(items('Loop_Through_Overdue_POs')?['SubmissionDate'])), 864000000000)",
+                "runAfter": {}
+              },
+              "Update_PO_Escalated": {
+                "type": "OpenApiConnection",
+                "description": "Mark the PO as escalated: set Escalated flag to Yes, record the EscalationDate, change the CurrentApprover to CFO, and append to the ApprovalHistory.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "PatchItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Purchase Orders",
+                    "id": "@items('Loop_Through_Overdue_POs')?['ID']",
+                    "item": {
+                      "Escalated": true,
+                      "EscalationDate": "@utcNow()",
+                      "CurrentApprover": "@variables('varCFOEmail')",
+                      "ApprovalHistory": "@{items('Loop_Through_Overdue_POs')?['ApprovalHistory']}\n@{formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt')} - ESCALATED: PO has been pending for @{int(outputs('Compose_Days_Pending'))} days. Reassigned from @{items('Loop_Through_Overdue_POs')?['CurrentApprover']} to CFO (@{variables('varCFOEmail')})."
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Set_CFO_Email": ["Succeeded"],
+                  "Compose_Days_Pending": ["Succeeded"]
+                }
+              },
+              "Send_Escalation_Email_To_CFO": {
+                "type": "OpenApiConnection",
+                "description": "Notify the CFO that this PO has been escalated to them for approval due to inaction at the previous approval level.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365",
+                    "operationId": "SendEmailV2",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                  },
+                  "parameters": {
+                    "emailMessage/To": "@variables('varCFOEmail')",
+                    "emailMessage/Subject": "ESCALATION: PO @{items('Loop_Through_Overdue_POs')?['PONumber']} Requires Your Immediate Attention",
+                    "emailMessage/Body": "<p>Hello,</p><p>The following purchase order has been <strong>escalated to you</strong> because it has been pending approval for <strong>@{int(outputs('Compose_Days_Pending'))} days</strong> without action.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{items('Loop_Through_Overdue_POs')?['PONumber']}</li><li>Description: @{items('Loop_Through_Overdue_POs')?['Title']}</li><li>Originator: @{items('Loop_Through_Overdue_POs')?['Originator/Title']}</li><li>Department: @{items('Loop_Through_Overdue_POs')?['Department/Value']}</li><li>Vendor: @{items('Loop_Through_Overdue_POs')?['VendorName']}</li><li>Total Amount: $@{formatNumber(float(items('Loop_Through_Overdue_POs')?['TotalAmount']), 'N2')}</li><li>Submission Date: @{formatDateTime(items('Loop_Through_Overdue_POs')?['SubmissionDate'], 'MM/dd/yyyy')}</li><li>Previous Approver: @{items('Loop_Through_Overdue_POs')?['CurrentApprover']}</li><li>Previous Approval Level: @{items('Loop_Through_Overdue_POs')?['CurrentApprovalLevel/Value']}</li></ul><p>Please review and take action on this purchase order as soon as possible.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{items('Loop_Through_Overdue_POs')?['ID']}\">Review Purchase Order</a></p><p>Thank you,<br/>Purchase Order System</p>",
+                    "emailMessage/Importance": "High"
+                  }
+                },
+                "runAfter": {
+                  "Update_PO_Escalated": ["Succeeded"]
+                }
+              },
+              "Send_Escalation_Email_To_Original_Approver": {
+                "type": "OpenApiConnection",
+                "description": "Notify the original approver that the PO has been escalated due to delayed action.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365",
+                    "operationId": "SendEmailV2",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                  },
+                  "parameters": {
+                    "emailMessage/To": "@items('Loop_Through_Overdue_POs')?['CurrentApprover']",
+                    "emailMessage/Subject": "Notice: PO @{items('Loop_Through_Overdue_POs')?['PONumber']} Escalated Due to Pending Approval",
+                    "emailMessage/Body": "<p>Hello,</p><p>The following purchase order was pending your approval and has been <strong>escalated to the CFO</strong> because it exceeded the 3 business day approval threshold.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{items('Loop_Through_Overdue_POs')?['PONumber']}</li><li>Description: @{items('Loop_Through_Overdue_POs')?['Title']}</li><li>Originator: @{items('Loop_Through_Overdue_POs')?['Originator/Title']}</li><li>Total Amount: $@{formatNumber(float(items('Loop_Through_Overdue_POs')?['TotalAmount']), 'N2')}</li><li>Days Pending: @{int(outputs('Compose_Days_Pending'))}</li></ul><p>No further action is required from you on this PO. The CFO will handle the approval.</p><p>Thank you,<br/>Purchase Order System</p>"
+                  }
+                },
+                "runAfter": {
+                  "Update_PO_Escalated": ["Succeeded"]
+                }
+              },
+              "Send_Escalation_Notification_To_Originator": {
+                "type": "OpenApiConnection",
+                "description": "Notify the PO originator that their PO has been escalated to the CFO due to delayed approval.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365",
+                    "operationId": "SendEmailV2",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                  },
+                  "parameters": {
+                    "emailMessage/To": "@items('Loop_Through_Overdue_POs')?['Originator/Email']",
+                    "emailMessage/Subject": "PO @{items('Loop_Through_Overdue_POs')?['PONumber']} Update - Escalated for Approval",
+                    "emailMessage/Body": "<p>Hello @{items('Loop_Through_Overdue_POs')?['Originator/Title']},</p><p>Your purchase order has been <strong>escalated</strong> because it has been pending approval for @{int(outputs('Compose_Days_Pending'))} days.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{items('Loop_Through_Overdue_POs')?['PONumber']}</li><li>Description: @{items('Loop_Through_Overdue_POs')?['Title']}</li><li>Vendor: @{items('Loop_Through_Overdue_POs')?['VendorName']}</li><li>Total Amount: $@{formatNumber(float(items('Loop_Through_Overdue_POs')?['TotalAmount']), 'N2')}</li></ul><p>The PO has been reassigned to the CFO for expedited review. You will be notified when the approval status changes.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{items('Loop_Through_Overdue_POs')?['ID']}\">View Purchase Order</a></p><p>Thank you,<br/>Purchase Order System</p>"
+                  }
+                },
+                "runAfter": {
+                  "Update_PO_Escalated": ["Succeeded"]
+                }
+              },
+              "Send_Escalation_Teams_To_CFO": {
+                "type": "OpenApiConnection",
+                "description": "Send a Teams alert to the CFO about the escalated PO for immediate visibility.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_teams",
+                    "operationId": "PostMessageToConversation",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                  },
+                  "parameters": {
+                    "poster": "Flow bot",
+                    "location": "Chat with Flow bot",
+                    "body/recipient": "@variables('varCFOEmail')",
+                    "body/messageBody": "<p><strong>ESCALATED PO - Action Required</strong></p><p>PO @{items('Loop_Through_Overdue_POs')?['PONumber']} has been pending for @{int(outputs('Compose_Days_Pending'))} days and requires your attention.</p><p>Originator: @{items('Loop_Through_Overdue_POs')?['Originator/Title']}<br/>Amount: $@{formatNumber(float(items('Loop_Through_Overdue_POs')?['TotalAmount']), 'N2')}<br/>Vendor: @{items('Loop_Through_Overdue_POs')?['VendorName']}</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{items('Loop_Through_Overdue_POs')?['ID']}\">Review PO</a></p>",
+                    "body/isAlert": true
+                  }
+                },
+                "runAfter": {
+                  "Update_PO_Escalated": ["Succeeded"]
+                }
+              },
+              "Send_Escalation_Teams_To_Originator": {
+                "type": "OpenApiConnection",
+                "description": "Send a Teams message to the originator about the escalation.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_teams",
+                    "operationId": "PostMessageToConversation",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                  },
+                  "parameters": {
+                    "poster": "Flow bot",
+                    "location": "Chat with Flow bot",
+                    "body/recipient": "@items('Loop_Through_Overdue_POs')?['Originator/Email']",
+                    "body/messageBody": "<p><strong>PO Escalation Notice</strong></p><p>Your PO @{items('Loop_Through_Overdue_POs')?['PONumber']} has been escalated to the CFO after @{int(outputs('Compose_Days_Pending'))} days pending. You will be notified of the outcome.</p>",
+                    "body/isAlert": false
+                  }
+                },
+                "runAfter": {
+                  "Update_PO_Escalated": ["Succeeded"]
+                }
+              },
+              "Increment_Escalated_Count": {
+                "type": "IncrementVariable",
+                "description": "Increment the escalation counter for the run summary.",
+                "inputs": {
+                  "name": "varEscalatedCount",
+                  "value": 1
+                },
+                "runAfter": {
+                  "Send_Escalation_Email_To_CFO": ["Succeeded"],
+                  "Send_Escalation_Email_To_Original_Approver": ["Succeeded"],
+                  "Send_Escalation_Notification_To_Originator": ["Succeeded"],
+                  "Send_Escalation_Teams_To_CFO": ["Succeeded"],
+                  "Send_Escalation_Teams_To_Originator": ["Succeeded"]
+                }
+              }
+            },
+            "runAfter": {},
+            "runtimeConfiguration": {
+              "concurrency": {
+                "repetitions": 1
+              }
+            }
+          },
+          "Send_Escalation_Summary_To_Admin": {
+            "type": "OpenApiConnection",
+            "description": "After processing all overdue POs, send a summary email to the PO system admin with the count of escalated items.",
+            "inputs": {
+              "host": {
+                "connectionName": "shared_office365",
+                "operationId": "SendEmailV2",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+              },
+              "parameters": {
+                "emailMessage/To": "@parameters('AdminEmail')",
+                "emailMessage/Subject": "PO Escalation Summary - @{formatDateTime(utcNow(), 'MM/dd/yyyy')}",
+                "emailMessage/Body": "<p>PO Escalation Daily Summary</p><p>Date: @{formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt')}</p><p><strong>@{variables('varEscalatedCount')}</strong> purchase order(s) were escalated today due to exceeding the 3 business day approval threshold.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/AllItems.aspx?FilterField1=Escalated&FilterValue1=1&FilterType1=Boolean\">View All Escalated POs</a></p><p>Purchase Order System - Automated Notification</p>"
+              }
+            },
+            "runAfter": {
+              "Loop_Through_Overdue_POs": ["Succeeded"]
+            }
+          }
+        },
+        "else": {
+          "actions": {
+            "No_Overdue_POs_Log": {
+              "type": "Compose",
+              "description": "No overdue POs found. Log the result for run history tracking.",
+              "inputs": "Escalation check completed at @{utcNow()}. No overdue pending POs found.",
+              "runAfter": {}
+            }
+          }
+        },
+        "runAfter": {
+          "Get_Overdue_Pending_POs": ["Succeeded"]
+        }
+      }
+    },
+    "parameters": {
+      "SharePointSiteUrl": {
+        "type": "string",
+        "defaultValue": "https://yourtenant.sharepoint.com/sites/PurchaseOrders",
+        "description": "The URL of the SharePoint site containing the Purchase Orders list and related lists."
+      },
+      "AdminEmail": {
+        "type": "string",
+        "defaultValue": "po-admin@yourtenant.com",
+        "description": "Email address of the PO system administrator who receives escalation summary reports."
+      }
+    },
+    "connections": {
+      "shared_sharepointonline": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+        "connectionName": "shared_sharepointonline",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+      },
+      "shared_office365": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+        "connectionName": "shared_office365",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_office365"
+      },
+      "shared_teams": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+        "connectionName": "shared_teams",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_teams"
+      }
+    }
+  }
+}

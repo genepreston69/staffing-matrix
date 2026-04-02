@@ -1,0 +1,884 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "flowName": "PO Submission and Routing",
+    "description": "Triggered when a Purchase Order is submitted. Validates attachments, calculates totals, generates a PO number, determines the approval path based on dollar thresholds, and routes to the appropriate approver.",
+    "author": "PO System Admin",
+    "version": "1.0",
+    "lastModified": "2026-04-02"
+  },
+  "definition": {
+    "triggers": {
+      "When_PO_is_created_or_modified": {
+        "type": "OpenApiConnectionWebhook",
+        "description": "Fires when an item in the Purchase Orders list is created or modified. The flow then checks whether the Status field has changed to 'Submitted' before continuing.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "SubscribeWebhookToListItemChanges",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "Purchase Orders",
+            "listItemEntityTypeFullName": "SP.Data.PurchaseOrdersListItem"
+          }
+        },
+        "splitOn": "@triggerOutputs()?['body/value']",
+        "conditions": [
+          {
+            "expression": "@equals(triggerOutputs()?['body/Status/Value'], 'Submitted')"
+          }
+        ]
+      }
+    },
+    "actions": {
+      "Initialize_Variable_TotalAmount": {
+        "type": "InitializeVariable",
+        "description": "Initialize a float variable to accumulate the total PO amount from all line items.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varTotalAmount",
+              "type": "float",
+              "value": 0
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_PONumber": {
+        "type": "InitializeVariable",
+        "description": "Initialize a string variable to hold the generated PO number.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varPONumber",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_ApprovalLevel": {
+        "type": "InitializeVariable",
+        "description": "Initialize a string variable to hold the determined approval level for routing.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varApprovalLevel",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_CurrentApproverEmail": {
+        "type": "InitializeVariable",
+        "description": "Initialize a string variable to hold the email address of the current approver.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varCurrentApproverEmail",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Step_1_Get_Attachments": {
+        "type": "OpenApiConnection",
+        "description": "Step 1 - Retrieve all attachments on the submitted PO item to verify that a quote document has been attached.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "GetAttachments",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "Purchase Orders",
+            "id": "@triggerOutputs()?['body/ID']"
+          }
+        },
+        "runAfter": {
+          "Initialize_Variable_TotalAmount": ["Succeeded"],
+          "Initialize_Variable_PONumber": ["Succeeded"],
+          "Initialize_Variable_ApprovalLevel": ["Succeeded"],
+          "Initialize_Variable_CurrentApproverEmail": ["Succeeded"]
+        }
+      },
+      "Step_1_Check_Attachment_Exists": {
+        "type": "If",
+        "description": "Step 1 - Check whether the PO has at least one attachment. If no attachment is found the PO is returned to Draft status and the originator is notified that a quote is required.",
+        "expression": {
+          "and": [
+            {
+              "equals": [
+                "@length(body('Step_1_Get_Attachments'))",
+                0
+              ]
+            }
+          ]
+        },
+        "actions": {
+          "Step_1a_Set_Status_Back_To_Draft": {
+            "type": "OpenApiConnection",
+            "description": "No attachment found. Revert the PO status to Draft so the originator can add the required quote and resubmit.",
+            "inputs": {
+              "host": {
+                "connectionName": "shared_sharepointonline",
+                "operationId": "PatchItem",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+              },
+              "parameters": {
+                "dataset": "@parameters('SharePointSiteUrl')",
+                "table": "Purchase Orders",
+                "id": "@triggerOutputs()?['body/ID']",
+                "item": {
+                  "Status": {
+                    "Value": "Draft"
+                  }
+                }
+              }
+            },
+            "runAfter": {}
+          },
+          "Step_1b_Send_Missing_Attachment_Email": {
+            "type": "OpenApiConnection",
+            "description": "Send an email to the PO originator explaining that a quote attachment is required before the PO can be submitted for approval.",
+            "inputs": {
+              "host": {
+                "connectionName": "shared_office365",
+                "operationId": "SendEmailV2",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+              },
+              "parameters": {
+                "emailMessage/To": "@triggerOutputs()?['body/Originator/Email']",
+                "emailMessage/Subject": "Action Required: Quote Attachment Missing on Purchase Order",
+                "emailMessage/Body": "<p>Hello @{triggerOutputs()?['body/Originator/Title']},</p><p>Your purchase order submission could not be processed because no quote or supporting document was attached.</p><p><strong>Purchase Order Details:</strong></p><ul><li>Description: @{triggerOutputs()?['body/Title']}</li><li>Vendor: @{triggerOutputs()?['body/VendorName']}</li><li>Department: @{triggerOutputs()?['body/Department/Value']}</li></ul><p>Please attach the vendor quote or supporting documentation and resubmit the PO.</p><p>Thank you,<br/>Purchase Order System</p>",
+                "emailMessage/Importance": "High"
+              }
+            },
+            "runAfter": {
+              "Step_1a_Set_Status_Back_To_Draft": ["Succeeded"]
+            }
+          },
+          "Step_1c_Terminate_No_Attachment": {
+            "type": "Terminate",
+            "description": "End the flow because the PO cannot proceed without an attachment.",
+            "inputs": {
+              "runStatus": "Cancelled",
+              "runError": {
+                "code": "MissingAttachment",
+                "message": "PO submission cancelled - no quote attachment found on PO ID @{triggerOutputs()?['body/ID']}"
+              }
+            },
+            "runAfter": {
+              "Step_1b_Send_Missing_Attachment_Email": ["Succeeded"]
+            }
+          }
+        },
+        "else": {
+          "actions": {}
+        },
+        "runAfter": {
+          "Step_1_Get_Attachments": ["Succeeded"]
+        }
+      },
+      "Step_2_Get_Line_Items": {
+        "type": "OpenApiConnection",
+        "description": "Step 2 - Retrieve all line items from the PO Line Items list where the POHeaderID matches the current Purchase Order. These are used to calculate the total amount.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "GetItems",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "PO Line Items",
+            "$filter": "POHeaderID eq '@{triggerOutputs()?['body/ID']}'",
+            "$orderby": "LineNumber asc"
+          }
+        },
+        "runAfter": {
+          "Step_1_Check_Attachment_Exists": ["Succeeded"]
+        }
+      },
+      "Step_3_Calculate_Total_Amount": {
+        "type": "Foreach",
+        "description": "Step 3 - Loop through each line item and accumulate the LineTotal value into varTotalAmount to calculate the overall PO total.",
+        "foreach": "@body('Step_2_Get_Line_Items')?['value']",
+        "actions": {
+          "Increment_TotalAmount": {
+            "type": "IncrementVariable",
+            "description": "Add this line item's LineTotal to the running total.",
+            "inputs": {
+              "name": "varTotalAmount",
+              "value": "@float(items('Step_3_Calculate_Total_Amount')?['LineTotal'])"
+            },
+            "runAfter": {}
+          }
+        },
+        "runAfter": {
+          "Step_2_Get_Line_Items": ["Succeeded"]
+        },
+        "runtimeConfiguration": {
+          "concurrency": {
+            "repetitions": 1
+          }
+        }
+      },
+      "Step_4_Update_PO_TotalAmount": {
+        "type": "OpenApiConnection",
+        "description": "Step 4 - Write the calculated total amount back to the TotalAmount field on the PO header item.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "PatchItem",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "Purchase Orders",
+            "id": "@triggerOutputs()?['body/ID']",
+            "item": {
+              "TotalAmount": "@variables('varTotalAmount')"
+            }
+          }
+        },
+        "runAfter": {
+          "Step_3_Calculate_Total_Amount": ["Succeeded"]
+        }
+      },
+      "Step_5_Get_PO_Number_Tracker": {
+        "type": "OpenApiConnection",
+        "description": "Step 5a - Retrieve the current PO number sequence from the PO Number Tracker list. This list has a single row per department that tracks the last-used sequence number.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "GetItems",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "PO Number Tracker",
+            "$filter": "DeptCode eq '@{triggerOutputs()?['body/DeptCode/Value']}'",
+            "$top": 1
+          }
+        },
+        "runAfter": {
+          "Step_4_Update_PO_TotalAmount": ["Succeeded"]
+        }
+      },
+      "Step_5_Generate_PO_Number": {
+        "type": "Compose",
+        "description": "Step 5b - Generate the PO number in the format 127-[DeptCode]-[Sequence padded to 5 digits]. The sequence is incremented by 1 from the last-used value.",
+        "inputs": "@concat('127-', triggerOutputs()?['body/DeptCode/Value'], '-', formatNumber(add(int(first(body('Step_5_Get_PO_Number_Tracker')?['value'])?['LastSequence']), 1), '00000'))",
+        "runAfter": {
+          "Step_5_Get_PO_Number_Tracker": ["Succeeded"]
+        }
+      },
+      "Step_5_Set_PONumber_Variable": {
+        "type": "SetVariable",
+        "description": "Store the generated PO number in the variable for use in subsequent steps.",
+        "inputs": {
+          "name": "varPONumber",
+          "value": "@outputs('Step_5_Generate_PO_Number')"
+        },
+        "runAfter": {
+          "Step_5_Generate_PO_Number": ["Succeeded"]
+        }
+      },
+      "Step_6_Update_PO_Number_Tracker": {
+        "type": "OpenApiConnection",
+        "description": "Step 6 - Update the PO Number Tracker list with the new sequence number so the next PO gets the correct number.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "PatchItem",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "PO Number Tracker",
+            "id": "@first(body('Step_5_Get_PO_Number_Tracker')?['value'])?['ID']",
+            "item": {
+              "LastSequence": "@add(int(first(body('Step_5_Get_PO_Number_Tracker')?['value'])?['LastSequence']), 1)",
+              "LastUpdated": "@utcNow()",
+              "LastPONumber": "@variables('varPONumber')"
+            }
+          }
+        },
+        "runAfter": {
+          "Step_5_Set_PONumber_Variable": ["Succeeded"]
+        }
+      },
+      "Step_7_Update_PO_With_PONumber": {
+        "type": "OpenApiConnection",
+        "description": "Step 7 - Write the generated PO number back to the PO header item.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "PatchItem",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "Purchase Orders",
+            "id": "@triggerOutputs()?['body/ID']",
+            "item": {
+              "PONumber": "@variables('varPONumber')",
+              "SubmissionDate": "@utcNow()"
+            }
+          }
+        },
+        "runAfter": {
+          "Step_6_Update_PO_Number_Tracker": ["Succeeded"]
+        }
+      },
+      "Step_8_Determine_Approval_Path": {
+        "type": "Switch",
+        "description": "Step 8 - Determine the approval routing path based on the calculated TotalAmount. Each case sets the appropriate status and approval level. Thresholds: Under $100 = Auto Approved, $100-$399.99 = Dept Head, $400-$999.99 = Controller, $1000-$2999.99 = CFO, $3000+ = Corporate CFO.",
+        "expression": "@if(less(variables('varTotalAmount'), 100), 'AutoApprove', if(less(variables('varTotalAmount'), 400), 'DeptHead', if(less(variables('varTotalAmount'), 1000), 'Controller', if(less(variables('varTotalAmount'), 3000), 'CFO', 'CorpCFO'))))",
+        "cases": {
+          "Case_AutoApprove": {
+            "case": "AutoApprove",
+            "actions": {
+              "AutoApprove_Update_PO_Status": {
+                "type": "OpenApiConnection",
+                "description": "PO is under $100 - automatically approve. Set status to Approved and record the auto-approval.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "PatchItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Purchase Orders",
+                    "id": "@triggerOutputs()?['body/ID']",
+                    "item": {
+                      "Status": {
+                        "Value": "Approved \u2013 Ready for Purchase"
+                      },
+                      "CurrentApprovalLevel": {
+                        "Value": "Auto Approved"
+                      },
+                      "FinalApprovalDate": "@utcNow()",
+                      "ReadyForPurchaseDate": "@utcNow()",
+                      "ApprovalHistory": "@concat('Auto Approved on ', formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt'), ' - Total under $100 threshold.')"
+                    }
+                  }
+                },
+                "runAfter": {}
+              },
+              "AutoApprove_Set_Level_Variable": {
+                "type": "SetVariable",
+                "description": "Set the approval level variable to Auto Approved.",
+                "inputs": {
+                  "name": "varApprovalLevel",
+                  "value": "Auto Approved"
+                },
+                "runAfter": {}
+              },
+              "AutoApprove_Send_Notification": {
+                "type": "OpenApiConnection",
+                "description": "Send email notification to the originator that their PO has been auto-approved.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365",
+                    "operationId": "SendEmailV2",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                  },
+                  "parameters": {
+                    "emailMessage/To": "@triggerOutputs()?['body/Originator/Email']",
+                    "emailMessage/Subject": "PO @{variables('varPONumber')} Approved - Ready for Purchase",
+                    "emailMessage/Body": "<p>Hello @{triggerOutputs()?['body/Originator/Title']},</p><p>Your purchase order has been <strong>automatically approved</strong> as the total amount is under $100.00.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{variables('varPONumber')}</li><li>Description: @{triggerOutputs()?['body/Title']}</li><li>Vendor: @{triggerOutputs()?['body/VendorName']}</li><li>Total Amount: $@{formatNumber(variables('varTotalAmount'), 'N2')}</li></ul><p>You may now proceed with the purchase.</p><p>Thank you,<br/>Purchase Order System</p>"
+                  }
+                },
+                "runAfter": {
+                  "AutoApprove_Update_PO_Status": ["Succeeded"]
+                }
+              }
+            }
+          },
+          "Case_DeptHead": {
+            "case": "DeptHead",
+            "actions": {
+              "DeptHead_Get_Approval_Matrix": {
+                "type": "OpenApiConnection",
+                "description": "Look up the Department Head from the Department Approval Matrix list for the originator's department.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "GetItems",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Department Approval Matrix",
+                    "$filter": "DeptCode eq '@{triggerOutputs()?['body/DeptCode/Value']}'",
+                    "$top": 1
+                  }
+                },
+                "runAfter": {}
+              },
+              "DeptHead_Check_If_Originator_Is_DeptHead": {
+                "type": "If",
+                "description": "Check if the PO originator is also the Department Head. If so, skip the Dept Head level and route directly to the Controller to avoid self-approval.",
+                "expression": {
+                  "and": [
+                    {
+                      "equals": [
+                        "@triggerOutputs()?['body/Originator/Email']",
+                        "@first(body('DeptHead_Get_Approval_Matrix')?['value'])?['DeptHead/Email']"
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "DeptHead_Skip_To_Controller_Update": {
+                    "type": "OpenApiConnection",
+                    "description": "Originator is the Dept Head - skip to Controller level to prevent self-approval.",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_sharepointonline",
+                        "operationId": "PatchItem",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                      },
+                      "parameters": {
+                        "dataset": "@parameters('SharePointSiteUrl')",
+                        "table": "Purchase Orders",
+                        "id": "@triggerOutputs()?['body/ID']",
+                        "item": {
+                          "Status": {
+                            "Value": "Pending Controller"
+                          },
+                          "CurrentApprovalLevel": {
+                            "Value": "Controller"
+                          },
+                          "CurrentApprover": "@first(body('DeptHead_Get_Approval_Matrix')?['value'])?['Controller/Email']",
+                          "ApprovalHistory": "@concat('Submitted on ', formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt'), '. Dept Head level skipped (originator is Dept Head). Routed to Controller.')"
+                        }
+                      }
+                    },
+                    "runAfter": {}
+                  },
+                  "DeptHead_Skip_Set_Approver": {
+                    "type": "SetVariable",
+                    "description": "Set the current approver email to the Controller since Dept Head level was skipped.",
+                    "inputs": {
+                      "name": "varCurrentApproverEmail",
+                      "value": "@first(body('DeptHead_Get_Approval_Matrix')?['value'])?['Controller/Email']"
+                    },
+                    "runAfter": {
+                      "DeptHead_Skip_To_Controller_Update": ["Succeeded"]
+                    }
+                  },
+                  "DeptHead_Skip_Set_Level": {
+                    "type": "SetVariable",
+                    "inputs": {
+                      "name": "varApprovalLevel",
+                      "value": "Controller"
+                    },
+                    "runAfter": {
+                      "DeptHead_Skip_To_Controller_Update": ["Succeeded"]
+                    }
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "DeptHead_Route_To_DeptHead_Update": {
+                      "type": "OpenApiConnection",
+                      "description": "Route the PO to the Department Head for approval.",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_sharepointonline",
+                          "operationId": "PatchItem",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                        },
+                        "parameters": {
+                          "dataset": "@parameters('SharePointSiteUrl')",
+                          "table": "Purchase Orders",
+                          "id": "@triggerOutputs()?['body/ID']",
+                          "item": {
+                            "Status": {
+                              "Value": "Pending Dept Head"
+                            },
+                            "CurrentApprovalLevel": {
+                              "Value": "Department Head"
+                            },
+                            "CurrentApprover": "@first(body('DeptHead_Get_Approval_Matrix')?['value'])?['DeptHead/Email']",
+                            "ApprovalHistory": "@concat('Submitted on ', formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt'), '. Routed to Department Head for approval.')"
+                          }
+                        }
+                      },
+                      "runAfter": {}
+                    },
+                    "DeptHead_Route_Set_Approver": {
+                      "type": "SetVariable",
+                      "description": "Set the current approver email to the Department Head.",
+                      "inputs": {
+                        "name": "varCurrentApproverEmail",
+                        "value": "@first(body('DeptHead_Get_Approval_Matrix')?['value'])?['DeptHead/Email']"
+                      },
+                      "runAfter": {
+                        "DeptHead_Route_To_DeptHead_Update": ["Succeeded"]
+                      }
+                    },
+                    "DeptHead_Route_Set_Level": {
+                      "type": "SetVariable",
+                      "inputs": {
+                        "name": "varApprovalLevel",
+                        "value": "Department Head"
+                      },
+                      "runAfter": {
+                        "DeptHead_Route_To_DeptHead_Update": ["Succeeded"]
+                      }
+                    }
+                  }
+                },
+                "runAfter": {
+                  "DeptHead_Get_Approval_Matrix": ["Succeeded"]
+                }
+              }
+            }
+          },
+          "Case_Controller": {
+            "case": "Controller",
+            "actions": {
+              "Controller_Get_Approval_Matrix": {
+                "type": "OpenApiConnection",
+                "description": "Look up the Controller from the Department Approval Matrix for the originator's department.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "GetItems",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Department Approval Matrix",
+                    "$filter": "DeptCode eq '@{triggerOutputs()?['body/DeptCode/Value']}'",
+                    "$top": 1
+                  }
+                },
+                "runAfter": {}
+              },
+              "Controller_Update_PO_Status": {
+                "type": "OpenApiConnection",
+                "description": "Set PO status to Pending Controller and assign the Controller as the current approver.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "PatchItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Purchase Orders",
+                    "id": "@triggerOutputs()?['body/ID']",
+                    "item": {
+                      "Status": {
+                        "Value": "Pending Controller"
+                      },
+                      "CurrentApprovalLevel": {
+                        "Value": "Controller"
+                      },
+                      "CurrentApprover": "@first(body('Controller_Get_Approval_Matrix')?['value'])?['Controller/Email']",
+                      "ApprovalHistory": "@concat('Submitted on ', formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt'), '. Routed directly to Controller (amount $400-$999.99).')"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Controller_Get_Approval_Matrix": ["Succeeded"]
+                }
+              },
+              "Controller_Set_Approver": {
+                "type": "SetVariable",
+                "inputs": {
+                  "name": "varCurrentApproverEmail",
+                  "value": "@first(body('Controller_Get_Approval_Matrix')?['value'])?['Controller/Email']"
+                },
+                "runAfter": {
+                  "Controller_Update_PO_Status": ["Succeeded"]
+                }
+              },
+              "Controller_Set_Level": {
+                "type": "SetVariable",
+                "inputs": {
+                  "name": "varApprovalLevel",
+                  "value": "Controller"
+                },
+                "runAfter": {
+                  "Controller_Update_PO_Status": ["Succeeded"]
+                }
+              }
+            }
+          },
+          "Case_CFO": {
+            "case": "CFO",
+            "actions": {
+              "CFO_Get_Approval_Matrix": {
+                "type": "OpenApiConnection",
+                "description": "Look up the CFO from the Department Approval Matrix for the originator's department.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "GetItems",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Department Approval Matrix",
+                    "$filter": "DeptCode eq '@{triggerOutputs()?['body/DeptCode/Value']}'",
+                    "$top": 1
+                  }
+                },
+                "runAfter": {}
+              },
+              "CFO_Update_PO_Status": {
+                "type": "OpenApiConnection",
+                "description": "Set PO status to Pending CFO and assign the CFO as the current approver.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "PatchItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Purchase Orders",
+                    "id": "@triggerOutputs()?['body/ID']",
+                    "item": {
+                      "Status": {
+                        "Value": "Pending CFO"
+                      },
+                      "CurrentApprovalLevel": {
+                        "Value": "CFO"
+                      },
+                      "CurrentApprover": "@first(body('CFO_Get_Approval_Matrix')?['value'])?['CFO/Email']",
+                      "ApprovalHistory": "@concat('Submitted on ', formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt'), '. Routed directly to CFO (amount $1,000-$2,999.99).')"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "CFO_Get_Approval_Matrix": ["Succeeded"]
+                }
+              },
+              "CFO_Set_Approver": {
+                "type": "SetVariable",
+                "inputs": {
+                  "name": "varCurrentApproverEmail",
+                  "value": "@first(body('CFO_Get_Approval_Matrix')?['value'])?['CFO/Email']"
+                },
+                "runAfter": {
+                  "CFO_Update_PO_Status": ["Succeeded"]
+                }
+              },
+              "CFO_Set_Level": {
+                "type": "SetVariable",
+                "inputs": {
+                  "name": "varApprovalLevel",
+                  "value": "CFO"
+                },
+                "runAfter": {
+                  "CFO_Update_PO_Status": ["Succeeded"]
+                }
+              }
+            }
+          },
+          "Case_CorpCFO": {
+            "case": "CorpCFO",
+            "actions": {
+              "CorpCFO_Get_Approval_Matrix": {
+                "type": "OpenApiConnection",
+                "description": "Look up the Corporate CFO from the Department Approval Matrix for the originator's department.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "GetItems",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Department Approval Matrix",
+                    "$filter": "DeptCode eq '@{triggerOutputs()?['body/DeptCode/Value']}'",
+                    "$top": 1
+                  }
+                },
+                "runAfter": {}
+              },
+              "CorpCFO_Update_PO_Status": {
+                "type": "OpenApiConnection",
+                "description": "Set PO status to Pending Corporate CFO and assign the Corporate CFO as the current approver.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "PatchItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Purchase Orders",
+                    "id": "@triggerOutputs()?['body/ID']",
+                    "item": {
+                      "Status": {
+                        "Value": "Pending Corporate CFO"
+                      },
+                      "CurrentApprovalLevel": {
+                        "Value": "Corporate CFO"
+                      },
+                      "CurrentApprover": "@first(body('CorpCFO_Get_Approval_Matrix')?['value'])?['CorporateCFO/Email']",
+                      "ApprovalHistory": "@concat('Submitted on ', formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt'), '. Routed directly to Corporate CFO (amount $3,000+).')"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "CorpCFO_Get_Approval_Matrix": ["Succeeded"]
+                }
+              },
+              "CorpCFO_Set_Approver": {
+                "type": "SetVariable",
+                "inputs": {
+                  "name": "varCurrentApproverEmail",
+                  "value": "@first(body('CorpCFO_Get_Approval_Matrix')?['value'])?['CorporateCFO/Email']"
+                },
+                "runAfter": {
+                  "CorpCFO_Update_PO_Status": ["Succeeded"]
+                }
+              },
+              "CorpCFO_Set_Level": {
+                "type": "SetVariable",
+                "inputs": {
+                  "name": "varApprovalLevel",
+                  "value": "Corporate CFO"
+                },
+                "runAfter": {
+                  "CorpCFO_Update_PO_Status": ["Succeeded"]
+                }
+              }
+            }
+          }
+        },
+        "default": {
+          "actions": {}
+        },
+        "runAfter": {
+          "Step_7_Update_PO_With_PONumber": ["Succeeded"]
+        }
+      },
+      "Step_9_Check_If_Approval_Needed": {
+        "type": "If",
+        "description": "Step 9 - Only send approver notifications if the PO was not auto-approved. If auto-approved, the originator was already notified in Step 8.",
+        "expression": {
+          "and": [
+            {
+              "not": {
+                "equals": [
+                  "@variables('varApprovalLevel')",
+                  "Auto Approved"
+                ]
+              }
+            }
+          ]
+        },
+        "actions": {
+          "Step_10_Send_Approver_Email": {
+            "type": "OpenApiConnection",
+            "description": "Step 10a - Send an approval request email to the CurrentApprover with PO details and a link to the PO item.",
+            "inputs": {
+              "host": {
+                "connectionName": "shared_office365",
+                "operationId": "SendEmailV2",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+              },
+              "parameters": {
+                "emailMessage/To": "@variables('varCurrentApproverEmail')",
+                "emailMessage/Subject": "Approval Required: PO @{variables('varPONumber')} - $@{formatNumber(variables('varTotalAmount'), 'N2')}",
+                "emailMessage/Body": "<p>Hello,</p><p>A purchase order requires your approval.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{variables('varPONumber')}</li><li>Description: @{triggerOutputs()?['body/Title']}</li><li>Originator: @{triggerOutputs()?['body/Originator/Title']}</li><li>Department: @{triggerOutputs()?['body/Department/Value']}</li><li>Vendor: @{triggerOutputs()?['body/VendorName']}</li><li>Total Amount: $@{formatNumber(variables('varTotalAmount'), 'N2')}</li><li>Approval Level: @{variables('varApprovalLevel')}</li></ul><p>Please review and take action on this purchase order at your earliest convenience.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">Click here to view the Purchase Order</a></p><p>Thank you,<br/>Purchase Order System</p>",
+                "emailMessage/Importance": "Normal"
+              }
+            },
+            "runAfter": {}
+          },
+          "Step_10_Send_Approver_Teams_Message": {
+            "type": "OpenApiConnection",
+            "description": "Step 10b - Post a Teams chat message to the CurrentApprover to ensure timely visibility of the approval request.",
+            "inputs": {
+              "host": {
+                "connectionName": "shared_teams",
+                "operationId": "PostMessageToConversation",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+              },
+              "parameters": {
+                "poster": "Flow bot",
+                "location": "Chat with Flow bot",
+                "body/recipient": "@variables('varCurrentApproverEmail')",
+                "body/messageBody": "<p><strong>PO Approval Required</strong></p><p>PO Number: @{variables('varPONumber')}<br/>Originator: @{triggerOutputs()?['body/Originator/Title']}<br/>Vendor: @{triggerOutputs()?['body/VendorName']}<br/>Amount: $@{formatNumber(variables('varTotalAmount'), 'N2')}<br/>Level: @{variables('varApprovalLevel')}</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">Review PO</a></p>",
+                "body/isAlert": true
+              }
+            },
+            "runAfter": {}
+          },
+          "Step_11_Send_Originator_Confirmation": {
+            "type": "OpenApiConnection",
+            "description": "Step 11 - Send a confirmation email to the originator with the assigned PO number and current routing status.",
+            "inputs": {
+              "host": {
+                "connectionName": "shared_office365",
+                "operationId": "SendEmailV2",
+                "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+              },
+              "parameters": {
+                "emailMessage/To": "@triggerOutputs()?['body/Originator/Email']",
+                "emailMessage/Subject": "PO @{variables('varPONumber')} Submitted Successfully - Pending Approval",
+                "emailMessage/Body": "<p>Hello @{triggerOutputs()?['body/Originator/Title']},</p><p>Your purchase order has been submitted successfully and assigned a PO number.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{variables('varPONumber')}</li><li>Description: @{triggerOutputs()?['body/Title']}</li><li>Vendor: @{triggerOutputs()?['body/VendorName']}</li><li>Total Amount: $@{formatNumber(variables('varTotalAmount'), 'N2')}</li><li>Current Status: Pending @{variables('varApprovalLevel')} Approval</li><li>Current Approver: @{variables('varCurrentApproverEmail')}</li></ul><p>You will be notified when the approval status changes.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">View your Purchase Order</a></p><p>Thank you,<br/>Purchase Order System</p>"
+              }
+            },
+            "runAfter": {
+              "Step_10_Send_Approver_Email": ["Succeeded"],
+              "Step_10_Send_Approver_Teams_Message": ["Succeeded"]
+            }
+          }
+        },
+        "else": {
+          "actions": {}
+        },
+        "runAfter": {
+          "Step_8_Determine_Approval_Path": ["Succeeded"]
+        }
+      }
+    },
+    "parameters": {
+      "SharePointSiteUrl": {
+        "type": "string",
+        "defaultValue": "https://yourtenant.sharepoint.com/sites/PurchaseOrders",
+        "description": "The URL of the SharePoint site containing the Purchase Orders list and related lists."
+      }
+    },
+    "connections": {
+      "shared_sharepointonline": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+        "connectionName": "shared_sharepointonline",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+      },
+      "shared_office365": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+        "connectionName": "shared_office365",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_office365"
+      },
+      "shared_teams": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+        "connectionName": "shared_teams",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_teams"
+      }
+    }
+  }
+}

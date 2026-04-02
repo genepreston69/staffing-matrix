@@ -1,0 +1,806 @@
+{
+  "$schema": "https://schema.management.azure.com/providers/Microsoft.Logic/schemas/2016-06-01/workflowdefinition.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "flowName": "PO Approval Processing",
+    "description": "Triggered when a Purchase Order is modified. Processes approval, return, and rejection actions at each approval level (Dept Head, Controller, CFO, Corporate CFO). Advances the PO through the approval chain, updates history, and sends notifications at every stage.",
+    "author": "PO System Admin",
+    "version": "1.0",
+    "lastModified": "2026-04-02"
+  },
+  "definition": {
+    "triggers": {
+      "When_PO_is_modified": {
+        "type": "OpenApiConnectionWebhook",
+        "description": "Fires when any item in the Purchase Orders list is modified. The flow's first action filters to only process items where an ApprovalAction has been set (Approved, Returned, or Rejected).",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "SubscribeWebhookToListItemChanges",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "Purchase Orders",
+            "listItemEntityTypeFullName": "SP.Data.PurchaseOrdersListItem"
+          }
+        },
+        "splitOn": "@triggerOutputs()?['body/value']",
+        "conditions": [
+          {
+            "expression": "@not(empty(triggerOutputs()?['body/ApprovalAction/Value']))"
+          },
+          {
+            "expression": "@contains(createArray('Approved','Returned','Rejected'), triggerOutputs()?['body/ApprovalAction/Value'])"
+          }
+        ]
+      }
+    },
+    "actions": {
+      "Initialize_Variable_NextStatus": {
+        "type": "InitializeVariable",
+        "description": "Holds the next Status value to set on the PO after processing the current approval action.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varNextStatus",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_NextApprover": {
+        "type": "InitializeVariable",
+        "description": "Holds the email of the next approver in the chain, if any.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varNextApprover",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_NextApprovalLevel": {
+        "type": "InitializeVariable",
+        "description": "Holds the name of the next approval level in the chain.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varNextApprovalLevel",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_IsFinalApproval": {
+        "type": "InitializeVariable",
+        "description": "Boolean flag indicating whether this is the final approval level for the PO.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varIsFinalApproval",
+              "type": "boolean",
+              "value": false
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Initialize_Variable_HistoryEntry": {
+        "type": "InitializeVariable",
+        "description": "Holds the new approval history entry to append.",
+        "inputs": {
+          "variables": [
+            {
+              "name": "varHistoryEntry",
+              "type": "string",
+              "value": ""
+            }
+          ]
+        },
+        "runAfter": {}
+      },
+      "Get_Approval_Matrix": {
+        "type": "OpenApiConnection",
+        "description": "Retrieve the approval matrix record for this PO's department. This provides the approver emails at each level.",
+        "inputs": {
+          "host": {
+            "connectionName": "shared_sharepointonline",
+            "operationId": "GetItems",
+            "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+          },
+          "parameters": {
+            "dataset": "@parameters('SharePointSiteUrl')",
+            "table": "Department Approval Matrix",
+            "$filter": "DeptCode eq '@{triggerOutputs()?['body/DeptCode/Value']}'",
+            "$top": 1
+          }
+        },
+        "runAfter": {
+          "Initialize_Variable_NextStatus": ["Succeeded"],
+          "Initialize_Variable_NextApprover": ["Succeeded"],
+          "Initialize_Variable_NextApprovalLevel": ["Succeeded"],
+          "Initialize_Variable_IsFinalApproval": ["Succeeded"],
+          "Initialize_Variable_HistoryEntry": ["Succeeded"]
+        }
+      },
+      "Switch_On_ApprovalAction": {
+        "type": "Switch",
+        "description": "Branch on the ApprovalAction value: Approved, Returned, or Rejected. Each branch handles the action differently.",
+        "expression": "@triggerOutputs()?['body/ApprovalAction/Value']",
+        "cases": {
+          "Case_Approved": {
+            "case": "Approved",
+            "actions": {
+              "Approved_Build_History_Entry": {
+                "type": "SetVariable",
+                "description": "Build the approval history entry with the current approver, level, and timestamp.",
+                "inputs": {
+                  "name": "varHistoryEntry",
+                  "value": "@{formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt')} - APPROVED by @{triggerOutputs()?['body/CurrentApprover']} at @{triggerOutputs()?['body/CurrentApprovalLevel/Value']} level."
+                },
+                "runAfter": {}
+              },
+              "Approved_Determine_Next_Level": {
+                "type": "Switch",
+                "description": "Based on the current approval level and the PO total amount, determine whether this is the final approval or if the PO must advance to the next level in the chain.",
+                "expression": "@triggerOutputs()?['body/CurrentApprovalLevel/Value']",
+                "cases": {
+                  "Case_DeptHead_Approved": {
+                    "case": "Department Head",
+                    "actions": {
+                      "DeptHead_Check_If_Final": {
+                        "type": "If",
+                        "description": "If the PO total is under $400, Dept Head is the final approver. Otherwise advance to Controller.",
+                        "expression": {
+                          "and": [
+                            {
+                              "less": [
+                                "@float(triggerOutputs()?['body/TotalAmount'])",
+                                400
+                              ]
+                            }
+                          ]
+                        },
+                        "actions": {
+                          "DeptHead_Is_Final": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varIsFinalApproval",
+                              "value": true
+                            },
+                            "runAfter": {}
+                          },
+                          "DeptHead_Final_Status": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varNextStatus",
+                              "value": "Approved \u2013 Ready for Purchase"
+                            },
+                            "runAfter": {}
+                          },
+                          "DeptHead_Final_Level": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varNextApprovalLevel",
+                              "value": "Final Approval"
+                            },
+                            "runAfter": {}
+                          }
+                        },
+                        "else": {
+                          "actions": {
+                            "DeptHead_Advance_To_Controller": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextStatus",
+                                "value": "Pending Controller"
+                              },
+                              "runAfter": {}
+                            },
+                            "DeptHead_Next_Level": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextApprovalLevel",
+                                "value": "Controller"
+                              },
+                              "runAfter": {}
+                            },
+                            "DeptHead_Next_Approver": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextApprover",
+                                "value": "@first(body('Get_Approval_Matrix')?['value'])?['Controller/Email']"
+                              },
+                              "runAfter": {}
+                            }
+                          }
+                        },
+                        "runAfter": {}
+                      }
+                    }
+                  },
+                  "Case_Controller_Approved": {
+                    "case": "Controller",
+                    "actions": {
+                      "Controller_Check_If_Final": {
+                        "type": "If",
+                        "description": "If the PO total is under $1,000, Controller is the final approver. Otherwise advance to CFO.",
+                        "expression": {
+                          "and": [
+                            {
+                              "less": [
+                                "@float(triggerOutputs()?['body/TotalAmount'])",
+                                1000
+                              ]
+                            }
+                          ]
+                        },
+                        "actions": {
+                          "Controller_Is_Final": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varIsFinalApproval",
+                              "value": true
+                            },
+                            "runAfter": {}
+                          },
+                          "Controller_Final_Status": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varNextStatus",
+                              "value": "Approved \u2013 Ready for Purchase"
+                            },
+                            "runAfter": {}
+                          },
+                          "Controller_Final_Level": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varNextApprovalLevel",
+                              "value": "Final Approval"
+                            },
+                            "runAfter": {}
+                          }
+                        },
+                        "else": {
+                          "actions": {
+                            "Controller_Advance_To_CFO": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextStatus",
+                                "value": "Pending CFO"
+                              },
+                              "runAfter": {}
+                            },
+                            "Controller_Next_Level": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextApprovalLevel",
+                                "value": "CFO"
+                              },
+                              "runAfter": {}
+                            },
+                            "Controller_Next_Approver": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextApprover",
+                                "value": "@first(body('Get_Approval_Matrix')?['value'])?['CFO/Email']"
+                              },
+                              "runAfter": {}
+                            }
+                          }
+                        },
+                        "runAfter": {}
+                      }
+                    }
+                  },
+                  "Case_CFO_Approved": {
+                    "case": "CFO",
+                    "actions": {
+                      "CFO_Check_If_Final": {
+                        "type": "If",
+                        "description": "If the PO total is under $3,000, CFO is the final approver. Otherwise advance to Corporate CFO.",
+                        "expression": {
+                          "and": [
+                            {
+                              "less": [
+                                "@float(triggerOutputs()?['body/TotalAmount'])",
+                                3000
+                              ]
+                            }
+                          ]
+                        },
+                        "actions": {
+                          "CFO_Is_Final": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varIsFinalApproval",
+                              "value": true
+                            },
+                            "runAfter": {}
+                          },
+                          "CFO_Final_Status": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varNextStatus",
+                              "value": "Approved \u2013 Ready for Purchase"
+                            },
+                            "runAfter": {}
+                          },
+                          "CFO_Final_Level": {
+                            "type": "SetVariable",
+                            "inputs": {
+                              "name": "varNextApprovalLevel",
+                              "value": "Final Approval"
+                            },
+                            "runAfter": {}
+                          }
+                        },
+                        "else": {
+                          "actions": {
+                            "CFO_Advance_To_CorpCFO": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextStatus",
+                                "value": "Pending Corporate CFO"
+                              },
+                              "runAfter": {}
+                            },
+                            "CFO_Next_Level": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextApprovalLevel",
+                                "value": "Corporate CFO"
+                              },
+                              "runAfter": {}
+                            },
+                            "CFO_Next_Approver": {
+                              "type": "SetVariable",
+                              "inputs": {
+                                "name": "varNextApprover",
+                                "value": "@first(body('Get_Approval_Matrix')?['value'])?['CorporateCFO/Email']"
+                              },
+                              "runAfter": {}
+                            }
+                          }
+                        },
+                        "runAfter": {}
+                      }
+                    }
+                  },
+                  "Case_CorpCFO_Approved": {
+                    "case": "Corporate CFO",
+                    "actions": {
+                      "CorpCFO_Is_Final": {
+                        "type": "SetVariable",
+                        "description": "Corporate CFO is always the final approval level.",
+                        "inputs": {
+                          "name": "varIsFinalApproval",
+                          "value": true
+                        },
+                        "runAfter": {}
+                      },
+                      "CorpCFO_Final_Status": {
+                        "type": "SetVariable",
+                        "inputs": {
+                          "name": "varNextStatus",
+                          "value": "Approved \u2013 Ready for Purchase"
+                        },
+                        "runAfter": {}
+                      },
+                      "CorpCFO_Final_Level": {
+                        "type": "SetVariable",
+                        "inputs": {
+                          "name": "varNextApprovalLevel",
+                          "value": "Final Approval"
+                        },
+                        "runAfter": {}
+                      }
+                    }
+                  }
+                },
+                "default": {
+                  "actions": {}
+                },
+                "runAfter": {
+                  "Approved_Build_History_Entry": ["Succeeded"]
+                }
+              },
+              "Approved_Check_Final_Or_Advance": {
+                "type": "If",
+                "description": "If this is the final approval, set the final approval and ready-for-purchase dates. Otherwise route to the next approver.",
+                "expression": {
+                  "and": [
+                    {
+                      "equals": [
+                        "@variables('varIsFinalApproval')",
+                        true
+                      ]
+                    }
+                  ]
+                },
+                "actions": {
+                  "Final_Approval_Update_PO": {
+                    "type": "OpenApiConnection",
+                    "description": "Final approval reached. Set the PO to Approved status with final approval and ready-for-purchase timestamps. Clear the ApprovalAction field.",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_sharepointonline",
+                        "operationId": "PatchItem",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                      },
+                      "parameters": {
+                        "dataset": "@parameters('SharePointSiteUrl')",
+                        "table": "Purchase Orders",
+                        "id": "@triggerOutputs()?['body/ID']",
+                        "item": {
+                          "Status": {
+                            "Value": "Approved \u2013 Ready for Purchase"
+                          },
+                          "CurrentApprovalLevel": {
+                            "Value": "Final Approval"
+                          },
+                          "FinalApprovalDate": "@utcNow()",
+                          "ReadyForPurchaseDate": "@utcNow()",
+                          "ApprovalAction": null,
+                          "ApprovalHistory": "@{triggerOutputs()?['body/ApprovalHistory']}\n@{variables('varHistoryEntry')}\n@{formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt')} - FINAL APPROVAL granted. PO is ready for purchase."
+                        }
+                      }
+                    },
+                    "runAfter": {}
+                  },
+                  "Final_Approval_Notify_Originator_Email": {
+                    "type": "OpenApiConnection",
+                    "description": "Send email to the originator informing them the PO has received final approval.",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_office365",
+                        "operationId": "SendEmailV2",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                      },
+                      "parameters": {
+                        "emailMessage/To": "@triggerOutputs()?['body/Originator/Email']",
+                        "emailMessage/Subject": "PO @{triggerOutputs()?['body/PONumber']} APPROVED - Ready for Purchase",
+                        "emailMessage/Body": "<p>Hello @{triggerOutputs()?['body/Originator/Title']},</p><p>Great news! Your purchase order has been <strong>fully approved</strong> and is now ready for purchase.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{triggerOutputs()?['body/PONumber']}</li><li>Description: @{triggerOutputs()?['body/Title']}</li><li>Vendor: @{triggerOutputs()?['body/VendorName']}</li><li>Total Amount: $@{formatNumber(float(triggerOutputs()?['body/TotalAmount']), 'N2')}</li><li>Final Approved By: @{triggerOutputs()?['body/CurrentApprover']}</li><li>Approval Date: @{formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt')}</li></ul><p>You may now proceed with the purchase.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">View Purchase Order</a></p><p>Thank you,<br/>Purchase Order System</p>"
+                      }
+                    },
+                    "runAfter": {
+                      "Final_Approval_Update_PO": ["Succeeded"]
+                    }
+                  },
+                  "Final_Approval_Teams_Notification": {
+                    "type": "OpenApiConnection",
+                    "description": "Send Teams message to the originator about the final approval.",
+                    "inputs": {
+                      "host": {
+                        "connectionName": "shared_teams",
+                        "operationId": "PostMessageToConversation",
+                        "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                      },
+                      "parameters": {
+                        "poster": "Flow bot",
+                        "location": "Chat with Flow bot",
+                        "body/recipient": "@triggerOutputs()?['body/Originator/Email']",
+                        "body/messageBody": "<p><strong>PO Approved!</strong></p><p>PO @{triggerOutputs()?['body/PONumber']} has been fully approved and is ready for purchase.<br/>Amount: $@{formatNumber(float(triggerOutputs()?['body/TotalAmount']), 'N2')}<br/>Vendor: @{triggerOutputs()?['body/VendorName']}</p>",
+                        "body/isAlert": true
+                      }
+                    },
+                    "runAfter": {
+                      "Final_Approval_Update_PO": ["Succeeded"]
+                    }
+                  }
+                },
+                "else": {
+                  "actions": {
+                    "Advance_Update_PO": {
+                      "type": "OpenApiConnection",
+                      "description": "Advance the PO to the next approval level. Update the status, current approver, and approval level. Clear the ApprovalAction field so it can be set again by the next approver.",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_sharepointonline",
+                          "operationId": "PatchItem",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                        },
+                        "parameters": {
+                          "dataset": "@parameters('SharePointSiteUrl')",
+                          "table": "Purchase Orders",
+                          "id": "@triggerOutputs()?['body/ID']",
+                          "item": {
+                            "Status": {
+                              "Value": "@variables('varNextStatus')"
+                            },
+                            "CurrentApprovalLevel": {
+                              "Value": "@variables('varNextApprovalLevel')"
+                            },
+                            "CurrentApprover": "@variables('varNextApprover')",
+                            "ApprovalAction": null,
+                            "ApprovalHistory": "@{triggerOutputs()?['body/ApprovalHistory']}\n@{variables('varHistoryEntry')} Advancing to @{variables('varNextApprovalLevel')}."
+                          }
+                        }
+                      },
+                      "runAfter": {}
+                    },
+                    "Advance_Notify_Next_Approver_Email": {
+                      "type": "OpenApiConnection",
+                      "description": "Send approval request email to the next approver in the chain.",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_office365",
+                          "operationId": "SendEmailV2",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                        },
+                        "parameters": {
+                          "emailMessage/To": "@variables('varNextApprover')",
+                          "emailMessage/Subject": "Approval Required: PO @{triggerOutputs()?['body/PONumber']} - $@{formatNumber(float(triggerOutputs()?['body/TotalAmount']), 'N2')}",
+                          "emailMessage/Body": "<p>Hello,</p><p>A purchase order has been approved at the @{triggerOutputs()?['body/CurrentApprovalLevel/Value']} level and now requires your approval at the <strong>@{variables('varNextApprovalLevel')}</strong> level.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{triggerOutputs()?['body/PONumber']}</li><li>Description: @{triggerOutputs()?['body/Title']}</li><li>Originator: @{triggerOutputs()?['body/Originator/Title']}</li><li>Department: @{triggerOutputs()?['body/Department/Value']}</li><li>Vendor: @{triggerOutputs()?['body/VendorName']}</li><li>Total Amount: $@{formatNumber(float(triggerOutputs()?['body/TotalAmount']), 'N2')}</li></ul><p>Please review and take action at your earliest convenience.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">Review Purchase Order</a></p><p>Thank you,<br/>Purchase Order System</p>"
+                        }
+                      },
+                      "runAfter": {
+                        "Advance_Update_PO": ["Succeeded"]
+                      }
+                    },
+                    "Advance_Notify_Next_Approver_Teams": {
+                      "type": "OpenApiConnection",
+                      "description": "Send Teams message to the next approver for timely visibility.",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_teams",
+                          "operationId": "PostMessageToConversation",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                        },
+                        "parameters": {
+                          "poster": "Flow bot",
+                          "location": "Chat with Flow bot",
+                          "body/recipient": "@variables('varNextApprover')",
+                          "body/messageBody": "<p><strong>PO Approval Required (@{variables('varNextApprovalLevel')} Level)</strong></p><p>PO: @{triggerOutputs()?['body/PONumber']}<br/>Originator: @{triggerOutputs()?['body/Originator/Title']}<br/>Amount: $@{formatNumber(float(triggerOutputs()?['body/TotalAmount']), 'N2')}<br/>Vendor: @{triggerOutputs()?['body/VendorName']}</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">Review PO</a></p>",
+                          "body/isAlert": true
+                        }
+                      },
+                      "runAfter": {
+                        "Advance_Update_PO": ["Succeeded"]
+                      }
+                    },
+                    "Advance_Notify_Originator": {
+                      "type": "OpenApiConnection",
+                      "description": "Send status update email to the originator letting them know the PO has advanced to the next level.",
+                      "inputs": {
+                        "host": {
+                          "connectionName": "shared_office365",
+                          "operationId": "SendEmailV2",
+                          "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                        },
+                        "parameters": {
+                          "emailMessage/To": "@triggerOutputs()?['body/Originator/Email']",
+                          "emailMessage/Subject": "PO @{triggerOutputs()?['body/PONumber']} Update - Approved at @{triggerOutputs()?['body/CurrentApprovalLevel/Value']} Level",
+                          "emailMessage/Body": "<p>Hello @{triggerOutputs()?['body/Originator/Title']},</p><p>Your purchase order has been <strong>approved</strong> at the @{triggerOutputs()?['body/CurrentApprovalLevel/Value']} level and has advanced to the <strong>@{variables('varNextApprovalLevel')}</strong> level for further review.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{triggerOutputs()?['body/PONumber']}</li><li>Total Amount: $@{formatNumber(float(triggerOutputs()?['body/TotalAmount']), 'N2')}</li><li>Next Approver Level: @{variables('varNextApprovalLevel')}</li></ul><p>You will be notified when the next approval action is taken.</p><p>Thank you,<br/>Purchase Order System</p>"
+                        }
+                      },
+                      "runAfter": {
+                        "Advance_Update_PO": ["Succeeded"]
+                      }
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Approved_Determine_Next_Level": ["Succeeded"]
+                }
+              }
+            }
+          },
+          "Case_Returned": {
+            "case": "Returned",
+            "actions": {
+              "Returned_Build_History_Entry": {
+                "type": "SetVariable",
+                "description": "Build the return history entry with the approver, level, timestamp, and return notes.",
+                "inputs": {
+                  "name": "varHistoryEntry",
+                  "value": "@{formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt')} - RETURNED by @{triggerOutputs()?['body/CurrentApprover']} at @{triggerOutputs()?['body/CurrentApprovalLevel/Value']} level. Notes: @{triggerOutputs()?['body/ReturnNotes']}"
+                },
+                "runAfter": {}
+              },
+              "Returned_Update_PO": {
+                "type": "OpenApiConnection",
+                "description": "Set PO status to Returned for Revision. The originator must revise and resubmit. Clear the ApprovalAction field.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "PatchItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Purchase Orders",
+                    "id": "@triggerOutputs()?['body/ID']",
+                    "item": {
+                      "Status": {
+                        "Value": "Returned for Revision"
+                      },
+                      "ApprovalAction": null,
+                      "ApprovalHistory": "@{triggerOutputs()?['body/ApprovalHistory']}\n@{variables('varHistoryEntry')}"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Returned_Build_History_Entry": ["Succeeded"]
+                }
+              },
+              "Returned_Notify_Originator_Email": {
+                "type": "OpenApiConnection",
+                "description": "Send email to the originator with the return reason and instructions to revise and resubmit.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365",
+                    "operationId": "SendEmailV2",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                  },
+                  "parameters": {
+                    "emailMessage/To": "@triggerOutputs()?['body/Originator/Email']",
+                    "emailMessage/Subject": "Action Required: PO @{triggerOutputs()?['body/PONumber']} Returned for Revision",
+                    "emailMessage/Body": "<p>Hello @{triggerOutputs()?['body/Originator/Title']},</p><p>Your purchase order has been <strong>returned for revision</strong> by the @{triggerOutputs()?['body/CurrentApprovalLevel/Value']}.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{triggerOutputs()?['body/PONumber']}</li><li>Description: @{triggerOutputs()?['body/Title']}</li><li>Vendor: @{triggerOutputs()?['body/VendorName']}</li><li>Total Amount: $@{formatNumber(float(triggerOutputs()?['body/TotalAmount']), 'N2')}</li></ul><p><strong>Reason for Return:</strong></p><p>@{triggerOutputs()?['body/ReturnNotes']}</p><p>Please review the feedback, make the necessary changes, and resubmit the PO.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/EditForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">Edit Purchase Order</a></p><p>Thank you,<br/>Purchase Order System</p>",
+                    "emailMessage/Importance": "High"
+                  }
+                },
+                "runAfter": {
+                  "Returned_Update_PO": ["Succeeded"]
+                }
+              },
+              "Returned_Notify_Originator_Teams": {
+                "type": "OpenApiConnection",
+                "description": "Send Teams message to the originator about the return.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_teams",
+                    "operationId": "PostMessageToConversation",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                  },
+                  "parameters": {
+                    "poster": "Flow bot",
+                    "location": "Chat with Flow bot",
+                    "body/recipient": "@triggerOutputs()?['body/Originator/Email']",
+                    "body/messageBody": "<p><strong>PO Returned for Revision</strong></p><p>PO @{triggerOutputs()?['body/PONumber']} was returned by the @{triggerOutputs()?['body/CurrentApprovalLevel/Value']}.</p><p><strong>Notes:</strong> @{triggerOutputs()?['body/ReturnNotes']}</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/EditForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">Edit PO</a></p>",
+                    "body/isAlert": true
+                  }
+                },
+                "runAfter": {
+                  "Returned_Update_PO": ["Succeeded"]
+                }
+              }
+            }
+          },
+          "Case_Rejected": {
+            "case": "Rejected",
+            "actions": {
+              "Rejected_Build_History_Entry": {
+                "type": "SetVariable",
+                "description": "Build the rejection history entry.",
+                "inputs": {
+                  "name": "varHistoryEntry",
+                  "value": "@{formatDateTime(utcNow(), 'MM/dd/yyyy hh:mm tt')} - REJECTED by @{triggerOutputs()?['body/CurrentApprover']} at @{triggerOutputs()?['body/CurrentApprovalLevel/Value']} level. Notes: @{triggerOutputs()?['body/ReturnNotes']}"
+                },
+                "runAfter": {}
+              },
+              "Rejected_Update_PO": {
+                "type": "OpenApiConnection",
+                "description": "Set PO status to Rejected. This is a terminal state - the PO cannot be resubmitted.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_sharepointonline",
+                    "operationId": "PatchItem",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+                  },
+                  "parameters": {
+                    "dataset": "@parameters('SharePointSiteUrl')",
+                    "table": "Purchase Orders",
+                    "id": "@triggerOutputs()?['body/ID']",
+                    "item": {
+                      "Status": {
+                        "Value": "Rejected"
+                      },
+                      "ApprovalAction": null,
+                      "ApprovalHistory": "@{triggerOutputs()?['body/ApprovalHistory']}\n@{variables('varHistoryEntry')}"
+                    }
+                  }
+                },
+                "runAfter": {
+                  "Rejected_Build_History_Entry": ["Succeeded"]
+                }
+              },
+              "Rejected_Notify_Originator_Email": {
+                "type": "OpenApiConnection",
+                "description": "Send email to the originator informing them the PO has been rejected.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_office365",
+                    "operationId": "SendEmailV2",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_office365"
+                  },
+                  "parameters": {
+                    "emailMessage/To": "@triggerOutputs()?['body/Originator/Email']",
+                    "emailMessage/Subject": "PO @{triggerOutputs()?['body/PONumber']} REJECTED",
+                    "emailMessage/Body": "<p>Hello @{triggerOutputs()?['body/Originator/Title']},</p><p>Your purchase order has been <strong>rejected</strong> by the @{triggerOutputs()?['body/CurrentApprovalLevel/Value']}.</p><p><strong>PO Details:</strong></p><ul><li>PO Number: @{triggerOutputs()?['body/PONumber']}</li><li>Description: @{triggerOutputs()?['body/Title']}</li><li>Vendor: @{triggerOutputs()?['body/VendorName']}</li><li>Total Amount: $@{formatNumber(float(triggerOutputs()?['body/TotalAmount']), 'N2')}</li></ul><p><strong>Rejection Reason:</strong></p><p>@{triggerOutputs()?['body/ReturnNotes']}</p><p>If you believe this was in error, please contact the approver directly or create a new purchase order.</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">View Purchase Order</a></p><p>Thank you,<br/>Purchase Order System</p>",
+                    "emailMessage/Importance": "High"
+                  }
+                },
+                "runAfter": {
+                  "Rejected_Update_PO": ["Succeeded"]
+                }
+              },
+              "Rejected_Notify_Originator_Teams": {
+                "type": "OpenApiConnection",
+                "description": "Send Teams message to the originator about the rejection.",
+                "inputs": {
+                  "host": {
+                    "connectionName": "shared_teams",
+                    "operationId": "PostMessageToConversation",
+                    "apiId": "/providers/Microsoft.PowerApps/apis/shared_teams"
+                  },
+                  "parameters": {
+                    "poster": "Flow bot",
+                    "location": "Chat with Flow bot",
+                    "body/recipient": "@triggerOutputs()?['body/Originator/Email']",
+                    "body/messageBody": "<p><strong>PO Rejected</strong></p><p>PO @{triggerOutputs()?['body/PONumber']} has been rejected by the @{triggerOutputs()?['body/CurrentApprovalLevel/Value']}.</p><p><strong>Reason:</strong> @{triggerOutputs()?['body/ReturnNotes']}</p><p><a href=\"@{parameters('SharePointSiteUrl')}/Lists/Purchase%20Orders/DispForm.aspx?ID=@{triggerOutputs()?['body/ID']}\">View PO</a></p>",
+                    "body/isAlert": true
+                  }
+                },
+                "runAfter": {
+                  "Rejected_Update_PO": ["Succeeded"]
+                }
+              }
+            }
+          }
+        },
+        "default": {
+          "actions": {
+            "Unknown_Action_Terminate": {
+              "type": "Terminate",
+              "description": "Terminate the flow if an unrecognized ApprovalAction value is encountered.",
+              "inputs": {
+                "runStatus": "Failed",
+                "runError": {
+                  "code": "UnknownApprovalAction",
+                  "message": "Unrecognized ApprovalAction value: @{triggerOutputs()?['body/ApprovalAction/Value']} on PO ID @{triggerOutputs()?['body/ID']}"
+                }
+              },
+              "runAfter": {}
+            }
+          }
+        },
+        "runAfter": {
+          "Get_Approval_Matrix": ["Succeeded"]
+        }
+      }
+    },
+    "parameters": {
+      "SharePointSiteUrl": {
+        "type": "string",
+        "defaultValue": "https://yourtenant.sharepoint.com/sites/PurchaseOrders",
+        "description": "The URL of the SharePoint site containing the Purchase Orders list and related lists."
+      }
+    },
+    "connections": {
+      "shared_sharepointonline": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline",
+        "connectionName": "shared_sharepointonline",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_sharepointonline"
+      },
+      "shared_office365": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_office365",
+        "connectionName": "shared_office365",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_office365"
+      },
+      "shared_teams": {
+        "connectionId": "/providers/Microsoft.PowerApps/apis/shared_teams",
+        "connectionName": "shared_teams",
+        "id": "/providers/Microsoft.PowerApps/apis/shared_teams"
+      }
+    }
+  }
+}
