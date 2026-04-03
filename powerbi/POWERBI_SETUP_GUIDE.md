@@ -76,7 +76,7 @@ Build a complete Power BI report in ~15 minutes using the ready-made queries and
 ## Step 7: Create the Relationship
 
 1. Go to **Model view** (left sidebar, the diagram icon)
-2. **Drag** `DateTable[Date]` onto `StaffingData[DateKey]`
+2. **Drag** `DateTable[Date]` onto `StaffingData[TimeEntryDateKey]`
 3. This creates a one-to-many relationship (DateTable → StaffingData)
 4. Double-click the relationship line to verify:
    - **From:** DateTable > Date

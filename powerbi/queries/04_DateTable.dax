@@ -18,3 +18,11 @@ ADDCOLUMNS(
     "IsCurrentMonth", IF(YEAR([Date]) = YEAR(TODAY()) && MONTH([Date]) = MONTH(TODAY()), TRUE(), FALSE()),
     "IsCurrentYear", IF(YEAR([Date]) = YEAR(TODAY()), TRUE(), FALSE())
 )
+
+// ─────────────────────────────────────────────────────────────
+// RELATIONSHIP: DateTable[Date] → StaffingData[TimeEntryDateKey]
+//   (one-to-many, cross-filter: Both)
+//
+// TimeEntryDate is the actual census/payroll date being reported.
+// Date is just when the record was pushed to SharePoint.
+// ─────────────────────────────────────────────────────────────
