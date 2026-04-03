@@ -1997,11 +1997,30 @@ async function pushToSharePoint() {
       btn.classList.add('success');
       label.textContent = sentCount > 1 ? 'Sent ' + sentCount + ' dates!' : 'Sent!';
       updateSpStatus('Last push: ' + sentCount + ' record' + (sentCount > 1 ? 's' : '') + ' at ' + new Date().toLocaleTimeString(), 'ok');
+      // Clear entry fields after successful push so users start fresh
+      setTimeout(function() {
+        UNITS.forEach(function(u) {
+          var el = document.getElementById('input-' + u.id);
+          if (el) el.value = 0;
+          var oo = document.getElementById('oo-' + u.id);
+          if (oo) oo.value = 0;
+        });
+        onCensusChange();
+      }, 3500);
     } else if (sentCount > 0) {
       btn.classList.remove('sending');
       btn.classList.add('success');
       label.textContent = 'Sent ' + sentCount + '/' + totalDates;
       updateSpStatus(sentCount + '/' + totalDates + ' sent — check console for errors', 'err');
+      setTimeout(function() {
+        UNITS.forEach(function(u) {
+          var el = document.getElementById('input-' + u.id);
+          if (el) el.value = 0;
+          var oo = document.getElementById('oo-' + u.id);
+          if (oo) oo.value = 0;
+        });
+        onCensusChange();
+      }, 3500);
     } else {
       throw lastError || new Error('No records sent');
     }
