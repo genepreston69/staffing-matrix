@@ -9,7 +9,7 @@ let
     #"Changed Type" = Table.TransformColumnTypes(#"Selected Columns", {
         {"Timestamp", type text},
         {"Date", type text},
-        {"TimeEntryDate", type text},
+        {"TimeEntryDate", type datetime},
         {"TotalStaffedBeds", type number},
         {"TotalCensus", type number},
         {"OccupancyPct", type number},
@@ -216,10 +216,11 @@ let
         {"EPOB_DC_Variance", type number},
         {"EPOB_Total_Variance", type number}
     }),
-    // TimeEntryDate is the actual census/payroll date (e.g. "2026-03-15")
+    // TimeEntryDate is the actual census/payroll date
     // Date is just when the record was pushed to SharePoint
+    // Use Date.From() which handles both datetime and text values
     #"Added TimeEntryDateKey" = Table.AddColumn(#"Changed Type", "TimeEntryDateKey", each
-        try Date.FromText([TimeEntryDate]) otherwise null, type date),
+        try Date.From([TimeEntryDate]) otherwise null, type date),
     #"Added SubmitDateKey" = Table.AddColumn(#"Added TimeEntryDateKey", "SubmitDateKey", each
         try Date.From([Date]) otherwise null, type date)
 in
