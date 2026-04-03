@@ -1,0 +1,20 @@
+// DATE TABLE: Create as a Calculated Table in Power BI Desktop
+// Go to: Modeling > New Table > paste this DAX formula
+//
+// After creating, mark it as a Date Table:
+//   Select the table > Table Tools > Mark as Date Table > choose "Date" column
+
+DateTable =
+ADDCOLUMNS(
+    CALENDAR(DATE(2025, 1, 1), DATE(2027, 12, 31)),
+    "Year", YEAR([Date]),
+    "MonthNum", MONTH([Date]),
+    "MonthName", FORMAT([Date], "MMMM"),
+    "Day", DAY([Date]),
+    "Quarter", "Q" & FORMAT(QUARTER([Date]), "0"),
+    "YearMonth", FORMAT([Date], "YYYY-MM"),
+    "DayOfWeek", FORMAT([Date], "dddd"),
+    "WeekNum", WEEKNUM([Date]),
+    "IsCurrentMonth", IF(YEAR([Date]) = YEAR(TODAY()) && MONTH([Date]) = MONTH(TODAY()), TRUE(), FALSE()),
+    "IsCurrentYear", IF(YEAR([Date]) = YEAR(TODAY()), TRUE(), FALSE())
+)
