@@ -216,7 +216,11 @@ let
         {"EPOB_DC_Variance", type number},
         {"EPOB_Total_Variance", type number}
     }),
-    #"Added DateKey" = Table.AddColumn(#"Changed Type", "DateKey", each
+    // TimeEntryDate is the actual census/payroll date (e.g. "2026-03-15")
+    // Date is just when the record was pushed to SharePoint
+    #"Added TimeEntryDateKey" = Table.AddColumn(#"Changed Type", "TimeEntryDateKey", each
+        try Date.FromText([TimeEntryDate]) otherwise null, type date),
+    #"Added SubmitDateKey" = Table.AddColumn(#"Added TimeEntryDateKey", "SubmitDateKey", each
         try Date.From([Date]) otherwise null, type date)
 in
-    #"Added DateKey"
+    #"Added SubmitDateKey"

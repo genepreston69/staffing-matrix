@@ -4,7 +4,10 @@
 // DASHBOARDS: Daily | Monthly | YTD — each in Total + by Unit
 //
 // SETUP: First create the DateTable (04_DateTable.dax) and relationship:
-//   DateTable[Date] → StaffingData[DateKey]  (one-to-many, cross-filter: Both)
+//   DateTable[Date] → StaffingData[TimeEntryDateKey]  (one-to-many, cross-filter: Both)
+//
+// NOTE: TimeEntryDate = the actual census/payroll date being reported
+//       Date = when the record was pushed to SharePoint (not what you want)
 //
 // HOW TO ADD: Select StaffingData table > Modeling > New Measure > paste formula
 // To set Display Folder: Select measure > Properties > Display Folder

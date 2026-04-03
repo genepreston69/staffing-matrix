@@ -7,7 +7,8 @@ You have the SharePoint data loaded. Follow these steps to build 3 dashboards.
 Before building dashboards, you need:
 1. **DateTable** — Modeling > New Table > paste formula from `queries/04_DateTable.dax`
 2. **Mark as Date Table** — Select DateTable > Table Tools > Mark as Date Table > pick `Date`
-3. **Relationship** — Model view > drag `DateTable[Date]` onto `StaffingData[DateKey]` (or your date column)
+3. **Relationship** — Model view > drag `DateTable[Date]` onto `StaffingData[TimeEntryDateKey]`
+   - `TimeEntryDate` is the actual census/payroll date; `Date` is just when data was pushed to SharePoint
 4. **All DAX Measures** — paste each from `queries/05_DAX_Measures.dax` via Modeling > New Measure
 
 ---
