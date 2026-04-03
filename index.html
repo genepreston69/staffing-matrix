@@ -302,7 +302,7 @@
     <div class="header-badge">Staffing Matrix</div>
     <div class="header-date" id="headerDate"></div>
     <div class="sp-controls">
-      <button class="sp-push-btn" id="spPushBtn" onclick="pushToSharePoint()" title="Push current data to SharePoint list">
+      <button class="sp-push-btn" id="spPushBtn" onclick="pushAndClear()" title="Push current data to SharePoint list">
         <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
         <span id="spPushLabel">Push to SharePoint</span>
       </button>
@@ -1898,15 +1898,23 @@ function collectSharePointPayload() {
 }
 
 function clearEntryFields() {
-  // Reset all census and 1:1 hour inputs to 0
   UNITS.forEach(u => {
-    const censusEl = document.getElementById('input-' + u.id);
-    if (censusEl) censusEl.value = 0;
-    const ooEl = document.getElementById('oo-' + u.id);
-    if (ooEl) ooEl.value = 0;
+    const el = document.getElementById('input-' + u.id);
+    if (el) el.value = 0;
+    const oo = document.getElementById('oo-' + u.id);
+    if (oo) oo.value = 0;
   });
-  // Recalculate with zeroed inputs (updates display and saves daily data)
   onCensusChange();
+}
+
+async function pushAndClear() {
+  await pushToSharePoint();
+  // After push completes, check if it succeeded (button shows 'success' class)
+  const btn = document.getElementById('spPushBtn');
+  if (btn.classList.contains('success')) {
+    // Wait for the 3s success message, then clear fields
+    setTimeout(clearEntryFields, 3500);
+  }
 }
 
 async function pushToSharePoint() {
@@ -1936,7 +1944,6 @@ async function pushToSharePoint() {
   const totalDates = dates.length || 1;
   let sentCount = 0;
   let lastError = null;
-  let pushSucceeded = false;
 
   try {
     if (dates.length > 1) {
@@ -1990,13 +1997,11 @@ async function pushToSharePoint() {
       btn.classList.add('success');
       label.textContent = sentCount > 1 ? 'Sent ' + sentCount + ' dates!' : 'Sent!';
       updateSpStatus('Last push: ' + sentCount + ' record' + (sentCount > 1 ? 's' : '') + ' at ' + new Date().toLocaleTimeString(), 'ok');
-      pushSucceeded = true;
     } else if (sentCount > 0) {
       btn.classList.remove('sending');
       btn.classList.add('success');
       label.textContent = 'Sent ' + sentCount + '/' + totalDates;
       updateSpStatus(sentCount + '/' + totalDates + ' sent — check console for errors', 'err');
-      pushSucceeded = true;
     } else {
       throw lastError || new Error('No records sent');
     }
@@ -2012,7 +2017,6 @@ async function pushToSharePoint() {
     btn.classList.remove('success', 'error');
     btn.disabled = false;
     label.textContent = 'Push to SharePoint';
-    if (pushSucceeded) clearEntryFields();
   }, 3000);
 }
 
