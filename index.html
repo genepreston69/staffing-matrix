@@ -1905,8 +1905,7 @@ function clearEntryFields() {
     const ooEl = document.getElementById('oo-' + u.id);
     if (ooEl) ooEl.value = 0;
   });
-  // Clear payroll data and history
-  clearAllUploads();
+  // Recalculate with zeroed inputs (updates display and saves daily data)
   onCensusChange();
 }
 
