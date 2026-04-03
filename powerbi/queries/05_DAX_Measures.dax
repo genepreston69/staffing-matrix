@@ -1,446 +1,748 @@
-// ============================================================
+// ============================================================================
 // HIGHLAND STAFFING MATRIX — DAX MEASURES
-// ============================================================
-// How to use: In Power BI Desktop, select the StaffingData table,
-// then for each measure below:
-//   1. Click Modeling > New Measure
-//   2. Paste the measure formula
-//   3. Set the format string as noted
+// ============================================================================
+// DASHBOARDS: Daily | Monthly | YTD — each in Total + by Unit
 //
-// TIP: Create Display Folders by selecting a measure in the
-// Fields pane > Properties > Display Folder
-// ============================================================
+// SETUP: First create the DateTable (04_DateTable.dax) and relationship:
+//   DateTable[Date] → StaffingData[DateKey]  (one-to-many, cross-filter: Both)
+//
+// HOW TO ADD: Select StaffingData table > Modeling > New Measure > paste formula
+// To set Display Folder: Select measure > Properties > Display Folder
+// ============================================================================
 
 
-// ────────────────────────────────────────────────────────────
-// FOLDER: Core Metrics
-// ────────────────────────────────────────────────────────────
+// ════════════════════════════════════════════════════════════════════════════
+//  DAILY DASHBOARD MEASURES
+//  (Show the selected day's snapshot — use with a single-date slicer)
+// ════════════════════════════════════════════════════════════════════════════
 
-Total Census = SUM(StaffingData[TotalCensus])
-// Format: #,0
+// ── Daily: Facility Total ─────────────────────────────────────────────────
 
-Occupancy % = DIVIDE(SUM(StaffingData[TotalCensus]), SUM(StaffingData[TotalStaffedBeds]), 0) * 100
-// Format: 0.0
+Daily Total Census = SUM(StaffingData[TotalCensus])
+// Format: #,0  |  Display Folder: Daily - Facility
 
-Total RN = SUM(StaffingData[Total_RN])
-// Format: #,0
+Daily Occupancy % = DIVIDE(SUM(StaffingData[TotalCensus]), 114, 0) * 100
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-Total LPN = SUM(StaffingData[Total_LPN])
-// Format: #,0
+Daily Total RN = SUM(StaffingData[Total_RN])
+// Format: #,0  |  Display Folder: Daily - Facility
 
-Total Tech = SUM(StaffingData[Total_Tech])
-// Format: #,0
+Daily Total LPN = SUM(StaffingData[Total_LPN])
+// Format: #,0  |  Display Folder: Daily - Facility
 
-Total Shift Staff = SUM(StaffingData[Total_ShiftStaff])
-// Format: #,0
+Daily Total Tech = SUM(StaffingData[Total_Tech])
+// Format: #,0  |  Display Folder: Daily - Facility
 
-DC EPOB = AVERAGE(StaffingData[EPOB_DirectCare])
-// Format: 0.00
+Daily Total Shift Staff = SUM(StaffingData[Total_ShiftStaff])
+// Format: #,0  |  Display Folder: Daily - Facility
 
-Total EPOB = AVERAGE(StaffingData[EPOB_TotalFacility])
-// Format: 0.00
+Daily DC EPOB = AVERAGE(StaffingData[EPOB_DirectCare])
+// Format: 0.00  |  Display Folder: Daily - Facility
 
-NP Model % = AVERAGE(StaffingData[NP_ModelPct])
-// Format: 0.0
+Daily Total EPOB = AVERAGE(StaffingData[EPOB_TotalFacility])
+// Format: 0.00  |  Display Folder: Daily - Facility
 
-Observation Hours = SUM(StaffingData[ObsHrs_Total])
-// Format: 0.0
+Daily Variable FTE = SUM(StaffingData[VarAdjFTE])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
+Daily Fixed FTE = SUM(StaffingData[FixedFTE])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-// ────────────────────────────────────────────────────────────
-// FOLDER: Census by Unit
-// ────────────────────────────────────────────────────────────
+Daily Grand FTE = SUM(StaffingData[GrandAdjFTE])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-Census 1East = SUM(StaffingData[Census_1East])
-// Format: #,0
+Daily RN FTE = SUM(StaffingData[RN_AdjFTE])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-Census 2East = SUM(StaffingData[Census_2East])
-// Format: #,0
+Daily LPN FTE = SUM(StaffingData[LPN_AdjFTE])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-Census 2West = SUM(StaffingData[Census_2West])
-// Format: #,0
+Daily Tech FTE = SUM(StaffingData[Tech_AdjFTE])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-Census 3East = SUM(StaffingData[Census_3East])
-// Format: #,0
+Daily Float Positions = SUM(StaffingData[FloatShiftPositions])
+// Format: #,0  |  Display Folder: Daily - Facility
 
-Census 3West = SUM(StaffingData[Census_3West])
-// Format: #,0
+Daily Obs Hours = SUM(StaffingData[ObsHrs_Total])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-Census HRC = SUM(StaffingData[Census_HRC])
-// Format: #,0
+Daily NP Model % = AVERAGE(StaffingData[NP_ModelPct])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
+Daily Actual Hours = SUM(StaffingData[Actual_VarHrsDay_Total])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-// ────────────────────────────────────────────────────────────
-// FOLDER: FTE
-// ────────────────────────────────────────────────────────────
+Daily Model Hours = SUM(StaffingData[Model_VarHrsDay_Total])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-Variable FTE = SUM(StaffingData[VarAdjFTE])
-// Format: 0.0
+Daily Hours Variance = SUM(StaffingData[Variance_VarHrsDay_Total])
+// Format: +0.0;-0.0;0.0  |  Display Folder: Daily - Facility
 
-Fixed FTE = SUM(StaffingData[FixedFTE])
-// Format: 0.0
+Daily Variance % = AVERAGE(StaffingData[Variance_VarPct_Total])
+// Format: +0.0;-0.0;0.0  |  Display Folder: Daily - Facility
 
-Grand Total FTE = SUM(StaffingData[GrandAdjFTE])
-// Format: 0.0
+Daily OT Hours = SUM(StaffingData[Actual_OT_Total])
+// Format: 0.0  |  Display Folder: Daily - Facility
 
-RN Adj FTE = SUM(StaffingData[RN_AdjFTE])
-// Format: 0.0
+Daily Actual DC EPOB = AVERAGE(StaffingData[Actual_EPOB_DC])
+// Format: 0.00  |  Display Folder: Daily - Facility
 
-LPN Adj FTE = SUM(StaffingData[LPN_AdjFTE])
-// Format: 0.0
+Daily Actual Total EPOB = AVERAGE(StaffingData[Actual_EPOB_Total])
+// Format: 0.00  |  Display Folder: Daily - Facility
 
-Tech Adj FTE = SUM(StaffingData[Tech_AdjFTE])
-// Format: 0.0
+Daily EPOB DC Variance = AVERAGE(StaffingData[EPOB_DC_Variance])
+// Format: +0.00;-0.00;0.00  |  Display Folder: Daily - Facility
 
-
-// ────────────────────────────────────────────────────────────
-// FOLDER: Payroll Variance
-// ────────────────────────────────────────────────────────────
-
-OT Hours Total = SUM(StaffingData[Actual_OT_Total])
-// Format: 0.0
-
-Hours Variance = SUM(StaffingData[Variance_VarHrsDay_Total])
-// Format: 0.0
-
-Variance % = AVERAGE(StaffingData[Variance_VarPct_Total])
-// Format: 0.0
-
-Actual Daily Hours = SUM(StaffingData[Actual_VarHrsDay_Total])
-// Format: 0.0
-
-Model Daily Hours = SUM(StaffingData[Model_VarHrsDay_Total])
-// Format: 0.0
-
-Actual DC EPOB = AVERAGE(StaffingData[Actual_EPOB_DC])
-// Format: 0.00
-
-Actual Total EPOB = AVERAGE(StaffingData[Actual_EPOB_Total])
-// Format: 0.00
-
-EPOB DC Variance = AVERAGE(StaffingData[EPOB_DC_Variance])
-// Format: +0.00;-0.00;0.00
-
-EPOB Total Variance = AVERAGE(StaffingData[EPOB_Total_Variance])
-// Format: +0.00;-0.00;0.00
+Daily EPOB Total Variance = AVERAGE(StaffingData[EPOB_Total_Variance])
+// Format: +0.00;-0.00;0.00  |  Display Folder: Daily - Facility
 
 
-// ────────────────────────────────────────────────────────────
-// FOLDER: MTD Metrics (Average Daily Census)
-// ────────────────────────────────────────────────────────────
+// ── Daily: By Unit (Census) ───────────────────────────────────────────────
+
+Daily Census 1East = SUM(StaffingData[Census_1East])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Census 2East = SUM(StaffingData[Census_2East])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Census 2West = SUM(StaffingData[Census_2West])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Census 3East = SUM(StaffingData[Census_3East])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Census 3West = SUM(StaffingData[Census_3West])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Census HRC = SUM(StaffingData[Census_HRC])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Occ% 1East = DIVIDE(SUM(StaffingData[Census_1East]), 18, 0) * 100
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily Occ% 2East = DIVIDE(SUM(StaffingData[Census_2East]), 20, 0) * 100
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily Occ% 2West = DIVIDE(SUM(StaffingData[Census_2West]), 20, 0) * 100
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily Occ% 3East = DIVIDE(SUM(StaffingData[Census_3East]), 20, 0) * 100
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily Occ% 3West = DIVIDE(SUM(StaffingData[Census_3West]), 20, 0) * 100
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily Occ% HRC = DIVIDE(SUM(StaffingData[Census_HRC]), 16, 0) * 100
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+
+// ── Daily: By Unit (Staffing & Variance) ──────────────────────────────────
+
+Daily Staff 1East = SUM(StaffingData[1East_ShiftTotal])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Staff 2East = SUM(StaffingData[2East_ShiftTotal])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Staff 2West = SUM(StaffingData[2West_ShiftTotal])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Staff 3East = SUM(StaffingData[3East_ShiftTotal])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Staff 3West = SUM(StaffingData[3West_ShiftTotal])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Staff HRC = SUM(StaffingData[HRC_ShiftTotal])
+// Format: #,0  |  Display Folder: Daily - By Unit
+
+Daily Var Hrs 1East = SUM(StaffingData[Variance_HrsDay_1East])
+// Format: +0.0;-0.0;0.0  |  Display Folder: Daily - By Unit
+
+Daily Var Hrs 2East = SUM(StaffingData[Variance_HrsDay_2East])
+// Format: +0.0;-0.0;0.0  |  Display Folder: Daily - By Unit
+
+Daily Var Hrs 2West = SUM(StaffingData[Variance_HrsDay_2West])
+// Format: +0.0;-0.0;0.0  |  Display Folder: Daily - By Unit
+
+Daily Var Hrs 3East = SUM(StaffingData[Variance_HrsDay_3East])
+// Format: +0.0;-0.0;0.0  |  Display Folder: Daily - By Unit
+
+Daily Var Hrs 3West = SUM(StaffingData[Variance_HrsDay_3West])
+// Format: +0.0;-0.0;0.0  |  Display Folder: Daily - By Unit
+
+Daily Var Hrs HRC = SUM(StaffingData[Variance_HrsDay_HRC])
+// Format: +0.0;-0.0;0.0  |  Display Folder: Daily - By Unit
+
+Daily OT 1East = SUM(StaffingData[Actual_OT_1East])
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily OT 2East = SUM(StaffingData[Actual_OT_2East])
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily OT 2West = SUM(StaffingData[Actual_OT_2West])
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily OT 3East = SUM(StaffingData[Actual_OT_3East])
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily OT 3West = SUM(StaffingData[Actual_OT_3West])
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+Daily OT HRC = SUM(StaffingData[Actual_OT_HRC])
+// Format: 0.0  |  Display Folder: Daily - By Unit
+
+
+// ════════════════════════════════════════════════════════════════════════════
+//  MTD (MONTHLY) DASHBOARD MEASURES
+//  (Averages & totals from 1st of selected month through last data point)
+//  These respond to the date slicer — select any date in the target month
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── MTD: Facility Total ──────────────────────────────────────────────────
 
 MTD Avg Daily Census =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
     CALCULATE(
         AVERAGE(StaffingData[TotalCensus]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
     )
-// Format: 0.0
-
-MTD Avg Census 1East =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
-RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_1East]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
-
-MTD Avg Census 2East =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
-RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_2East]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
-
-MTD Avg Census 2West =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
-RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_2West]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
-
-MTD Avg Census 3East =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
-RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_3East]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
-
-MTD Avg Census 3West =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
-RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_3West]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
-
-MTD Avg Census HRC =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
-RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_HRC]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+// Format: 0.0  |  Display Folder: MTD - Facility
 
 MTD Avg Occupancy % = DIVIDE([MTD Avg Daily Census], 114, 0) * 100
-// Format: 0.0
+// Format: 0.0  |  Display Folder: MTD - Facility
 
 MTD Avg DC EPOB =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
     CALCULATE(
         AVERAGE(StaffingData[EPOB_DirectCare]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
     )
-// Format: 0.00
+// Format: 0.00  |  Display Folder: MTD - Facility
 
 MTD Avg Total EPOB =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
     CALCULATE(
         AVERAGE(StaffingData[EPOB_TotalFacility]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
     )
-// Format: 0.00
+// Format: 0.00  |  Display Folder: MTD - Facility
 
 MTD Avg Variable FTE =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
     CALCULATE(
         AVERAGE(StaffingData[VarAdjFTE]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
     )
-// Format: 0.0
+// Format: 0.0  |  Display Folder: MTD - Facility
+
+MTD Avg Fixed FTE =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[FixedFTE]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
+    )
+// Format: 0.0  |  Display Folder: MTD - Facility
 
 MTD Avg Grand FTE =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
     CALCULATE(
         AVERAGE(StaffingData[GrandAdjFTE]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
     )
-// Format: 0.0
+// Format: 0.0  |  Display Folder: MTD - Facility
+
+MTD Avg Total Staff =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Total_ShiftStaff]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
+    )
+// Format: 0.0  |  Display Folder: MTD - Facility
+
+MTD Avg RN =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Total_RN]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
+    )
+// Format: 0.0  |  Display Folder: MTD - Facility
+
+MTD Avg LPN =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Total_LPN]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
+    )
+// Format: 0.0  |  Display Folder: MTD - Facility
+
+MTD Avg Tech =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Total_Tech]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
+    )
+// Format: 0.0  |  Display Folder: MTD - Facility
 
 MTD Total OT Hours =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
     CALCULATE(
         SUM(StaffingData[Actual_OT_Total]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
     )
-// Format: 0.0
+// Format: 0.0  |  Display Folder: MTD - Facility
 
 MTD Avg Hours Variance =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
     CALCULATE(
         AVERAGE(StaffingData[Variance_VarHrsDay_Total]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
     )
-// Format: 0.0
+// Format: +0.0;-0.0;0.0  |  Display Folder: MTD - Facility
+
+MTD Avg Variance % =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Variance_VarPct_Total]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
+    )
+// Format: +0.0;-0.0;0.0  |  Display Folder: MTD - Facility
 
 MTD Days Count =
-VAR _today = TODAY()
-VAR _monthStart = DATE(YEAR(_today), MONTH(_today), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
     CALCULATE(
         COUNTROWS(StaffingData),
-        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _today)
+        FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd)
     )
-// Format: #,0
+// Format: #,0  |  Display Folder: MTD - Facility
 
 
-// ────────────────────────────────────────────────────────────
-// FOLDER: YTD Metrics (Average Daily Census)
-// ────────────────────────────────────────────────────────────
+// ── MTD: By Unit (Avg Daily Census) ──────────────────────────────────────
 
-YTD Avg Daily Census =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD Avg Census 1East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[TotalCensus]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(AVERAGE(StaffingData[Census_1East]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Census 1East =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD Avg Census 2East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_1East]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(AVERAGE(StaffingData[Census_2East]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Census 2East =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD Avg Census 2West =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_2East]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(AVERAGE(StaffingData[Census_2West]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Census 2West =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD Avg Census 3East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_2West]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(AVERAGE(StaffingData[Census_3East]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Census 3East =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD Avg Census 3West =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_3East]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(AVERAGE(StaffingData[Census_3West]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Census 3West =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD Avg Census HRC =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_3West]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(AVERAGE(StaffingData[Census_HRC]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Census HRC =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+
+// ── MTD: By Unit (Occupancy %) ───────────────────────────────────────────
+
+MTD Avg Occ% 1East = DIVIDE([MTD Avg Census 1East], 18, 0) * 100
+// Format: 0.0  |  Display Folder: MTD - By Unit
+
+MTD Avg Occ% 2East = DIVIDE([MTD Avg Census 2East], 20, 0) * 100
+// Format: 0.0  |  Display Folder: MTD - By Unit
+
+MTD Avg Occ% 2West = DIVIDE([MTD Avg Census 2West], 20, 0) * 100
+// Format: 0.0  |  Display Folder: MTD - By Unit
+
+MTD Avg Occ% 3East = DIVIDE([MTD Avg Census 3East], 20, 0) * 100
+// Format: 0.0  |  Display Folder: MTD - By Unit
+
+MTD Avg Occ% 3West = DIVIDE([MTD Avg Census 3West], 20, 0) * 100
+// Format: 0.0  |  Display Folder: MTD - By Unit
+
+MTD Avg Occ% HRC = DIVIDE([MTD Avg Census HRC], 16, 0) * 100
+// Format: 0.0  |  Display Folder: MTD - By Unit
+
+
+// ── MTD: By Unit (OT Hours) ─────────────────────────────────────────────
+
+MTD OT 1East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Census_HRC]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(SUM(StaffingData[Actual_OT_1East]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Occupancy % = DIVIDE([YTD Avg Daily Census], 114, 0) * 100
-// Format: 0.0
-
-YTD Avg DC EPOB =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD OT 2East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[EPOB_DirectCare]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.00
+    CALCULATE(SUM(StaffingData[Actual_OT_2East]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Total EPOB =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD OT 2West =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[EPOB_TotalFacility]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.00
+    CALCULATE(SUM(StaffingData[Actual_OT_2West]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Variable FTE =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD OT 3East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[VarAdjFTE]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(SUM(StaffingData[Actual_OT_3East]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Avg Grand FTE =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD OT 3West =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[GrandAdjFTE]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
+    CALCULATE(SUM(StaffingData[Actual_OT_3West]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
-YTD Total OT Hours =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
+MTD OT HRC =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _monthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _monthEnd = EOMONTH(_monthStart, 0)
 RETURN
-    CALCULATE(
-        SUM(StaffingData[Actual_OT_Total]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
-
-YTD Avg Hours Variance =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
-RETURN
-    CALCULATE(
-        AVERAGE(StaffingData[Variance_VarHrsDay_Total]),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: 0.0
-
-YTD Days Count =
-VAR _today = TODAY()
-VAR _yearStart = DATE(YEAR(_today), 1, 1)
-RETURN
-    CALCULATE(
-        COUNTROWS(StaffingData),
-        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _today)
-    )
-// Format: #,0
+    CALCULATE(SUM(StaffingData[Actual_OT_HRC]), FILTER(ALL(DateTable), DateTable[Date] >= _monthStart && DateTable[Date] <= _monthEnd))
+// Format: 0.0  |  Display Folder: MTD - By Unit
 
 
-// ────────────────────────────────────────────────────────────
-// FOLDER: Comparisons
-// ────────────────────────────────────────────────────────────
+// ── MTD: Prior Month Comparison ──────────────────────────────────────────
 
 Prior Month Avg Census =
-VAR _today = TODAY()
-VAR _priorMonthEnd = DATE(YEAR(_today), MONTH(_today), 1) - 1
-VAR _priorMonthStart = DATE(YEAR(_priorMonthEnd), MONTH(_priorMonthEnd), 1)
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _curMonthStart = DATE(YEAR(MIN(_dates)), MONTH(MIN(_dates)), 1)
+VAR _priorMonthStart = EDATE(_curMonthStart, -1)
+VAR _priorMonthEnd = _curMonthStart - 1
 RETURN
     CALCULATE(
         AVERAGE(StaffingData[TotalCensus]),
         FILTER(ALL(DateTable), DateTable[Date] >= _priorMonthStart && DateTable[Date] <= _priorMonthEnd)
     )
-// Format: 0.0
+// Format: 0.0  |  Display Folder: MTD - Comparisons
 
-Census MTD vs Prior Month = [MTD Avg Daily Census] - [Prior Month Avg Census]
-// Format: +0.0;-0.0;0.0
+MTD vs Prior Month Census = [MTD Avg Daily Census] - [Prior Month Avg Census]
+// Format: +0.0;-0.0;0.0  |  Display Folder: MTD - Comparisons
 
-Census MTD vs Prior Month % = DIVIDE([MTD Avg Daily Census] - [Prior Month Avg Census], [Prior Month Avg Census], 0) * 100
-// Format: +0.0;-0.0;0.0
+MTD vs Prior Month % = DIVIDE([MTD Avg Daily Census] - [Prior Month Avg Census], [Prior Month Avg Census], 0) * 100
+// Format: +0.0;-0.0;0.0  |  Display Folder: MTD - Comparisons
 
-Actual vs Model FTE Variance = SUM(StaffingData[Actual_TotalFTE]) - SUM(StaffingData[GrandAdjFTE])
-// Format: +0.0;-0.0;0.0
+
+// ════════════════════════════════════════════════════════════════════════════
+//  YTD DASHBOARD MEASURES
+//  (Averages & totals from Jan 1 of selected year through last data point)
+//  These respond to the date slicer — select any date in the target year
+// ════════════════════════════════════════════════════════════════════════════
+
+// ── YTD: Facility Total ──────────────────────────────────────────────────
+
+YTD Avg Daily Census =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[TotalCensus]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: 0.0  |  Display Folder: YTD - Facility
+
+YTD Avg Occupancy % = DIVIDE([YTD Avg Daily Census], 114, 0) * 100
+// Format: 0.0  |  Display Folder: YTD - Facility
+
+YTD Avg DC EPOB =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[EPOB_DirectCare]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: 0.00  |  Display Folder: YTD - Facility
+
+YTD Avg Total EPOB =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[EPOB_TotalFacility]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: 0.00  |  Display Folder: YTD - Facility
+
+YTD Avg Variable FTE =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[VarAdjFTE]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: 0.0  |  Display Folder: YTD - Facility
+
+YTD Avg Fixed FTE =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[FixedFTE]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: 0.0  |  Display Folder: YTD - Facility
+
+YTD Avg Grand FTE =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[GrandAdjFTE]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: 0.0  |  Display Folder: YTD - Facility
+
+YTD Avg Total Staff =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Total_ShiftStaff]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: 0.0  |  Display Folder: YTD - Facility
+
+YTD Total OT Hours =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        SUM(StaffingData[Actual_OT_Total]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: 0.0  |  Display Folder: YTD - Facility
+
+YTD Avg Hours Variance =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        AVERAGE(StaffingData[Variance_VarHrsDay_Total]),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: +0.0;-0.0;0.0  |  Display Folder: YTD - Facility
+
+YTD Days Count =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(
+        COUNTROWS(StaffingData),
+        FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd)
+    )
+// Format: #,0  |  Display Folder: YTD - Facility
+
+
+// ── YTD: By Unit (Avg Daily Census) ──────────────────────────────────────
+
+YTD Avg Census 1East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(AVERAGE(StaffingData[Census_1East]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Census 2East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(AVERAGE(StaffingData[Census_2East]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Census 2West =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(AVERAGE(StaffingData[Census_2West]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Census 3East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(AVERAGE(StaffingData[Census_3East]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Census 3West =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(AVERAGE(StaffingData[Census_3West]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Census HRC =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(AVERAGE(StaffingData[Census_HRC]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+
+// ── YTD: By Unit (Occupancy %) ───────────────────────────────────────────
+
+YTD Avg Occ% 1East = DIVIDE([YTD Avg Census 1East], 18, 0) * 100
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Occ% 2East = DIVIDE([YTD Avg Census 2East], 20, 0) * 100
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Occ% 2West = DIVIDE([YTD Avg Census 2West], 20, 0) * 100
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Occ% 3East = DIVIDE([YTD Avg Census 3East], 20, 0) * 100
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Occ% 3West = DIVIDE([YTD Avg Census 3West], 20, 0) * 100
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD Avg Occ% HRC = DIVIDE([YTD Avg Census HRC], 16, 0) * 100
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+
+// ── YTD: By Unit (Total OT Hours) ───────────────────────────────────────
+
+YTD OT 1East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(SUM(StaffingData[Actual_OT_1East]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD OT 2East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(SUM(StaffingData[Actual_OT_2East]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD OT 2West =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(SUM(StaffingData[Actual_OT_2West]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD OT 3East =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(SUM(StaffingData[Actual_OT_3East]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD OT 3West =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(SUM(StaffingData[Actual_OT_3West]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
+
+YTD OT HRC =
+VAR _dates = ALLSELECTED(DateTable[Date])
+VAR _yearStart = DATE(YEAR(MIN(_dates)), 1, 1)
+VAR _yearEnd = DATE(YEAR(MIN(_dates)), 12, 31)
+RETURN
+    CALCULATE(SUM(StaffingData[Actual_OT_HRC]), FILTER(ALL(DateTable), DateTable[Date] >= _yearStart && DateTable[Date] <= _yearEnd))
+// Format: 0.0  |  Display Folder: YTD - By Unit
