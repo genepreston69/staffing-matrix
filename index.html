@@ -1937,6 +1937,7 @@ async function pushToSharePoint() {
   const totalDates = dates.length || 1;
   let sentCount = 0;
   let lastError = null;
+  let pushSucceeded = false;
 
   try {
     if (dates.length > 1) {
@@ -1990,13 +1991,13 @@ async function pushToSharePoint() {
       btn.classList.add('success');
       label.textContent = sentCount > 1 ? 'Sent ' + sentCount + ' dates!' : 'Sent!';
       updateSpStatus('Last push: ' + sentCount + ' record' + (sentCount > 1 ? 's' : '') + ' at ' + new Date().toLocaleTimeString(), 'ok');
-      clearEntryFields();
+      pushSucceeded = true;
     } else if (sentCount > 0) {
       btn.classList.remove('sending');
       btn.classList.add('success');
       label.textContent = 'Sent ' + sentCount + '/' + totalDates;
       updateSpStatus(sentCount + '/' + totalDates + ' sent — check console for errors', 'err');
-      clearEntryFields();
+      pushSucceeded = true;
     } else {
       throw lastError || new Error('No records sent');
     }
@@ -2012,6 +2013,7 @@ async function pushToSharePoint() {
     btn.classList.remove('success', 'error');
     btn.disabled = false;
     label.textContent = 'Push to SharePoint';
+    if (pushSucceeded) clearEntryFields();
   }, 3000);
 }
 
