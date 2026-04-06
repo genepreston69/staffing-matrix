@@ -2125,14 +2125,134 @@ function onPayrollUploadSpHook() {
     '1East': '1 East · Child Acute', '2East': '2 East · Adult Acute', '2West': '2 West · Adolescent',
     '3East': '3 East · Adult Acute', '3West': '3 West · Adult Acute', 'HRC': 'HRC · SUD/Detox'
   };
+  const UNIT_CENSUS_KEYS = ['1East','2East','2West','3East','3West','HRC'];
   const output = document.getElementById('mtdytdOutput');
+
+  /* ── Helper: average of an array of numbers ── */
+  function avg(arr) { return arr.length ? arr.reduce((s,v) => s+v, 0) / arr.length : null; }
+
+  /* ── Aggregate a filtered set of dailyRows into a period summary ── */
+  function aggregatePeriod(rows) {
+    if (!rows.length) return null;
+    const n = rows.length;
+    const period = {
+      daysCount: n,
+      avgDailyCensus:  avg(rows.map(r => r.totalCensus)),
+      avgOccupancyPct: avg(rows.map(r => r.occupancyPct)),
+      avgDcEpob:       avg(rows.map(r => r.dcEpob)),
+      avgTotalEpob:    avg(rows.map(r => r.totalEpob)),
+      avgVarAdjFTE:    avg(rows.map(r => r.varAdjFTE)),
+      avgFixedFTE:     avg(rows.map(r => r.fixedFTE)),
+      avgGrandAdjFTE:  avg(rows.map(r => r.grandAdjFTE)),
+      totalOtHours:    rows.reduce((s,r) => s + (r.actualOtTotal || 0), 0),
+      byUnit: {}
+    };
+
+    // Per-unit averages
+    const censusMap = { '1East':'census1East','2East':'census2East','2West':'census2West','3East':'census3East','3West':'census3West','HRC':'censusHRC' };
+    const occMap    = { '1East':'occPct1East','2East':'occPct2East','2West':'occPct2West','3East':'occPct3East','3West':'occPct3West','HRC':'occPctHRC' };
+    for (const key of UNIT_CENSUS_KEYS) {
+      period.byUnit[key] = {
+        avgCensus: avg(rows.map(r => r[censusMap[key]])),
+        avgOccPct: avg(rows.map(r => r[occMap[key]]))
+      };
+    }
+
+    // Payroll variance (only rows with payroll data)
+    const prRows = rows.filter(r => r.hasPayrollData === 'Yes');
+    if (prRows.length) {
+      const avgActual = avg(prRows.map(r => r.actualVarHrsDay));
+      const avgModel  = avg(prRows.map(r => r.modelVarHrsDay));
+      const avgActDc  = avg(prRows.map(r => r.actualDcEpob));
+      const avgActTot = avg(prRows.map(r => r.actualTotalEpob));
+      period.payrollVariance = {
+        avgActualVarHrsDay: avgActual,
+        avgModelVarHrsDay:  avgModel,
+        avgVarianceHrs:     avgActual - avgModel,
+        avgVariancePct:     avgModel ? ((avgActual - avgModel) / avgModel) * 100 : 0,
+        actualDcEpob:       avgActDc,
+        actualTotalEpob:    avgActTot,
+        dcEpobVariance:     avgActDc - period.avgDcEpob,
+        totalEpobVariance:  avgActTot - period.avgTotalEpob
+      };
+    }
+    return period;
+  }
+
+  /* ── Compute MTD, YTD, Prior Month, Comparison, and Trend from dailyRows ── */
+  function computeAggregates(raw) {
+    const rows = raw.dailyRows;
+    const today = new Date();
+    const curYear = today.getFullYear(), curMonth = today.getMonth();
+
+    // MTD: first day of current month through end of data
+    const mtdStart = new Date(curYear, curMonth, 1).toISOString().slice(0,10);
+    const mtdRows = rows.filter(r => r.date >= mtdStart);
+
+    // Prior month
+    const priorYear  = curMonth === 0 ? curYear - 1 : curYear;
+    const priorMonth = curMonth === 0 ? 11 : curMonth - 1;
+    const pmStart = new Date(priorYear, priorMonth, 1).toISOString().slice(0,10);
+    const pmEnd   = new Date(curYear, curMonth, 0).toISOString().slice(0,10); // last day of prior month
+    const pmRows  = rows.filter(r => r.date >= pmStart && r.date <= pmEnd);
+
+    // YTD: all rows
+    const ytdRows = rows;
+
+    const mtd = aggregatePeriod(mtdRows);
+    const ytd = aggregatePeriod(ytdRows);
+    const prior = aggregatePeriod(pmRows);
+
+    // Build comparison
+    let comparison = null;
+    if (mtd && prior) {
+      const censusDelta = mtd.avgDailyCensus - prior.avgDailyCensus;
+      comparison = {
+        censusMtdVsPrior:    censusDelta,
+        censusMtdVsPriorPct: prior.avgDailyCensus ? (censusDelta / prior.avgDailyCensus) * 100 : 0,
+        epobMtdVsPrior:      mtd.avgDcEpob - prior.avgDcEpob
+      };
+    }
+
+    // Prior month label
+    const pmLabel = pmRows.length ? new Date(priorYear, priorMonth, 1).toLocaleString('en-US',{month:'long', year:'numeric'}) : null;
+    const priorMonthSummary = prior ? {
+      month: pmLabel,
+      avgDailyCensus:  prior.avgDailyCensus,
+      avgOccupancyPct: prior.avgOccupancyPct,
+      avgDcEpob:       prior.avgDcEpob,
+      avgTotalEpob:    prior.avgTotalEpob
+    } : null;
+
+    // Trend: use MTD daily rows (or last 30 days of YTD if no MTD)
+    const trendRows = mtdRows.length ? mtdRows : ytdRows.slice(-30);
+    const trend = trendRows.map(r => ({
+      date: r.date, totalCensus: r.totalCensus, occupancyPct: r.occupancyPct,
+      dcEpob: r.dcEpob, totalEpob: r.totalEpob, varAdjFTE: r.varAdjFTE, grandAdjFTE: r.grandAdjFTE
+    }));
+
+    return {
+      _meta: {
+        generated: raw._meta.generated,
+        mtdStart: mtdRows.length ? mtdRows[0].date : mtdStart,
+        mtdEnd:   mtdRows.length ? mtdRows[mtdRows.length-1].date : null,
+        ytdStart: raw._meta.ytdStart,
+        ytdEnd:   raw._meta.dataEnd
+      },
+      mtd, ytd, priorMonth: priorMonthSummary, comparison, trend
+    };
+  }
 
   window.loadMtdYtdData = function(forceRefresh) {
     if (mtdytdCache && !forceRefresh) { renderMtdYtd(mtdytdCache); return; }
     output.innerHTML = '<div class="mtdytd-loading"><div class="spinner"></div><div>Loading MTD/YTD analytics…</div></div>';
     fetch('./mtd_ytd_data.json?_=' + Date.now())
       .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
-      .then(data => { mtdytdCache = data; renderMtdYtd(data); })
+      .then(raw => {
+        const data = computeAggregates(raw);
+        mtdytdCache = data;
+        renderMtdYtd(data);
+      })
       .catch(() => {
         output.innerHTML = '<div class="mtdytd-error"><span class="err-icon">📊</span><div class="err-msg">MTD/YTD data is not yet available. Data is refreshed daily via automation.</div></div>';
       });
