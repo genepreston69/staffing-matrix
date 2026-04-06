@@ -1,0 +1,86 @@
+{
+  "_meta": {
+    "generated": "2026-04-05T06:00:00Z",
+    "mtdStart": "2026-04-01",
+    "mtdEnd": "2026-04-05",
+    "ytdStart": "2026-01-01",
+    "ytdEnd": "2026-04-05"
+  },
+  "mtd": {
+    "daysCount": 5,
+    "avgDailyCensus": 87.4,
+    "avgOccupancyPct": 78.2,
+    "avgDcEpob": 0.94,
+    "avgTotalEpob": 1.62,
+    "avgVarAdjFTE": 42.3,
+    "avgFixedFTE": 18.5,
+    "avgGrandAdjFTE": 60.8,
+    "totalOtHours": 62,
+    "byUnit": {
+      "1East": { "avgCensus": 14.2, "avgOccPct": 78.9 },
+      "2East": { "avgCensus": 17.6, "avgOccPct": 88.0 },
+      "2West": { "avgCensus": 15.0, "avgOccPct": 75.0 },
+      "3East": { "avgCensus": 16.8, "avgOccPct": 84.0 },
+      "3West": { "avgCensus": 14.4, "avgOccPct": 72.0 },
+      "HRC":   { "avgCensus": 9.4,  "avgOccPct": 67.1 }
+    },
+    "payrollVariance": {
+      "avgActualVarHrsDay": 348.2,
+      "avgModelVarHrsDay": 336.0,
+      "avgVarianceHrs": 12.2,
+      "avgVariancePct": 3.6,
+      "actualDcEpob": 0.97,
+      "actualTotalEpob": 1.65,
+      "dcEpobVariance": 0.03,
+      "totalEpobVariance": 0.03
+    }
+  },
+  "ytd": {
+    "daysCount": 95,
+    "avgDailyCensus": 85.1,
+    "avgOccupancyPct": 76.0,
+    "avgDcEpob": 0.91,
+    "avgTotalEpob": 1.58,
+    "avgVarAdjFTE": 41.0,
+    "avgFixedFTE": 18.5,
+    "avgGrandAdjFTE": 59.5,
+    "totalOtHours": 1240,
+    "byUnit": {
+      "1East": { "avgCensus": 13.8, "avgOccPct": 76.7 },
+      "2East": { "avgCensus": 17.1, "avgOccPct": 85.5 },
+      "2West": { "avgCensus": 14.5, "avgOccPct": 72.5 },
+      "3East": { "avgCensus": 16.2, "avgOccPct": 81.0 },
+      "3West": { "avgCensus": 14.0, "avgOccPct": 70.0 },
+      "HRC":   { "avgCensus": 9.5,  "avgOccPct": 67.9 }
+    },
+    "payrollVariance": {
+      "avgActualVarHrsDay": 342.5,
+      "avgModelVarHrsDay": 332.0,
+      "avgVarianceHrs": 10.5,
+      "avgVariancePct": 3.2,
+      "actualDcEpob": 0.94,
+      "actualTotalEpob": 1.61,
+      "dcEpobVariance": 0.03,
+      "totalEpobVariance": 0.03
+    }
+  },
+  "priorMonth": {
+    "month": "March 2026",
+    "avgDailyCensus": 83.6,
+    "avgOccupancyPct": 74.6,
+    "avgDcEpob": 0.89,
+    "avgTotalEpob": 1.55
+  },
+  "comparison": {
+    "censusMtdVsPrior": 3.8,
+    "censusMtdVsPriorPct": 4.5,
+    "epobMtdVsPrior": 0.05
+  },
+  "trend": [
+    { "date": "2026-04-01", "totalCensus": 84, "occupancyPct": 75.0, "dcEpob": 0.91, "totalEpob": 1.58, "varAdjFTE": 41.0, "grandAdjFTE": 59.5 },
+    { "date": "2026-04-02", "totalCensus": 86, "occupancyPct": 76.8, "dcEpob": 0.93, "totalEpob": 1.60, "varAdjFTE": 42.0, "grandAdjFTE": 60.5 },
+    { "date": "2026-04-03", "totalCensus": 89, "occupancyPct": 79.5, "dcEpob": 0.96, "totalEpob": 1.64, "varAdjFTE": 43.0, "grandAdjFTE": 61.5 },
+    { "date": "2026-04-04", "totalCensus": 91, "occupancyPct": 81.3, "dcEpob": 0.97, "totalEpob": 1.66, "varAdjFTE": 43.5, "grandAdjFTE": 62.0 },
+    { "date": "2026-04-05", "totalCensus": 87, "occupancyPct": 77.7, "dcEpob": 0.94, "totalEpob": 1.62, "varAdjFTE": 42.0, "grandAdjFTE": 60.5 }
+  ]
+}

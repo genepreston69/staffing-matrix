@@ -292,6 +292,44 @@
   .exec-report .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; }
 
   @media print { header,.top-bar,.tabs { break-inside:avoid; } .table-wrap { box-shadow:none; border:1px solid #ccc; } body { background:#fff; } }
+
+  /* ── MTD/YTD Analytics Tab ── */
+  .mtdytd-loading { text-align:center; padding:60px 20px; color:var(--gray-500); }
+  .mtdytd-loading .spinner { display:inline-block; width:32px; height:32px; border:3px solid var(--gray-200); border-top-color:var(--teal); border-radius:50%; animation:mtdSpin 0.8s linear infinite; margin-bottom:12px; }
+  @keyframes mtdSpin { to { transform:rotate(360deg); } }
+  .mtdytd-error { text-align:center; padding:60px 20px; color:var(--gray-500); font-size:14px; }
+  .mtdytd-error .err-icon { font-size:36px; margin-bottom:12px; display:block; }
+  .mtdytd-error .err-msg { max-width:400px; margin:0 auto; line-height:1.6; }
+  .mtdytd-meta { font-size:11px; color:var(--gray-500); margin-bottom:20px; display:flex; align-items:center; gap:8px; }
+  .mtdytd-meta .refresh-btn { background:none; border:1px solid var(--gray-300); border-radius:4px; padding:2px 8px; font-size:11px; color:var(--teal); cursor:pointer; transition:all 0.2s; }
+  .mtdytd-meta .refresh-btn:hover { background:var(--teal); color:var(--white); border-color:var(--teal); }
+  .mtdytd-section-hdr { font-family:'Merriweather',serif; font-size:17px; font-weight:700; color:var(--navy); margin:28px 0 14px; padding-bottom:8px; border-bottom:2px solid var(--gray-200); }
+  .mtdytd-section-hdr .period-range { font-weight:400; font-size:12px; color:var(--gray-500); margin-left:8px; }
+  .mtdytd-summary-cards { display:grid; grid-template-columns:repeat(5,1fr); gap:12px; margin-bottom:20px; }
+  .mtdytd-summary-cards .card { text-align:center; }
+  .mtdytd-summary-cards .card .big-num { font-size:28px; font-weight:700; color:var(--navy); line-height:1.1; font-variant-numeric:tabular-nums; }
+  .mtdytd-summary-cards .card .big-sub { font-size:11px; color:var(--gray-500); margin-top:2px; }
+  .mtdytd-unit-cards { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; margin-bottom:20px; }
+  .mtdytd-unit-cards .card { text-align:center; }
+  .mtdytd-unit-cards .card .unit-census { font-size:22px; font-weight:700; color:var(--navy); line-height:1.1; }
+  .mtdytd-comparison { display:grid; grid-template-columns:repeat(3,1fr); gap:12px; margin-bottom:20px; }
+  .mtdytd-comparison .card { text-align:center; }
+  .mtdytd-comparison .card .delta-val { font-size:22px; font-weight:700; line-height:1.1; }
+  .mtdytd-comparison .card .delta-arrow { font-size:14px; }
+  .delta-pos { color:var(--danger); }
+  .delta-neg { color:var(--success); }
+  .mtdytd-payroll { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; margin-bottom:20px; }
+  .mtdytd-payroll .card { text-align:center; }
+  .mtdytd-payroll .card .pv-num { font-size:22px; font-weight:700; color:var(--navy); line-height:1.1; }
+  .mtdytd-sparkline-wrap { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-sm); padding:20px; margin-bottom:20px; }
+  .mtdytd-sparkline-wrap .spark-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; color:var(--gray-500); margin-bottom:12px; }
+  .mtdytd-sparkline-wrap svg text { font-family:'Source Sans 3',sans-serif; }
+  .mtdytd-sparkline-wrap .legend { display:flex; gap:16px; margin-top:8px; font-size:11px; color:var(--gray-500); }
+  .mtdytd-sparkline-wrap .legend span::before { content:''; display:inline-block; width:12px; height:3px; border-radius:2px; margin-right:4px; vertical-align:middle; }
+  .mtdytd-sparkline-wrap .legend .leg-census::before { background:var(--navy); }
+  .mtdytd-sparkline-wrap .legend .leg-epob::before { background:var(--teal); }
+  @media (max-width:1200px) { .mtdytd-summary-cards { grid-template-columns:repeat(3,1fr); } .mtdytd-unit-cards { grid-template-columns:repeat(3,1fr); } .mtdytd-payroll { grid-template-columns:repeat(2,1fr); } }
+  @media (max-width:700px) { .mtdytd-summary-cards { grid-template-columns:1fr 1fr; } .mtdytd-unit-cards { grid-template-columns:repeat(2,1fr); } .mtdytd-comparison { grid-template-columns:1fr; } .mtdytd-payroll { grid-template-columns:1fr 1fr; } }
 </style>
 </head>
 <body>
@@ -437,6 +475,7 @@
     <button class="tab-btn" data-tab="variance">Payroll Variance</button>
     <button class="tab-btn" data-tab="trends">Trends</button>
     <button class="tab-btn" data-tab="execsummary">Executive Summary</button>
+    <button class="tab-btn" data-tab="mtdytd">MTD / YTD Analytics</button>
   </div>
   <div class="tab-panel active" id="tab-staffing"><div id="staffingOutput"></div></div>
   <div class="tab-panel" id="tab-poscontrol"><div id="posControlOutput"></div></div>
@@ -448,6 +487,11 @@
   </div>
   <div class="tab-panel" id="tab-trends">
     <div id="trendsOutput"><div class="no-upload-msg">Upload time entry summaries for multiple dates to view trends. Each file is stored by its Start Date.</div></div>
+  </div>
+  <div class="tab-panel" id="tab-mtdytd">
+    <div id="mtdytdOutput">
+      <div class="mtdytd-loading"><div class="spinner"></div><div>Loading MTD/YTD analytics…</div></div>
+    </div>
   </div>
 </div>
 <div class="footer">Highland Hospital &bull; A Summit BHC Facility &bull; Staffing Matrix Tool &bull; Payroll baseline: 5 pay periods ending 3/17/2026 &bull; Variable FTEs flex with census; Fixed FTEs from time entry upload or baseline</div>
@@ -979,7 +1023,7 @@ function exportToExcel(tabId) {
 
 document.getElementById('headerDate').textContent=new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
 renderCensusGrid();loadDailyData();onCensusChange();
-document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('tab-'+btn.dataset.tab).classList.add('active');if(btn.dataset.tab==='execsummary')renderExecSummary();});});
+document.querySelectorAll('.tab-btn').forEach(btn=>{btn.addEventListener('click',()=>{document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));btn.classList.add('active');document.getElementById('tab-'+btn.dataset.tab).classList.add('active');if(btn.dataset.tab==='execsummary')renderExecSummary();if(btn.dataset.tab==='mtdytd')loadMtdYtdData();});});
 
 /* ── Payroll Variance Module ── */
 const uploadZone = document.getElementById('uploadZone');
@@ -2072,6 +2116,193 @@ function onPayrollUploadSpHook() {
   if (cfg.webhookUrl) updateSpStatus('Configured', 'ok');
   // Auto-push disabled — no longer restore auto-push preference
   spAutoPush = false;
+})();
+
+/* ── MTD / YTD Analytics Module ── */
+(function() {
+  let mtdytdCache = null;
+  const UNIT_LABELS = {
+    '1East': '1 East · Child Acute', '2East': '2 East · Adult Acute', '2West': '2 West · Adolescent',
+    '3East': '3 East · Adult Acute', '3West': '3 West · Adult Acute', 'HRC': 'HRC · SUD/Detox'
+  };
+  const output = document.getElementById('mtdytdOutput');
+
+  window.loadMtdYtdData = function(forceRefresh) {
+    if (mtdytdCache && !forceRefresh) { renderMtdYtd(mtdytdCache); return; }
+    output.innerHTML = '<div class="mtdytd-loading"><div class="spinner"></div><div>Loading MTD/YTD analytics…</div></div>';
+    fetch('./mtd_ytd_data.json?_=' + Date.now())
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(data => { mtdytdCache = data; renderMtdYtd(data); })
+      .catch(() => {
+        output.innerHTML = '<div class="mtdytd-error"><span class="err-icon">📊</span><div class="err-msg">MTD/YTD data is not yet available. Data is refreshed daily via automation.</div></div>';
+      });
+  };
+
+  function fmtNum(v, dec) { return v == null ? '—' : Number(v).toFixed(dec === undefined ? 1 : dec); }
+  function fmtPct(v) { return v == null ? '—' : Number(v).toFixed(1) + '%'; }
+  function fmtDate(iso) { if (!iso) return ''; const d = new Date(iso); return d.toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' }); }
+  function occBadge(pct) { if (pct == null) return ''; const cls = pct < 75 ? 'pct-low' : pct <= 90 ? 'pct-mid' : 'pct-high'; return `<span class="card-badge ${cls}">${fmtPct(pct)}</span>`; }
+  function epobColor(v, threshLow, threshHigh) { if (v == null) return ''; return v < threshLow ? 'color:var(--success)' : v <= threshHigh ? 'color:var(--warning)' : 'color:var(--danger)'; }
+  function deltaHtml(v, invertColor) {
+    if (v == null) return '—';
+    const pos = v > 0, arrow = pos ? '▲' : v < 0 ? '▼' : '—';
+    const cls = invertColor ? (pos ? 'delta-pos' : 'delta-neg') : (pos ? 'delta-neg' : 'delta-pos');
+    return `<span class="${cls}"><span class="delta-arrow">${arrow}</span> ${fmtNum(Math.abs(v))}</span>`;
+  }
+
+  function renderMtdYtd(data) {
+    let html = '';
+    // Meta / freshness
+    const gen = data._meta && data._meta.generated ? fmtDate(data._meta.generated) : '';
+    html += `<div class="mtdytd-meta">Data generated: ${gen || 'Unknown'} <button class="refresh-btn" onclick="loadMtdYtdData(true)">↻ Refresh</button></div>`;
+
+    // MTD Section
+    html += renderPeriodSection('MTD', data.mtd, data._meta, 'mtdStart', 'mtdEnd');
+
+    // Prior Month Comparison
+    if (data.priorMonth && data.comparison) {
+      html += `<div class="mtdytd-section-hdr">MTD vs Prior Month <span class="period-range">${data.priorMonth.month || ''}</span></div>`;
+      html += '<div class="mtdytd-comparison">';
+      html += compCard('Census Delta', deltaHtml(data.comparison.censusMtdVsPrior, true), `Prior avg: ${fmtNum(data.priorMonth.avgDailyCensus)}`);
+      html += compCard('Census Delta %', deltaHtml(data.comparison.censusMtdVsPriorPct, true), '');
+      html += compCard('DC EPOB Delta', deltaHtml(data.comparison.epobMtdVsPrior, false), `Prior DC EPOB: ${fmtNum(data.priorMonth.avgDcEpob, 2)}`);
+      html += '</div>';
+    }
+
+    // MTD Payroll Variance
+    if (data.mtd && data.mtd.payrollVariance) {
+      html += renderPayrollVariance('MTD Payroll Variance', data.mtd.payrollVariance);
+    }
+
+    // YTD Section
+    html += '<hr style="border:none;border-top:2px solid var(--gray-200);margin:32px 0 8px;">';
+    html += renderPeriodSection('YTD', data.ytd, data._meta, 'ytdStart', 'ytdEnd');
+
+    // YTD Payroll Variance
+    if (data.ytd && data.ytd.payrollVariance) {
+      html += renderPayrollVariance('YTD Payroll Variance', data.ytd.payrollVariance);
+    }
+
+    // Trend sparkline
+    if (data.trend && data.trend.length > 1) {
+      html += renderSparkline(data.trend);
+    }
+
+    output.innerHTML = html;
+  }
+
+  function renderPeriodSection(label, period, meta, startKey, endKey) {
+    if (!period) return `<div class="mtdytd-section-hdr">${label} Summary</div><div class="no-upload-msg">No ${label} data available.</div>`;
+    const range = meta ? `${meta[startKey] || ''} → ${meta[endKey] || ''}` : '';
+    let h = `<div class="mtdytd-section-hdr">${label} Summary <span class="period-range">${range}</span></div>`;
+
+    // Summary cards
+    const monthName = meta && meta[startKey] ? new Date(meta[startKey] + 'T00:00:00').toLocaleString('en-US', {month:'long'}) : '';
+    const daysLabel = period.daysCount ? `${period.daysCount} days in ${monthName}` : '';
+    h += '<div class="mtdytd-summary-cards">';
+    h += summaryCard('Avg Daily Census', fmtNum(period.avgDailyCensus), daysLabel);
+    h += summaryCard('Avg Occupancy %', fmtPct(period.avgOccupancyPct), '', period.avgOccupancyPct < 75 ? 'var(--success)' : period.avgOccupancyPct <= 90 ? 'var(--warning)' : 'var(--danger)');
+    h += summaryCard('Avg DC EPOB', fmtNum(period.avgDcEpob, 2), '', epobColor(period.avgDcEpob, 0.9, 1.2).replace('color:',''));
+    h += summaryCard('Avg Total EPOB', fmtNum(period.avgTotalEpob, 2), '', epobColor(period.avgTotalEpob, 1.5, 2.0).replace('color:',''));
+    h += summaryCard('Avg Grand FTE', fmtNum(period.avgGrandAdjFTE), period.totalOtHours != null ? `OT: ${fmtNum(period.totalOtHours, 0)} hrs` : '');
+    h += '</div>';
+
+    // Unit cards
+    if (period.byUnit) {
+      h += '<div class="top-col-title">Census by Unit</div>';
+      h += '<div class="mtdytd-unit-cards">';
+      for (const [key, u] of Object.entries(period.byUnit)) {
+        const unitLabel = UNIT_LABELS[key] || key;
+        const isDetox = key === 'HRC';
+        h += `<div class="card ${isDetox ? 'detox' : 'acute'}">
+          <div class="card-label">${unitLabel}</div>
+          <div class="unit-census">${fmtNum(u.avgCensus)}</div>
+          <div style="margin-top:4px">${occBadge(u.avgOccPct)}</div>
+        </div>`;
+      }
+      h += '</div>';
+    }
+    return h;
+  }
+
+  function summaryCard(label, value, sub, colorVar) {
+    const style = colorVar ? ` style="color:${colorVar}"` : '';
+    return `<div class="card"><div class="card-label">${label}</div><div class="big-num"${style}>${value}</div>${sub ? `<div class="big-sub">${sub}</div>` : ''}</div>`;
+  }
+
+  function compCard(label, valueHtml, sub) {
+    return `<div class="card"><div class="card-label">${label}</div><div class="delta-val">${valueHtml}</div>${sub ? `<div class="big-sub" style="font-size:11px;color:var(--gray-500);margin-top:4px">${sub}</div>` : ''}</div>`;
+  }
+
+  function renderPayrollVariance(title, pv) {
+    let h = `<div class="mtdytd-section-hdr">${title}</div><div class="mtdytd-payroll">`;
+    h += pvCard('Avg Actual Hrs/Day', fmtNum(pv.avgActualVarHrsDay));
+    h += pvCard('Avg Model Hrs/Day', fmtNum(pv.avgModelVarHrsDay));
+    h += pvCard('Avg Variance Hrs', fmtNum(pv.avgVarianceHrs), pv.avgVarianceHrs > 0 ? 'var(--danger)' : 'var(--success)');
+    h += pvCard('Variance %', fmtPct(pv.avgVariancePct), pv.avgVariancePct > 0 ? 'var(--danger)' : 'var(--success)');
+    h += pvCard('Actual DC EPOB', fmtNum(pv.actualDcEpob, 2), epobColor(pv.actualDcEpob, 0.9, 1.2).replace('color:',''));
+    h += pvCard('DC EPOB Variance', fmtNum(pv.dcEpobVariance, 2), pv.dcEpobVariance > 0 ? 'var(--danger)' : 'var(--success)');
+    h += pvCard('Actual Total EPOB', fmtNum(pv.actualTotalEpob, 2), epobColor(pv.actualTotalEpob, 1.5, 2.0).replace('color:',''));
+    h += pvCard('Total EPOB Variance', fmtNum(pv.totalEpobVariance, 2), pv.totalEpobVariance > 0 ? 'var(--danger)' : 'var(--success)');
+    h += '</div>';
+    return h;
+  }
+
+  function pvCard(label, value, colorVar) {
+    const style = colorVar ? ` style="color:${colorVar}"` : '';
+    return `<div class="card"><div class="card-label">${label}</div><div class="pv-num"${style}>${value}</div></div>`;
+  }
+
+  function renderSparkline(trend) {
+    const W = 400, H = 150, PAD = 30, PADR = 40;
+    const n = trend.length;
+    const censusVals = trend.map(t => t.totalCensus);
+    const epobVals = trend.map(t => t.dcEpob);
+    const cMin = Math.min(...censusVals), cMax = Math.max(...censusVals);
+    const eMin = Math.min(...epobVals), eMax = Math.max(...epobVals);
+    const cRange = cMax - cMin || 1, eRange = eMax - eMin || 0.1;
+
+    function cx(i) { return PAD + (i / (n - 1)) * (W - PAD - PADR); }
+    function cyC(v) { return H - PAD + ((cMin - v) / cRange) * (H - 2 * PAD); }
+    function cyE(v) { return H - PAD + ((eMin - v) / eRange) * (H - 2 * PAD); }
+
+    let censusPath = trend.map((t, i) => `${i === 0 ? 'M' : 'L'}${cx(i).toFixed(1)},${cyC(t.totalCensus).toFixed(1)}`).join(' ');
+    let epobPath = trend.map((t, i) => `${i === 0 ? 'M' : 'L'}${cx(i).toFixed(1)},${cyE(t.dcEpob).toFixed(1)}`).join(' ');
+
+    // Axis labels (first, mid, last dates)
+    const dates = trend.map(t => t.date);
+    const fmtShort = d => { const dt = new Date(d + 'T00:00:00'); return dt.toLocaleDateString('en-US', {month:'short', day:'numeric'}); };
+    let axisLabels = `<text x="${PAD}" y="${H - 5}" fill="var(--gray-500)" font-size="9" text-anchor="start">${fmtShort(dates[0])}</text>`;
+    if (n > 2) axisLabels += `<text x="${cx(Math.floor(n/2))}" y="${H - 5}" fill="var(--gray-500)" font-size="9" text-anchor="middle">${fmtShort(dates[Math.floor(n/2)])}</text>`;
+    axisLabels += `<text x="${W - PADR}" y="${H - 5}" fill="var(--gray-500)" font-size="9" text-anchor="end">${fmtShort(dates[n-1])}</text>`;
+
+    // Y-axis labels
+    axisLabels += `<text x="${PAD - 4}" y="${PAD}" fill="var(--navy)" font-size="9" text-anchor="end">${Math.round(cMax)}</text>`;
+    axisLabels += `<text x="${PAD - 4}" y="${H - PAD}" fill="var(--navy)" font-size="9" text-anchor="end">${Math.round(cMin)}</text>`;
+    axisLabels += `<text x="${W - PADR + 4}" y="${PAD}" fill="var(--teal)" font-size="9" text-anchor="start">${eMax.toFixed(2)}</text>`;
+    axisLabels += `<text x="${W - PADR + 4}" y="${H - PAD}" fill="var(--teal)" font-size="9" text-anchor="start">${eMin.toFixed(2)}</text>`;
+
+    // Data point circles with tooltips
+    let dots = '';
+    trend.forEach((t, i) => {
+      const tip = `${t.date}  Census: ${t.totalCensus}  DC EPOB: ${t.dcEpob}`;
+      dots += `<circle cx="${cx(i).toFixed(1)}" cy="${cyC(t.totalCensus).toFixed(1)}" r="3" fill="var(--navy)" opacity="0.7"><title>${tip}</title></circle>`;
+      dots += `<circle cx="${cx(i).toFixed(1)}" cy="${cyE(t.dcEpob).toFixed(1)}" r="3" fill="var(--teal)" opacity="0.7"><title>${tip}</title></circle>`;
+    });
+
+    return `<div class="mtdytd-sparkline-wrap">
+      <div class="spark-title">Daily Trend — Census &amp; DC EPOB</div>
+      <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="max-width:100%">
+        <line x1="${PAD}" y1="${H - PAD}" x2="${W - PADR}" y2="${H - PAD}" stroke="var(--gray-200)" stroke-width="1"/>
+        <line x1="${PAD}" y1="${PAD}" x2="${PAD}" y2="${H - PAD}" stroke="var(--gray-200)" stroke-width="1"/>
+        <path d="${censusPath}" fill="none" stroke="var(--navy)" stroke-width="2" stroke-linejoin="round"/>
+        <path d="${epobPath}" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linejoin="round" stroke-dasharray="4,2"/>
+        ${dots}
+        ${axisLabels}
+      </svg>
+      <div class="legend"><span class="leg-census">Total Census</span><span class="leg-epob">DC EPOB</span></div>
+    </div>`;
+  }
 })();
 
 </script>
