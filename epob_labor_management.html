@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Highland Hospital — EPOB & Labor Management</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
+
+  :root {
+    --navy: #1b4f6e; --navy-deep: #0f3550; --teal: #4a8faa; --teal-light: #6fb8ca;
+    --teal-accent: #7cc8d8; --teal-wash: #e8f4f8; --white: #ffffff; --off-white: #f5f8fa;
+    --gray-100: #eef2f5; --gray-200: #d8e0e6; --gray-300: #b0bec5; --gray-500: #607d8b;
+    --gray-700: #37474f; --gray-900: #1a2a33;
+    --success: #2e7d60; --success-light: #e6f5ee;
+    --warning: #c67a1a; --warning-light: #fef5e7;
+    --danger: #c0392b; --danger-light: #fde8e6;
+    --shadow-sm: 0 1px 3px rgba(27,79,110,0.08);
+    --shadow-md: 0 4px 12px rgba(27,79,110,0.1);
+    --shadow-lg: 0 8px 24px rgba(27,79,110,0.12);
+    --radius: 8px; --radius-lg: 12px;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Source Sans 3',-apple-system,sans-serif; background:var(--off-white); color:var(--gray-900); line-height:1.5; min-height:100vh; }
+
+  /* Header */
+  .top-bar { background:var(--teal); color:var(--white); font-size:12px; text-align:center; padding:6px 20px; letter-spacing:0.3px; }
+  header { background:var(--navy); padding:0 32px; display:flex; align-items:center; justify-content:space-between; height:72px; box-shadow:0 2px 12px rgba(15,53,80,0.3); position:sticky; top:0; z-index:100; }
+  .logo-area { display:flex; align-items:center; gap:14px; }
+  .logo-mark { width:42px; height:42px; background:var(--white); border-radius:8px; display:flex; align-items:center; justify-content:center; font-family:'Merriweather',serif; font-weight:700; color:var(--navy); font-size:18px; }
+  .logo-text { color:var(--white); }
+  .logo-text .l1 { font-family:'Merriweather',serif; font-weight:700; font-size:16px; line-height:1.1; }
+  .logo-text .l2 { font-size:11px; color:var(--teal-accent); letter-spacing:0.5px; text-transform:uppercase; }
+  .header-right { display:flex; align-items:center; gap:24px; }
+  .header-badge { background:rgba(255,255,255,0.1); border:1px solid rgba(255,255,255,0.2); border-radius:20px; padding:6px 16px; color:var(--teal-accent); font-size:12px; font-weight:600; letter-spacing:0.5px; text-transform:uppercase; }
+  .header-date { color:var(--gray-300); font-size:13px; }
+  .container { max-width:1440px; margin:0 auto; padding:28px 32px 60px; }
+  .page-title { font-family:'Merriweather',serif; font-size:26px; font-weight:700; color:var(--navy); margin-bottom:6px; }
+  .page-title span { color:var(--teal); font-weight:400; }
+  .page-sub { font-size:14px; color:var(--gray-500); margin-bottom:24px; }
+
+  /* Period Selector */
+  .control-bar { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-md); padding:18px 24px; margin-bottom:24px; display:flex; align-items:center; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .period-selector { display:flex; gap:6px; background:var(--gray-100); padding:5px; border-radius:10px; }
+  .period-btn { padding:8px 18px; border:none; background:transparent; font-family:inherit; font-size:13px; font-weight:600; color:var(--gray-500); cursor:pointer; border-radius:7px; transition:all 0.2s; }
+  .period-btn:hover { color:var(--navy); }
+  .period-btn.active { background:var(--navy); color:var(--white); box-shadow:0 2px 6px rgba(15,53,80,0.25); }
+  .custom-range { display:none; align-items:center; gap:10px; }
+  .custom-range.show { display:flex; }
+  .custom-range label { font-size:12px; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.4px; }
+  .custom-range input[type=date] { padding:7px 10px; border:1.5px solid var(--gray-200); border-radius:6px; font-family:inherit; font-size:13px; color:var(--navy); outline:none; }
+  .custom-range input[type=date]:focus { border-color:var(--teal); }
+  .data-status { font-size:12px; color:var(--gray-500); display:flex; align-items:center; gap:8px; }
+  .data-status .dot { width:8px; height:8px; border-radius:50%; background:var(--success); }
+  .data-status .dot.stale { background:var(--warning); }
+  .data-status .dot.error { background:var(--danger); }
+  .refresh-btn { background:var(--teal-wash); border:1px solid var(--teal-light); color:var(--teal); padding:6px 12px; border-radius:6px; font-family:inherit; font-size:12px; font-weight:600; cursor:pointer; display:inline-flex; align-items:center; gap:5px; transition:all 0.2s; }
+  .refresh-btn:hover { background:var(--teal); color:var(--white); }
+
+  /* Hero KPI Cards */
+  .kpi-row { display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-bottom:28px; }
+  .kpi-card { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-md); padding:18px 20px; position:relative; overflow:hidden; }
+  .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--navy); }
+  .kpi-card.epob::before { background:var(--teal); }
+  .kpi-card.ot::before { background:var(--warning); }
+  .kpi-card.var::before { background:var(--danger); }
+  .kpi-card.obs::before { background:#8e44ad; }
+  .kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--gray-500); margin-bottom:8px; }
+  .kpi-big { font-size:34px; font-weight:700; color:var(--navy); line-height:1.05; font-variant-numeric:tabular-nums; }
+  .kpi-sub { font-size:11px; color:var(--gray-500); margin-top:4px; }
+  .kpi-paired { display:flex; gap:14px; margin-top:6px; padding-top:8px; border-top:1px solid var(--gray-100); }
+  .kpi-paired .col { flex:1; }
+  .kpi-paired .col .lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--gray-500); }
+  .kpi-paired .col .val { font-size:18px; font-weight:700; color:var(--navy); font-variant-numeric:tabular-nums; }
+  .kpi-delta { display:inline-flex; align-items:center; gap:4px; padding:3px 9px; border-radius:12px; font-size:11px; font-weight:700; margin-top:6px; }
+  .kpi-delta.good { background:var(--success-light); color:var(--success); }
+  .kpi-delta.bad { background:var(--danger-light); color:var(--danger); }
+  .kpi-delta.neutral { background:var(--gray-100); color:var(--gray-500); }
+  .kpi-big.success { color:var(--success); }
+  .kpi-big.warning { color:var(--warning); }
+  .kpi-big.danger { color:var(--danger); }
+  .obs-impact-table { width:100%; border-collapse:collapse; margin-top:6px; }
+  .obs-impact-table th { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--gray-500); text-align:right; padding:2px 4px; border-bottom:1px solid var(--gray-200); }
+  .obs-impact-table th:first-child { text-align:left; }
+  .obs-impact-table td { font-size:14px; font-weight:700; color:var(--navy); font-variant-numeric:tabular-nums; text-align:right; padding:5px 4px; }
+  .obs-impact-table td.rl { font-size:11px; font-weight:600; color:var(--gray-500); text-align:left; text-transform:uppercase; letter-spacing:0.3px; }
+
+  /* Section Headers */
+  .section-header { margin:32px 0 16px; padding-bottom:10px; border-bottom:2px solid var(--gray-200); display:flex; align-items:center; justify-content:space-between; }
+  .section-header h2 { font-family:'Merriweather',serif; font-size:18px; font-weight:700; color:var(--navy); }
+  .section-header .sub { font-size:12px; color:var(--gray-500); font-weight:400; margin-left:8px; }
+
+  /* Variance Heatmap Table */
+  .heatmap-wrap { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-md); overflow:hidden; }
+  .heatmap-table { width:100%; border-collapse:collapse; font-size:13px; }
+  .heatmap-table thead th { background:var(--navy); color:var(--white); padding:12px 14px; text-align:left; font-size:11px; font-weight:600; letter-spacing:0.4px; text-transform:uppercase; cursor:pointer; user-select:none; }
+  .heatmap-table thead th:hover { background:var(--navy-deep); }
+  .heatmap-table thead th.num { text-align:right; }
+  .heatmap-table thead th.sort-asc::after { content:' ▲'; font-size:9px; opacity:0.7; }
+  .heatmap-table thead th.sort-desc::after { content:' ▼'; font-size:9px; opacity:0.7; }
+  .heatmap-table tbody tr { cursor:pointer; transition:background 0.15s; border-bottom:1px solid var(--gray-100); }
+  .heatmap-table tbody tr:hover { background:var(--teal-wash); }
+  .heatmap-table tbody tr.expanded { background:var(--teal-wash); }
+  .heatmap-table tbody td { padding:12px 14px; vertical-align:middle; }
+  .heatmap-table tbody td.num { text-align:right; font-variant-numeric:tabular-nums; font-weight:600; }
+  .unit-name { font-weight:700; color:var(--navy); display:flex; align-items:center; gap:8px; }
+  .unit-name .chevron { width:14px; height:14px; transition:transform 0.2s; color:var(--gray-300); }
+  tr.expanded .unit-name .chevron { transform:rotate(90deg); color:var(--teal); }
+  .unit-tag { display:inline-block; padding:2px 7px; border-radius:4px; font-size:9px; font-weight:700; letter-spacing:0.3px; margin-left:6px; }
+  .tag-acute { background:#e3ecf2; color:var(--navy); }
+  .tag-detox { background:var(--teal-wash); color:var(--teal); }
+
+  .status-badge { display:inline-flex; align-items:center; gap:5px; padding:4px 10px; border-radius:12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.3px; }
+  .status-badge .dot { width:7px; height:7px; border-radius:50%; }
+  .status-good { background:var(--success-light); color:var(--success); }
+  .status-good .dot { background:var(--success); }
+  .status-watch { background:var(--warning-light); color:var(--warning); }
+  .status-watch .dot { background:var(--warning); }
+  .status-action { background:var(--danger-light); color:var(--danger); }
+  .status-action .dot { background:var(--danger); }
+
+  .var-cell { display:inline-flex; align-items:center; gap:6px; }
+  .var-cell .arrow { font-size:11px; }
+  .var-pos { color:var(--danger); }
+  .var-neg { color:var(--success); }
+  .var-neutral { color:var(--gray-500); }
+
+  /* Drill-down expansion */
+  .drill-row { background:var(--off-white); }
+  .drill-row td { padding:0 !important; }
+  .drill-content { padding:24px 32px; border-top:2px solid var(--teal-light); border-bottom:2px solid var(--teal-light); animation:slideDown 0.3s ease; }
+  @keyframes slideDown { from { opacity:0; transform:translateY(-8px); } to { opacity:1; transform:translateY(0); } }
+  .drill-title { font-family:'Merriweather',serif; font-size:15px; font-weight:700; color:var(--navy); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .drill-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; }
+  .drill-stats { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .drill-stat { background:var(--white); border-radius:6px; border:1px solid var(--gray-200); padding:10px 12px; }
+  .drill-stat .lbl { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--gray-500); }
+  .drill-stat .val { font-size:18px; font-weight:700; color:var(--navy); font-variant-numeric:tabular-nums; }
+  .drill-stat .sub { font-size:10px; color:var(--gray-500); margin-top:2px; }
+  .drill-chart { background:var(--white); border-radius:6px; border:1px solid var(--gray-200); padding:14px; }
+  .drill-chart-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--gray-500); margin-bottom:8px; }
+
+  /* Trend Charts */
+  .trends-row { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:28px; }
+  .trend-card { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-md); padding:18px 20px; }
+  .trend-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--gray-500); margin-bottom:4px; }
+  .trend-sub { font-size:11px; color:var(--gray-300); margin-bottom:12px; }
+  .trend-svg { width:100%; height:160px; display:block; }
+  .trend-legend { display:flex; gap:14px; margin-top:8px; font-size:11px; color:var(--gray-500); }
+  .trend-legend .swatch { display:inline-block; width:12px; height:3px; vertical-align:middle; margin-right:5px; border-radius:2px; }
+
+  /* Daily Detail accordion */
+  .accordion { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-md); overflow:hidden; margin-top:24px; }
+  .accordion-header { padding:16px 24px; cursor:pointer; display:flex; align-items:center; justify-content:space-between; user-select:none; transition:background 0.2s; }
+  .accordion-header:hover { background:var(--off-white); }
+  .accordion-title { font-family:'Merriweather',serif; font-size:15px; font-weight:700; color:var(--navy); display:flex; align-items:center; gap:10px; }
+  .accordion-title .chevron { transition:transform 0.2s; color:var(--teal); }
+  .accordion.open .accordion-title .chevron { transform:rotate(90deg); }
+  .accordion-actions { display:flex; gap:10px; }
+  .accordion-body { display:none; border-top:1px solid var(--gray-200); }
+  .accordion.open .accordion-body { display:block; }
+  .detail-table { width:100%; border-collapse:collapse; font-size:12px; }
+  .detail-table thead th { background:var(--gray-100); color:var(--navy); padding:10px 12px; text-align:left; font-size:10px; font-weight:700; letter-spacing:0.4px; text-transform:uppercase; white-space:nowrap; border-bottom:1px solid var(--gray-200); }
+  .detail-table thead th.num { text-align:right; }
+  .detail-table tbody td { padding:9px 12px; border-bottom:1px solid var(--gray-100); white-space:nowrap; }
+  .detail-table tbody td.num { text-align:right; font-variant-numeric:tabular-nums; }
+  .detail-table tbody tr:hover { background:var(--teal-wash); }
+
+  .export-btn { display:inline-flex; align-items:center; gap:5px; padding:6px 14px; border:1px solid var(--gray-200); border-radius:6px; background:var(--white); font-family:inherit; font-size:12px; font-weight:600; color:var(--teal); cursor:pointer; transition:all 0.2s; }
+  .export-btn:hover { background:var(--teal); color:var(--white); border-color:var(--teal); }
+  .export-btn svg { width:13px; height:13px; fill:currentColor; }
+
+  /* Empty / Loading states */
+  .empty-state { text-align:center; padding:60px 20px; color:var(--gray-500); }
+  .empty-state .icon { font-size:48px; margin-bottom:12px; opacity:0.4; }
+  .empty-state .msg { font-size:14px; }
+  .loading { text-align:center; padding:40px; color:var(--gray-500); font-style:italic; }
+  .spinner { display:inline-block; width:20px; height:20px; border:2px solid var(--gray-200); border-top-color:var(--teal); border-radius:50%; animation:spin 0.8s linear infinite; vertical-align:middle; margin-right:8px; }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  .footer { text-align:center; padding:24px; font-size:11px; color:var(--gray-500); border-top:1px solid var(--gray-200); margin-top:40px; }
+
+  @media (max-width:1400px) {
+    .kpi-row { grid-template-columns:repeat(3, 1fr); }
+    .trends-row { grid-template-columns:repeat(2, 1fr); }
+  }
+  @media (max-width:900px) {
+    .kpi-row { grid-template-columns:repeat(2, 1fr); }
+    .trends-row { grid-template-columns:1fr; }
+  }
+  @media (max-width:700px) {
+    .kpi-row { grid-template-columns:1fr; }
+    .heatmap-table { font-size:11px; }
+    .heatmap-table thead th, .heatmap-table tbody td { padding:8px 6px; }
+    .drill-grid { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="top-bar">HIGHLAND HOSPITAL · BEHAVIORAL HEALTH · LABOR PERFORMANCE ANALYTICS</div>
+
+<header>
+  <div class="logo-area">
+    <div class="logo-mark">H</div>
+    <div class="logo-text">
+      <div class="l1">Highland Hospital</div>
+      <div class="l2">A Summit BHC Facility</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="header-badge">EPOB & Labor Mgmt</div>
+    <div class="header-date" id="headerDate"></div>
+  </div>
+</header>
+
+<div class="container">
+
+  <h1 class="page-title">EPOB & Labor <span>Management</span></h1>
+  <div class="page-sub">Census-driven model vs payroll actuals · Direct care productivity tracking · Hours-based variance analysis</div>
+
+  <!-- Control Bar -->
+  <div class="control-bar">
+    <div class="period-selector">
+      <button class="period-btn active" data-period="mtd">MTD</button>
+      <button class="period-btn" data-period="last7">Last 7 Days</button>
+      <button class="period-btn" data-period="last30">Last 30 Days</button>
+      <button class="period-btn" data-period="ytd">YTD</button>
+      <button class="period-btn" data-period="custom">Custom</button>
+    </div>
+    <div class="custom-range" id="customRange">
+      <label>From</label>
+      <input type="date" id="dateFrom">
+      <label>To</label>
+      <input type="date" id="dateTo">
+      <button class="refresh-btn" onclick="applyCustomRange()">Apply</button>
+    </div>
+    <div class="data-status">
+      <span class="dot" id="statusDot"></span>
+      <span id="statusText">Loading…</span>
+      <button class="refresh-btn" onclick="reloadData()" style="margin-left:10px;">↻ Refresh</button>
+    </div>
+  </div>
+
+  <!-- KPI Hero Cards -->
+  <div class="kpi-row" id="kpiRow"></div>
+
+  <!-- Trend Charts -->
+  <div class="section-header">
+    <h2>Performance Trends <span class="sub" id="trendsSub"></span></h2>
+  </div>
+  <div class="trends-row" id="trendsRow"></div>
+
+  <!-- Unit Variance Heatmap -->
+  <div class="section-header">
+    <h2>Unit-Level Variance <span class="sub">Click any unit to drill down · Click headers to sort</span></h2>
+  </div>
+  <div class="heatmap-wrap">
+    <table class="heatmap-table" id="heatmapTable">
+      <thead>
+        <tr>
+          <th data-sort="name">Unit</th>
+          <th class="num" data-sort="census">Avg Census</th>
+          <th class="num" data-sort="model">Model Hrs/Day</th>
+          <th class="num" data-sort="actual">Actual Hrs/Day</th>
+          <th class="num" data-sort="variance">Variance Hrs</th>
+          <th class="num sort-desc" data-sort="variancePct">Variance %</th>
+          <th class="num" data-sort="ot">OT Hrs</th>
+          <th data-sort="status">Status</th>
+        </tr>
+      </thead>
+      <tbody id="heatmapBody"></tbody>
+    </table>
+  </div>
+
+  <!-- Daily Detail Accordion -->
+  <div class="accordion" id="dailyAccordion">
+    <div class="accordion-header" onclick="toggleAccordion()">
+      <div class="accordion-title">
+        <span class="chevron">▶</span>
+        Daily Detail
+        <span class="sub" style="font-size:12px;color:var(--gray-500);font-weight:400;margin-left:8px;">Day-by-day audit trail with all metrics</span>
+      </div>
+      <div class="accordion-actions">
+        <button class="export-btn" onclick="event.stopPropagation();exportDetailCsv()">
+          <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4z"/></svg>
+          Export CSV
+        </button>
+      </div>
+    </div>
+    <div class="accordion-body" id="accordionBody"></div>
+  </div>
+
+</div>
+
+<div class="footer">Highland Hospital · A Summit BHC Facility · EPOB & Labor Management · Hours-only analysis · Daily refresh from SharePoint via Power Automate</div>
+
+<script>
+// ============================================================
+// EMBEDDED SAMPLE DATA — replaced by fetched JSON in production
+// ============================================================
+const EMBEDDED_DATA = [{"date":"2026-04-01","totalCensus":90,"occupancyPct":78.9,"censusByUnit":{"1East":17,"2East":20,"2West":19,"3East":15,"3West":16,"HRC":3},"occPctByUnit":{"1East":94.4,"2East":100,"2West":95,"3East":75,"3West":80,"HRC":18.8},"obsHrs":57.25,"varAdjFTE":102.9,"fixedFTE":105.9,"grandAdjFTE":208.8,"modelDcEpob":1.14,"modelTotalEpob":2.32,"payrollFile":"TT_Time_Summary_040126.xlsx","actualVarHrsDay":592.3,"actualFixHrsDay":412.5,"actualOtTotal":13.9,"modelVarHrsDay":448,"varianceHrsDay":144.3,"variancePct":32.2,"actualVarFTE":98.1,"actualFixFTE":105.8,"actualTotalFTE":203.9,"actualDcEpob":1.09,"actualTotalEpob":2.27,"dcEpobVariance":-0.05,"totalEpobVariance":-0.06,"unitPayroll":{"1East":{"actualHrsDay":118.7,"actualHC":15,"actualOT":11.3,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":30.7,"variancePct":34.9},"2East":{"actualHrsDay":105.2,"actualHC":13,"actualOT":0,"actualNpHrs":16,"modelHrsDay":88,"varianceHrs":17.2,"variancePct":19.5},"2West":{"actualHrsDay":74.6,"actualHC":10,"actualOT":0,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":-13.4,"variancePct":-15.2},"3East":{"actualHrsDay":131.8,"actualHC":14,"actualOT":2.7,"actualNpHrs":8,"modelHrsDay":64,"varianceHrs":67.8,"variancePct":105.9},"3West":{"actualHrsDay":116,"actualHC":15,"actualOT":0,"actualNpHrs":8,"modelHrsDay":72,"varianceHrs":44,"variancePct":61.1},"HRC":{"actualHrsDay":46,"actualHC":5,"actualOT":0,"actualNpHrs":0,"modelHrsDay":48,"varianceHrs":-2,"variancePct":-4.1}}},{"date":"2026-04-02","totalCensus":82,"occupancyPct":71.9,"censusByUnit":{"1East":18,"2East":17,"2West":17,"3East":12,"3West":16,"HRC":2},"occPctByUnit":{"1East":100,"2East":85,"2West":85,"3East":60,"3West":80,"HRC":12.5},"obsHrs":24,"varAdjFTE":96.4,"fixedFTE":102.2,"grandAdjFTE":198.7,"modelDcEpob":1.18,"modelTotalEpob":2.42,"payrollFile":"TT_Time_Summary_040226.xlsx","actualVarHrsDay":600.6,"actualFixHrsDay":390.4,"actualOtTotal":42.6,"modelVarHrsDay":448,"varianceHrsDay":152.6,"variancePct":34.1,"actualVarFTE":98.8,"actualFixFTE":101.9,"actualTotalFTE":200.8,"actualDcEpob":1.2,"actualTotalEpob":2.45,"dcEpobVariance":0.03,"totalEpobVariance":0.03,"unitPayroll":{"1East":{"actualHrsDay":87.3,"actualHC":11,"actualOT":8.3,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":-0.7,"variancePct":-0.8},"2East":{"actualHrsDay":134.8,"actualHC":15,"actualOT":7.6,"actualNpHrs":8,"modelHrsDay":88,"varianceHrs":46.8,"variancePct":53.2},"2West":{"actualHrsDay":85.8,"actualHC":10,"actualOT":5.9,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":-2.2,"variancePct":-2.5},"3East":{"actualHrsDay":142.6,"actualHC":16,"actualOT":12.7,"actualNpHrs":28,"modelHrsDay":64,"varianceHrs":78.6,"variancePct":122.7},"3West":{"actualHrsDay":114.6,"actualHC":14,"actualOT":8.2,"actualNpHrs":0,"modelHrsDay":72,"varianceHrs":42.6,"variancePct":59.1},"HRC":{"actualHrsDay":35.6,"actualHC":4,"actualOT":0,"actualNpHrs":0,"modelHrsDay":48,"varianceHrs":-12.4,"variancePct":-25.9}}},{"date":"2026-04-03","totalCensus":79,"occupancyPct":69.3,"censusByUnit":{"1East":18,"2East":16,"2West":16,"3East":13,"3West":15,"HRC":1},"occPctByUnit":{"1East":100,"2East":80,"2West":80,"3East":65,"3West":75,"HRC":6.3},"obsHrs":24,"varAdjFTE":88.7,"fixedFTE":101.2,"grandAdjFTE":189.8,"modelDcEpob":1.12,"modelTotalEpob":2.4,"payrollFile":"TT_Time_Summary_040326.xlsx","actualVarHrsDay":622.2,"actualFixHrsDay":384.2,"actualOtTotal":111.3,"modelVarHrsDay":408,"varianceHrsDay":214.2,"variancePct":52.5,"actualVarFTE":102.6,"actualFixFTE":100.9,"actualTotalFTE":203.5,"actualDcEpob":1.3,"actualTotalEpob":2.58,"dcEpobVariance":0.18,"totalEpobVariance":0.17,"unitPayroll":{"1East":{"actualHrsDay":111.4,"actualHC":14,"actualOT":18.5,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":23.4,"variancePct":26.6},"2East":{"actualHrsDay":90.9,"actualHC":12,"actualOT":17.7,"actualNpHrs":8,"modelHrsDay":72,"varianceHrs":18.9,"variancePct":26.3},"2West":{"actualHrsDay":110.4,"actualHC":12,"actualOT":39.5,"actualNpHrs":0,"modelHrsDay":72,"varianceHrs":38.4,"variancePct":53.4},"3East":{"actualHrsDay":132.2,"actualHC":14,"actualOT":13.5,"actualNpHrs":28,"modelHrsDay":64,"varianceHrs":68.2,"variancePct":106.5},"3West":{"actualHrsDay":122.2,"actualHC":16,"actualOT":22.2,"actualNpHrs":0,"modelHrsDay":64,"varianceHrs":58.2,"variancePct":91},"HRC":{"actualHrsDay":55.1,"actualHC":5,"actualOT":0,"actualNpHrs":0,"modelHrsDay":48,"varianceHrs":7.1,"variancePct":14.8}}},{"date":"2026-04-04","totalCensus":80,"occupancyPct":70.2,"censusByUnit":{"1East":16,"2East":17,"2West":19,"3East":13,"3West":13,"HRC":2},"occPctByUnit":{"1East":88.9,"2East":85,"2West":95,"3East":65,"3West":65,"HRC":12.5},"obsHrs":24,"varAdjFTE":91.8,"fixedFTE":69,"grandAdjFTE":160.8,"modelDcEpob":1.15,"modelTotalEpob":2.01,"payrollFile":"TT_Time_Summary_040426.xlsx","actualVarHrsDay":485.7,"actualFixHrsDay":155.5,"actualOtTotal":109.7,"modelVarHrsDay":424,"varianceHrsDay":61.7,"variancePct":14.5,"actualVarFTE":81.5,"actualFixFTE":60.8,"actualTotalFTE":142.3,"actualDcEpob":1.02,"actualTotalEpob":1.78,"dcEpobVariance":-0.13,"totalEpobVariance":-0.23,"unitPayroll":{"1East":{"actualHrsDay":89.7,"actualHC":10,"actualOT":10.1,"actualNpHrs":0,"modelHrsDay":72,"varianceHrs":17.7,"variancePct":24.5},"2East":{"actualHrsDay":53.3,"actualHC":7,"actualOT":23,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":-34.7,"variancePct":-39.5},"2West":{"actualHrsDay":87.8,"actualHC":10,"actualOT":38.8,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":-0.2,"variancePct":-0.2},"3East":{"actualHrsDay":101.3,"actualHC":11,"actualOT":19.9,"actualNpHrs":12,"modelHrsDay":64,"varianceHrs":37.3,"variancePct":58.2},"3West":{"actualHrsDay":98.4,"actualHC":11,"actualOT":7.6,"actualNpHrs":8,"modelHrsDay":64,"varianceHrs":34.4,"variancePct":53.8},"HRC":{"actualHrsDay":55.3,"actualHC":6,"actualOT":10.3,"actualNpHrs":0,"modelHrsDay":48,"varianceHrs":7.3,"variancePct":15.2}}},{"date":"2026-04-05","totalCensus":87,"occupancyPct":76.3,"censusByUnit":{"1East":17,"2East":18,"2West":19,"3East":15,"3West":16,"HRC":2},"occPctByUnit":{"1East":94.4,"2East":90,"2West":95,"3East":75,"3West":80,"HRC":12.5},"obsHrs":70,"varAdjFTE":105.4,"fixedFTE":74,"grandAdjFTE":179.4,"modelDcEpob":1.21,"modelTotalEpob":2.06,"payrollFile":"TT_Time_Summary_040526.xlsx","actualVarHrsDay":437,"actualFixHrsDay":190.3,"actualOtTotal":0,"modelVarHrsDay":448,"varianceHrsDay":-11,"variancePct":-2.5,"actualVarFTE":76.5,"actualFixFTE":66.9,"actualTotalFTE":143.4,"actualDcEpob":0.88,"actualTotalEpob":1.65,"dcEpobVariance":-0.33,"totalEpobVariance":-0.41,"unitPayroll":{"1East":{"actualHrsDay":82.3,"actualHC":10,"actualOT":0,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":-5.7,"variancePct":-6.5},"2East":{"actualHrsDay":59.1,"actualHC":5,"actualOT":0,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":-28.9,"variancePct":-32.9},"2West":{"actualHrsDay":83.7,"actualHC":7,"actualOT":0,"actualNpHrs":0,"modelHrsDay":88,"varianceHrs":-4.3,"variancePct":-4.9},"3East":{"actualHrsDay":81.3,"actualHC":9,"actualOT":0,"actualNpHrs":0,"modelHrsDay":64,"varianceHrs":17.3,"variancePct":27.1},"3West":{"actualHrsDay":84.4,"actualHC":11,"actualOT":0,"actualNpHrs":0,"modelHrsDay":72,"varianceHrs":12.4,"variancePct":17.3},"HRC":{"actualHrsDay":46.1,"actualHC":4,"actualOT":0,"actualNpHrs":0,"modelHrsDay":48,"varianceHrs":-1.9,"variancePct":-3.9}}}];
+
+// ============================================================
+// CONFIG
+// ============================================================
+const UNIT_META = {
+  '1East': { label:'1 East', sub:'Child Acute', type:'acute', maxBeds:18 },
+  '2East': { label:'2 East', sub:'Adult Acute', type:'acute', maxBeds:20 },
+  '2West': { label:'2 West', sub:'Adolescent',  type:'acute', maxBeds:20 },
+  '3East': { label:'3 East', sub:'Adult Acute', type:'acute', maxBeds:20 },
+  '3West': { label:'3 West', sub:'Adult Acute', type:'acute', maxBeds:20 },
+  'HRC':   { label:'HRC',    sub:'SUD/Detox',   type:'detox', maxBeds:16 }
+};
+const UNIT_KEYS = Object.keys(UNIT_META);
+const JSON_URL = './mtd_ytd_data.json';
+
+// ============================================================
+// STATE
+// ============================================================
+let allData = [];
+let currentPeriod = 'mtd';
+let customStart = null, customEnd = null;
+let currentSort = { col:'variancePct', dir:'desc' };
+let expandedUnit = null;
+
+// ============================================================
+// INIT
+// ============================================================
+document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-US',{weekday:'long',year:'numeric',month:'long',day:'numeric'});
+
+function init() {
+  // Try to fetch real JSON; fall back to embedded
+  fetch(JSON_URL, {cache:'no-store'})
+    .then(r => { if (!r.ok) throw new Error('No JSON'); return r.json(); })
+    .then(json => {
+      allData = normalizeData(json);
+      setDataStatus('live', buildStatusMessage(allData));
+      render();
+    })
+    .catch(() => {
+      allData = EMBEDDED_DATA.slice();
+      setDataStatus('demo', `Sample data · ${allData.length} days`);
+      render();
+    });
+}
+
+function buildStatusMessage(data) {
+  if (!data.length) return 'No data';
+  const latest = data[data.length - 1].date;
+  const now = new Date();
+  const nextRefresh = now.getHours() < 15 ? 'today at 3 PM' : 'tomorrow at 3 PM';
+  return `Current through ${latest} · Next refresh ${nextRefresh}`;
+}
+
+function normalizeData(json) {
+  // Accept either an array of rows or a {dailyRows:[]} wrapper
+  const rows = Array.isArray(json) ? json : (json.dailyRows || []);
+  // Defensive dedup: if multiple rows exist for the same date, keep the latest.
+  // "Latest" = highest modified timestamp if present, otherwise last occurrence in the source array.
+  const byDate = new Map();
+  rows.forEach(r => {
+    if (!r || !r.date) return;
+    const existing = byDate.get(r.date);
+    if (!existing) {
+      byDate.set(r.date, r);
+      return;
+    }
+    // Prefer row with a later modified timestamp if available
+    const existingStamp = existing.modified || existing.Modified || '';
+    const currentStamp = r.modified || r.Modified || '';
+    if (currentStamp >= existingStamp) {
+      byDate.set(r.date, r);
+    }
+  });
+  return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function setDataStatus(state, msg) {
+  const dot = document.getElementById('statusDot');
+  const txt = document.getElementById('statusText');
+  dot.className = 'dot';
+  if (state === 'demo') dot.classList.add('stale');
+  if (state === 'error') dot.classList.add('error');
+  txt.textContent = msg;
+}
+
+function reloadData() { init(); }
+
+// ============================================================
+// PERIOD FILTERING
+// ============================================================
+function getFilteredData() {
+  if (allData.length === 0) return [];
+  const today = new Date(allData[allData.length-1].date + 'T00:00:00');
+  let start, end = today;
+  if (currentPeriod === 'mtd') {
+    start = new Date(today.getFullYear(), today.getMonth(), 1);
+  } else if (currentPeriod === 'last7') {
+    start = new Date(today); start.setDate(start.getDate()-6);
+  } else if (currentPeriod === 'last30') {
+    start = new Date(today); start.setDate(start.getDate()-29);
+  } else if (currentPeriod === 'ytd') {
+    start = new Date(today.getFullYear(), 0, 1);
+  } else if (currentPeriod === 'custom' && customStart && customEnd) {
+    start = new Date(customStart + 'T00:00:00');
+    end = new Date(customEnd + 'T00:00:00');
+  } else {
+    start = new Date(today.getFullYear(), today.getMonth(), 1);
+  }
+  const startStr = toISO(start), endStr = toISO(end);
+  return allData.filter(r => r.date >= startStr && r.date <= endStr);
+}
+function toISO(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+function periodLabel() {
+  const map = { mtd:'Month-to-Date', last7:'Last 7 Days', last30:'Last 30 Days', ytd:'Year-to-Date', custom:'Custom Range' };
+  return map[currentPeriod] || 'Period';
+}
+
+// ============================================================
+// AGGREGATION
+// ============================================================
+function avg(arr, key) {
+  const vals = arr.map(r => r[key]).filter(v => v != null && !isNaN(v));
+  if (vals.length === 0) return null;
+  return vals.reduce((a,b) => a+b, 0) / vals.length;
+}
+function sum(arr, key) {
+  return arr.map(r => r[key]).filter(v => v != null && !isNaN(v)).reduce((a,b) => a+b, 0);
+}
+function aggregate(rows) {
+  if (rows.length === 0) return null;
+  // Sum NP hours across all units for each row, then total across rows
+  const totalNpHrs = rows.reduce((sum, r) => {
+    if (!r.unitPayroll) return sum;
+    return sum + UNIT_KEYS.reduce((s, k) => s + ((r.unitPayroll[k] && r.unitPayroll[k].actualNpHrs) || 0), 0);
+  }, 0);
+  // Compute actual NP% from payroll: NP hours / total productive+NP hours
+  // Falls back to model NP% if no payroll data
+  const totalActualHrs = sum(rows, 'actualVarHrsDay') + sum(rows, 'actualFixHrsDay');
+  const actualNpPct = totalActualHrs > 0 ? (totalNpHrs / (totalActualHrs * rows.length / rows.length + totalNpHrs)) * 100 : null;
+  // Better calc: NP% = NP hours / total paid hours over the period
+  const totalPaidHrs = rows.reduce((s,r) => s + ((r.actualVarHrsDay||0) + (r.actualFixHrsDay||0)), 0);
+  const realNpPct = totalPaidHrs > 0 ? (totalNpHrs / (totalPaidHrs + totalNpHrs)) * 100 : avg(rows, 'NP_ModelPct');
+  return {
+    days: rows.length,
+    avgCensus: avg(rows, 'totalCensus'),
+    avgOccPct: avg(rows, 'occupancyPct'),
+    modelDcEpob: avg(rows, 'modelDcEpob'),
+    modelTotalEpob: avg(rows, 'modelTotalEpob'),
+    actualDcEpob: avg(rows, 'actualDcEpob'),
+    actualTotalEpob: avg(rows, 'actualTotalEpob'),
+    avgModelHrs: avg(rows, 'modelVarHrsDay'),
+    avgActualHrs: avg(rows, 'actualVarHrsDay'),
+    avgVarianceHrs: avg(rows, 'varianceHrsDay'),
+    avgVariancePct: avg(rows, 'variancePct'),
+    totalOt: sum(rows, 'actualOtTotal'),
+    avgVarFTE: avg(rows, 'varAdjFTE'),
+    avgActualFTE: avg(rows, 'actualTotalFTE'),
+    avgGrandFTE: avg(rows, 'grandAdjFTE'),
+    avgObsHrs: avg(rows, 'obsHrs'),
+    totalObsHrs: sum(rows, 'obsHrs'),
+    totalNpHrs: totalNpHrs,
+    avgNpHrs: totalNpHrs / rows.length,
+    actualNpPct: realNpPct
+  };
+}
+function aggregateUnit(rows, unitKey) {
+  const data = rows.map(r => r.unitPayroll && r.unitPayroll[unitKey]).filter(Boolean);
+  const censusVals = rows.map(r => r.censusByUnit && r.censusByUnit[unitKey]).filter(v => v!=null);
+  if (data.length === 0) return null;
+  return {
+    days: data.length,
+    avgCensus: censusVals.length ? censusVals.reduce((a,b)=>a+b,0)/censusVals.length : null,
+    avgModelHrs: avg(data, 'modelHrsDay'),
+    avgActualHrs: avg(data, 'actualHrsDay'),
+    avgVarianceHrs: avg(data, 'varianceHrs'),
+    avgVariancePct: avg(data, 'variancePct'),
+    totalOt: sum(data, 'actualOT'),
+    avgHC: avg(data, 'actualHC'),
+    totalNpHrs: sum(data, 'actualNpHrs')
+  };
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() {
+  const filtered = getFilteredData();
+  document.getElementById('trendsSub').textContent = filtered.length ? `${periodLabel()} · ${filtered.length} day${filtered.length===1?'':'s'} · ${filtered[0].date} to ${filtered[filtered.length-1].date}` : '';
+  if (filtered.length === 0) {
+    document.getElementById('kpiRow').innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">📊</div><div class="msg">No data in selected period</div></div>';
+    document.getElementById('trendsRow').innerHTML = '';
+    document.getElementById('heatmapBody').innerHTML = '<tr><td colspan="8" class="empty-state">No data in selected period</td></tr>';
+    document.getElementById('accordionBody').innerHTML = '';
+    return;
+  }
+  const agg = aggregate(filtered);
+  renderKpis(agg);
+  renderTrends(filtered);
+  renderHeatmap(filtered);
+  renderDailyDetail(filtered);
+}
+
+function fmt(n, d=1) { return n == null ? '—' : Number(n).toFixed(d); }
+function fmtInt(n) { return n == null ? '—' : Math.round(n).toLocaleString(); }
+function fmtPct(n, d=1) { return n == null ? '—' : (n>=0?'+':'') + Number(n).toFixed(d) + '%'; }
+
+function epobColor(v, lo, hi) {
+  if (v == null) return '';
+  if (v < lo) return 'success';
+  if (v < hi) return 'warning';
+  return 'danger';
+}
+function variancePctColor(v) {
+  if (v == null) return '';
+  const a = Math.abs(v);
+  if (a <= 5) return 'success';
+  if (a <= 15) return 'warning';
+  return 'danger';
+}
+function statusFromVar(v) {
+  if (v == null) return { cls:'status-good', txt:'No Data' };
+  const a = Math.abs(v);
+  if (a <= 5)  return { cls:'status-good',   txt:'In Control' };
+  if (a <= 15) return { cls:'status-watch',  txt:'Watch' };
+  return { cls:'status-action', txt:'Action Needed' };
+}
+
+function renderKpis(a) {
+  const dcDelta = a.actualDcEpob != null && a.modelDcEpob != null ? a.actualDcEpob - a.modelDcEpob : null;
+  const totDelta = a.actualTotalEpob != null && a.modelTotalEpob != null ? a.actualTotalEpob - a.modelTotalEpob : null;
+  // Dynamic NP gross-up: 1:1 hrs * 7/40, divided by (1 - actual NP%)
+  const npFraction = a.actualNpPct != null ? a.actualNpPct / 100 : 0.126;
+  const oneOneFte = a.avgObsHrs != null ? (a.avgObsHrs * 7 / 40) / (1 - npFraction) : null;
+  // NP FTE equivalent: avg NP hrs/day * 7 / 40 (already non-productive, no gross-up)
+  const npFte = a.avgNpHrs != null ? (a.avgNpHrs * 7 / 40) : null;
+  // EPOB impact = FTE / avg census (how much each is adding to direct care EPOB)
+  const oneOneEpobImpact = oneOneFte != null && a.avgCensus ? oneOneFte / a.avgCensus : null;
+  const npEpobImpact = npFte != null && a.avgCensus ? npFte / a.avgCensus : null;
+  const combinedEpobImpact = (oneOneEpobImpact || 0) + (npEpobImpact || 0);
+  const npPctDisplay = a.actualNpPct != null ? a.actualNpPct.toFixed(1) + '%' : '—';
+  const html = `
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Daily Census</div>
+      <div class="kpi-big">${fmt(a.avgCensus,1)}</div>
+      <div class="kpi-sub">${a.days} day${a.days===1?'':'s'} · ${fmt(a.avgOccPct,1)}% occupancy</div>
+    </div>
+    <div class="kpi-card epob">
+      <div class="kpi-label">Direct Care EPOB</div>
+      <div class="kpi-paired">
+        <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+      </div>
+      ${dcDelta != null ? `<span class="kpi-delta ${dcDelta < 0 ? 'good' : dcDelta > 0.05 ? 'bad' : 'neutral'}">${dcDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(dcDelta),2)}</span>` : ''}
+    </div>
+    <div class="kpi-card epob">
+      <div class="kpi-label">Total Facility EPOB</div>
+      <div class="kpi-paired">
+        <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+      </div>
+      ${totDelta != null ? `<span class="kpi-delta ${totDelta < 0 ? 'good' : totDelta > 0.05 ? 'bad' : 'neutral'}">${totDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(totDelta),2)}</span>` : ''}
+    </div>
+    <div class="kpi-card obs">
+      <div class="kpi-label">1:1 Obs & NP Impact</div>
+      <table class="obs-impact-table">
+        <thead><tr><th></th><th>Hours</th><th>FTE</th><th>EPOB</th></tr></thead>
+        <tbody>
+          <tr><td class="rl">1:1</td><td>${fmtInt(a.totalObsHrs)}</td><td>${fmt(oneOneFte,1)}</td><td>+${fmt(oneOneEpobImpact,2)}</td></tr>
+          <tr><td class="rl">NP</td><td>${fmtInt(a.totalNpHrs)}</td><td>${fmt(npFte,1)}</td><td>+${fmt(npEpobImpact,2)}</td></tr>
+        </tbody>
+      </table>
+      <div class="kpi-sub" style="margin-top:6px;">Combined EPOB impact <strong style="color:var(--navy);">+${fmt(combinedEpobImpact,2)}</strong> · Actual NP ${npPctDisplay}</div>
+    </div>
+    <div class="kpi-card ot">
+      <div class="kpi-label">Total OT Hours</div>
+      <div class="kpi-big ${a.totalOt > 200 ? 'danger' : a.totalOt > 100 ? 'warning' : 'success'}">${fmtInt(a.totalOt)}</div>
+      <div class="kpi-sub">${fmt(a.totalOt/a.days,1)} hrs/day average</div>
+    </div>
+    <div class="kpi-card var">
+      <div class="kpi-label">Avg Daily Variance</div>
+      <div class="kpi-big ${variancePctColor(a.avgVariancePct)}">${fmtPct(a.avgVariancePct)}</div>
+      <div class="kpi-sub">${a.avgVarianceHrs > 0 ? '+' : ''}${fmt(a.avgVarianceHrs,0)} hrs/day vs model</div>
+    </div>
+  `;
+  document.getElementById('kpiRow').innerHTML = html;
+}
+
+// ============================================================
+// HEATMAP
+// ============================================================
+function renderHeatmap(rows) {
+  const unitAggs = UNIT_KEYS.map(key => {
+    const a = aggregateUnit(rows, key);
+    return { key, ...UNIT_META[key], agg: a };
+  }).filter(u => u.agg);
+
+  // Sort
+  unitAggs.sort((a,b) => {
+    let av, bv;
+    switch (currentSort.col) {
+      case 'name': av = a.label; bv = b.label; break;
+      case 'census': av = a.agg.avgCensus; bv = b.agg.avgCensus; break;
+      case 'model': av = a.agg.avgModelHrs; bv = b.agg.avgModelHrs; break;
+      case 'actual': av = a.agg.avgActualHrs; bv = b.agg.avgActualHrs; break;
+      case 'variance': av = a.agg.avgVarianceHrs; bv = b.agg.avgVarianceHrs; break;
+      case 'variancePct': av = Math.abs(a.agg.avgVariancePct||0); bv = Math.abs(b.agg.avgVariancePct||0); break;
+      case 'ot': av = a.agg.totalOt; bv = b.agg.totalOt; break;
+      case 'status': av = Math.abs(a.agg.avgVariancePct||0); bv = Math.abs(b.agg.avgVariancePct||0); break;
+      default: av = 0; bv = 0;
+    }
+    if (av == null) av = -Infinity;
+    if (bv == null) bv = -Infinity;
+    if (typeof av === 'string') return currentSort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    return currentSort.dir === 'asc' ? av - bv : bv - av;
+  });
+
+  // Update sort indicators
+  document.querySelectorAll('#heatmapTable thead th').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.sort === currentSort.col) th.classList.add('sort-' + currentSort.dir);
+  });
+
+  let html = '';
+  unitAggs.forEach(u => {
+    const a = u.agg;
+    const status = statusFromVar(a.avgVariancePct);
+    const varPctClass = a.avgVariancePct == null ? 'var-neutral' : (a.avgVariancePct > 0 ? 'var-pos' : 'var-neg');
+    const varHrsClass = a.avgVarianceHrs == null ? 'var-neutral' : (a.avgVarianceHrs > 0 ? 'var-pos' : 'var-neg');
+    const isExpanded = expandedUnit === u.key;
+    html += `
+      <tr class="${isExpanded?'expanded':''}" onclick="toggleDrill('${u.key}')">
+        <td><div class="unit-name"><span class="chevron">▶</span>${u.label} <span class="unit-tag tag-${u.type}">${u.sub}</span></div></td>
+        <td class="num">${fmt(a.avgCensus,1)}</td>
+        <td class="num">${fmt(a.avgModelHrs,1)}</td>
+        <td class="num">${fmt(a.avgActualHrs,1)}</td>
+        <td class="num"><span class="var-cell ${varHrsClass}">${a.avgVarianceHrs > 0 ? '▲' : a.avgVarianceHrs < 0 ? '▼' : ''} ${fmt(Math.abs(a.avgVarianceHrs||0),1)}</span></td>
+        <td class="num"><span class="var-cell ${varPctClass}">${fmtPct(a.avgVariancePct)}</span></td>
+        <td class="num">${fmtInt(a.totalOt)}</td>
+        <td><span class="status-badge ${status.cls}"><span class="dot"></span>${status.txt}</span></td>
+      </tr>
+    `;
+    if (isExpanded) {
+      html += `<tr class="drill-row"><td colspan="8">${renderDrillContent(u, rows)}</td></tr>`;
+    }
+  });
+  document.getElementById('heatmapBody').innerHTML = html;
+}
+
+function toggleDrill(unitKey) {
+  expandedUnit = (expandedUnit === unitKey) ? null : unitKey;
+  renderHeatmap(getFilteredData());
+}
+
+function renderDrillContent(unit, rows) {
+  const dailyData = rows.map(r => ({
+    date: r.date,
+    census: r.censusByUnit && r.censusByUnit[unit.key],
+    occPct: r.occPctByUnit && r.occPctByUnit[unit.key],
+    ...((r.unitPayroll && r.unitPayroll[unit.key]) || {})
+  })).filter(d => d.actualHrsDay != null);
+
+  const a = unit.agg;
+  return `
+    <div class="drill-content">
+      <div class="drill-title">📊 ${unit.label} · ${unit.sub} — Detailed Analysis</div>
+      <div class="drill-grid">
+        <div>
+          <div class="drill-stats">
+            <div class="drill-stat"><div class="lbl">Avg Census</div><div class="val">${fmt(a.avgCensus,1)}</div><div class="sub">of ${unit.maxBeds} beds (${fmt((a.avgCensus/unit.maxBeds)*100,0)}%)</div></div>
+            <div class="drill-stat"><div class="lbl">Avg Headcount</div><div class="val">${fmt(a.avgHC,1)}</div><div class="sub">unique workers/day</div></div>
+            <div class="drill-stat"><div class="lbl">Total OT Hours</div><div class="val">${fmtInt(a.totalOt)}</div><div class="sub">${fmt(a.totalOt/a.days,1)} hrs/day avg</div></div>
+            <div class="drill-stat"><div class="lbl">Total NP Hours</div><div class="val">${fmtInt(a.totalNpHrs)}</div><div class="sub">non-productive time</div></div>
+            <div class="drill-stat"><div class="lbl">Model Hrs/Day</div><div class="val">${fmt(a.avgModelHrs,0)}</div><div class="sub">expected from grid</div></div>
+            <div class="drill-stat"><div class="lbl">Actual Hrs/Day</div><div class="val ${a.avgVariancePct > 15 ? 'danger' : ''}">${fmt(a.avgActualHrs,0)}</div><div class="sub">from payroll</div></div>
+          </div>
+        </div>
+        <div class="drill-chart">
+          <div class="drill-chart-title">Daily Hours · Model vs Actual</div>
+          ${renderDrillChart(dailyData)}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function renderDrillChart(daily) {
+  if (daily.length === 0) return '<div style="padding:20px;text-align:center;color:var(--gray-500);font-size:12px;">No data</div>';
+  const w = 540, h = 180, pad = { l:36, r:12, t:14, b:30 };
+  const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+  const all = [];
+  daily.forEach(d => { if(d.modelHrsDay!=null) all.push(d.modelHrsDay); if(d.actualHrsDay!=null) all.push(d.actualHrsDay); });
+  if (all.length === 0) return '';
+  const maxV = Math.max(...all) * 1.15;
+  const minV = 0;
+  const xStep = daily.length > 1 ? iw / (daily.length - 1) : iw;
+
+  function x(i) { return pad.l + i * xStep; }
+  function y(v) { return pad.t + ih - ((v - minV) / (maxV - minV)) * ih; }
+
+  const modelPts = daily.map((d,i) => `${x(i)},${y(d.modelHrsDay||0)}`).join(' ');
+  const actualPts = daily.map((d,i) => `${x(i)},${y(d.actualHrsDay||0)}`).join(' ');
+
+  // Y gridlines
+  let grid = '';
+  for (let i = 0; i <= 4; i++) {
+    const v = minV + (maxV - minV) * (i/4);
+    const yy = y(v);
+    grid += `<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#eef2f5" stroke-width="1"/>`;
+    grid += `<text x="${pad.l-6}" y="${yy+3}" font-size="9" fill="#607d8b" text-anchor="end" font-family="Source Sans 3">${Math.round(v)}</text>`;
+  }
+  // X labels
+  let xlabels = '';
+  daily.forEach((d,i) => {
+    if (daily.length <= 7 || i % Math.ceil(daily.length/7) === 0 || i === daily.length-1) {
+      const lbl = d.date.slice(5);
+      xlabels += `<text x="${x(i)}" y="${h-10}" font-size="9" fill="#607d8b" text-anchor="middle" font-family="Source Sans 3">${lbl}</text>`;
+    }
+  });
+
+  // Dots with tooltips
+  let dots = '';
+  daily.forEach((d,i) => {
+    if (d.modelHrsDay != null) {
+      dots += `<circle cx="${x(i)}" cy="${y(d.modelHrsDay)}" r="3" fill="#1b4f6e"><title>${d.date} — Model: ${d.modelHrsDay} hrs</title></circle>`;
+    }
+    if (d.actualHrsDay != null) {
+      const overage = d.actualHrsDay - (d.modelHrsDay||0);
+      dots += `<circle cx="${x(i)}" cy="${y(d.actualHrsDay)}" r="4" fill="#c0392b" stroke="#fff" stroke-width="1.5"><title>${d.date} — Actual: ${d.actualHrsDay} hrs (${overage>=0?'+':''}${overage.toFixed(0)} vs model)</title></circle>`;
+    }
+  });
+
+  return `
+    <svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+      ${grid}
+      <polyline points="${modelPts}" fill="none" stroke="#1b4f6e" stroke-width="2" stroke-dasharray="4,3"/>
+      <polyline points="${actualPts}" fill="none" stroke="#c0392b" stroke-width="2.5"/>
+      ${dots}
+      ${xlabels}
+    </svg>
+    <div class="trend-legend">
+      <span><span class="swatch" style="background:#1b4f6e;"></span>Model</span>
+      <span><span class="swatch" style="background:#c0392b;"></span>Actual</span>
+    </div>
+  `;
+}
+
+// ============================================================
+// TRENDS (3 facility-level charts)
+// ============================================================
+function renderTrends(rows) {
+  const html = `
+    <div class="trend-card">
+      <div class="trend-title">EPOB Trend</div>
+      <div class="trend-sub">Direct care · model vs actual</div>
+      ${lineChart(rows, [
+        { key:'modelDcEpob', color:'#1b4f6e', label:'Model', dash:true },
+        { key:'actualDcEpob', color:'#4a8faa', label:'Actual', dash:false }
+      ], 2)}
+      <div class="trend-legend">
+        <span><span class="swatch" style="background:#1b4f6e;"></span>Model</span>
+        <span><span class="swatch" style="background:#4a8faa;"></span>Actual</span>
+      </div>
+    </div>
+    <div class="trend-card">
+      <div class="trend-title">Census vs Variable FTE</div>
+      <div class="trend-sub">Are FTEs flexing with census?</div>
+      ${dualLineChart(rows)}
+      <div class="trend-legend">
+        <span><span class="swatch" style="background:#1b4f6e;"></span>Census</span>
+        <span><span class="swatch" style="background:#c67a1a;"></span>Var FTE</span>
+      </div>
+    </div>
+    <div class="trend-card">
+      <div class="trend-title">Daily OT Hours</div>
+      <div class="trend-sub">Where overtime is spiking</div>
+      ${barChart(rows, 'actualOtTotal', '#c67a1a')}
+      <div class="trend-legend"><span>Total facility OT per day</span></div>
+    </div>
+    <div class="trend-card">
+      <div class="trend-title">1:1 Obs & NP Hours</div>
+      <div class="trend-sub">Observation + non-productive by day</div>
+      ${stackedBarChart(rows)}
+      <div class="trend-legend">
+        <span><span class="swatch" style="background:#8e44ad;"></span>1:1 Obs</span>
+        <span><span class="swatch" style="background:#c67a1a;"></span>NP Hrs</span>
+      </div>
+    </div>
+  `;
+  document.getElementById('trendsRow').innerHTML = html;
+}
+
+function stackedBarChart(rows) {
+  if (rows.length === 0) return '';
+  const w = 380, h = 160, pad = { l:34, r:10, t:12, b:24 };
+  const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+  // Compute NP hours per row from unit payroll
+  const data = rows.map(r => {
+    const np = r.unitPayroll ? UNIT_KEYS.reduce((s,k) => s + ((r.unitPayroll[k] && r.unitPayroll[k].actualNpHrs) || 0), 0) : 0;
+    return { date: r.date, obs: r.obsHrs || 0, np: np };
+  });
+  const maxV = Math.max(...data.map(d => Math.max(d.obs, d.np, d.obs + d.np * 0.3)), 1) * 1.15;
+  const barW = iw / rows.length * 0.35;
+  const gap = iw / rows.length * 0.3;
+  const groupW = barW * 2 + 2;
+  function x(i) { return pad.l + i * (groupW + gap) + gap/2; }
+  function y(v) { return pad.t + ih - (v / maxV) * ih; }
+  function bh(v) { return (v / maxV) * ih; }
+  let grid = '';
+  for (let i = 0; i <= 3; i++) {
+    const v = (maxV * i / 3);
+    const yy = pad.t + ih - (v/maxV)*ih;
+    grid += `<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#eef2f5"/>`;
+    grid += `<text x="${pad.l-5}" y="${yy+3}" font-size="9" fill="#607d8b" text-anchor="end">${v.toFixed(0)}</text>`;
+  }
+  let bars = '';
+  data.forEach((d,i) => {
+    const x0 = x(i);
+    // 1:1 Obs bar
+    bars += `<rect x="${x0}" y="${y(d.obs)}" width="${barW}" height="${bh(d.obs)}" fill="#8e44ad" rx="2"><title>${d.date}: 1:1 Obs ${d.obs.toFixed(1)} hrs</title></rect>`;
+    // NP bar
+    bars += `<rect x="${x0 + barW + 2}" y="${y(d.np)}" width="${barW}" height="${bh(d.np)}" fill="#c67a1a" rx="2"><title>${d.date}: NP ${d.np.toFixed(1)} hrs</title></rect>`;
+  });
+  let xlabels = '';
+  data.forEach((d,i) => {
+    if (rows.length <= 7 || i === 0 || i === rows.length-1) {
+      xlabels += `<text x="${x(i)+barW+1}" y="${h-8}" font-size="9" fill="#607d8b" text-anchor="middle">${d.date.slice(5)}</text>`;
+    }
+  });
+  return `<svg class="trend-svg" viewBox="0 0 ${w} ${h}">${grid}${bars}${xlabels}</svg>`;
+}
+
+function lineChart(rows, series, decimals=1) {
+  if (rows.length === 0) return '';
+  const w = 380, h = 160, pad = { l:34, r:10, t:12, b:24 };
+  const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+  const all = [];
+  series.forEach(s => rows.forEach(r => { if (r[s.key] != null) all.push(r[s.key]); }));
+  if (all.length === 0) return '';
+  const maxV = Math.max(...all) * 1.1;
+  const minV = Math.max(0, Math.min(...all) * 0.9);
+  const xStep = rows.length > 1 ? iw / (rows.length - 1) : iw;
+  function x(i) { return pad.l + i * xStep; }
+  function y(v) { return pad.t + ih - ((v - minV) / (maxV - minV || 1)) * ih; }
+  let grid = '';
+  for (let i = 0; i <= 3; i++) {
+    const v = minV + (maxV - minV) * (i/3);
+    const yy = y(v);
+    grid += `<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#eef2f5"/>`;
+    grid += `<text x="${pad.l-5}" y="${yy+3}" font-size="9" fill="#607d8b" text-anchor="end">${v.toFixed(decimals)}</text>`;
+  }
+  let lines = '';
+  series.forEach(s => {
+    const pts = rows.map((r,i) => r[s.key] != null ? `${x(i)},${y(r[s.key])}` : null).filter(Boolean).join(' ');
+    lines += `<polyline points="${pts}" fill="none" stroke="${s.color}" stroke-width="2" ${s.dash?'stroke-dasharray="4,3"':''}/>`;
+    rows.forEach((r,i) => {
+      if (r[s.key] != null) {
+        lines += `<circle cx="${x(i)}" cy="${y(r[s.key])}" r="2.5" fill="${s.color}"><title>${r.date}: ${r[s.key].toFixed(decimals)}</title></circle>`;
+      }
+    });
+  });
+  let xlabels = '';
+  rows.forEach((r,i) => {
+    if (rows.length <= 7 || i === 0 || i === rows.length-1) {
+      xlabels += `<text x="${x(i)}" y="${h-8}" font-size="9" fill="#607d8b" text-anchor="middle">${r.date.slice(5)}</text>`;
+    }
+  });
+  return `<svg class="trend-svg" viewBox="0 0 ${w} ${h}">${grid}${lines}${xlabels}</svg>`;
+}
+
+function dualLineChart(rows) {
+  if (rows.length === 0) return '';
+  const w = 380, h = 160, pad = { l:34, r:34, t:12, b:24 };
+  const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+  const cVals = rows.map(r => r.totalCensus).filter(v => v!=null);
+  const fVals = rows.map(r => r.varAdjFTE).filter(v => v!=null);
+  if (cVals.length === 0 || fVals.length === 0) return '';
+  const cMax = Math.max(...cVals)*1.1, cMin = Math.min(...cVals)*0.9;
+  const fMax = Math.max(...fVals)*1.1, fMin = Math.min(...fVals)*0.9;
+  const xStep = rows.length > 1 ? iw / (rows.length-1) : iw;
+  function x(i) { return pad.l + i*xStep; }
+  function yC(v) { return pad.t + ih - ((v-cMin)/(cMax-cMin||1))*ih; }
+  function yF(v) { return pad.t + ih - ((v-fMin)/(fMax-fMin||1))*ih; }
+  let grid = '';
+  for (let i=0;i<=3;i++) {
+    const yy = pad.t + (ih*i)/3;
+    grid += `<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#eef2f5"/>`;
+    const cv = cMax - (cMax-cMin)*(i/3);
+    const fv = fMax - (fMax-fMin)*(i/3);
+    grid += `<text x="${pad.l-5}" y="${yy+3}" font-size="9" fill="#1b4f6e" text-anchor="end">${cv.toFixed(0)}</text>`;
+    grid += `<text x="${w-pad.r+5}" y="${yy+3}" font-size="9" fill="#c67a1a" text-anchor="start">${fv.toFixed(0)}</text>`;
+  }
+  const cPts = rows.map((r,i) => r.totalCensus!=null ? `${x(i)},${yC(r.totalCensus)}` : null).filter(Boolean).join(' ');
+  const fPts = rows.map((r,i) => r.varAdjFTE!=null ? `${x(i)},${yF(r.varAdjFTE)}` : null).filter(Boolean).join(' ');
+  let dots = '';
+  rows.forEach((r,i) => {
+    if (r.totalCensus!=null) dots += `<circle cx="${x(i)}" cy="${yC(r.totalCensus)}" r="2.5" fill="#1b4f6e"><title>${r.date}: census ${r.totalCensus}</title></circle>`;
+    if (r.varAdjFTE!=null) dots += `<circle cx="${x(i)}" cy="${yF(r.varAdjFTE)}" r="2.5" fill="#c67a1a"><title>${r.date}: ${r.varAdjFTE.toFixed(1)} FTE</title></circle>`;
+  });
+  let xlabels = '';
+  rows.forEach((r,i) => {
+    if (rows.length <= 7 || i === 0 || i === rows.length-1) {
+      xlabels += `<text x="${x(i)}" y="${h-8}" font-size="9" fill="#607d8b" text-anchor="middle">${r.date.slice(5)}</text>`;
+    }
+  });
+  return `<svg class="trend-svg" viewBox="0 0 ${w} ${h}">${grid}<polyline points="${cPts}" fill="none" stroke="#1b4f6e" stroke-width="2"/><polyline points="${fPts}" fill="none" stroke="#c67a1a" stroke-width="2"/>${dots}${xlabels}</svg>`;
+}
+
+function barChart(rows, key, color) {
+  if (rows.length === 0) return '';
+  const w = 380, h = 160, pad = { l:34, r:10, t:12, b:24 };
+  const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
+  const vals = rows.map(r => r[key] || 0);
+  const maxV = Math.max(...vals, 1) * 1.15;
+  const barW = iw / rows.length * 0.7;
+  const gap = iw / rows.length * 0.3;
+  function x(i) { return pad.l + i * (barW + gap) + gap/2; }
+  function y(v) { return pad.t + ih - (v / maxV) * ih; }
+  function bh(v) { return (v / maxV) * ih; }
+  let grid = '';
+  for (let i = 0; i <= 3; i++) {
+    const v = (maxV * i / 3);
+    const yy = pad.t + ih - (v/maxV)*ih;
+    grid += `<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#eef2f5"/>`;
+    grid += `<text x="${pad.l-5}" y="${yy+3}" font-size="9" fill="#607d8b" text-anchor="end">${v.toFixed(0)}</text>`;
+  }
+  let bars = '';
+  rows.forEach((r,i) => {
+    const v = r[key] || 0;
+    bars += `<rect x="${x(i)}" y="${y(v)}" width="${barW}" height="${bh(v)}" fill="${color}" rx="2"><title>${r.date}: ${v.toFixed(1)} hrs</title></rect>`;
+  });
+  let xlabels = '';
+  rows.forEach((r,i) => {
+    if (rows.length <= 7 || i === 0 || i === rows.length-1) {
+      xlabels += `<text x="${x(i)+barW/2}" y="${h-8}" font-size="9" fill="#607d8b" text-anchor="middle">${r.date.slice(5)}</text>`;
+    }
+  });
+  return `<svg class="trend-svg" viewBox="0 0 ${w} ${h}">${grid}${bars}${xlabels}</svg>`;
+}
+
+// ============================================================
+// DAILY DETAIL TABLE
+// ============================================================
+function renderDailyDetail(rows) {
+  let html = '<table class="detail-table"><thead><tr>' +
+    '<th>Date</th><th class="num">Census</th><th class="num">Occ %</th>' +
+    '<th class="num">Model Hrs</th><th class="num">Actual Hrs</th>' +
+    '<th class="num">Variance Hrs</th><th class="num">Variance %</th>' +
+    '<th class="num">OT Hrs</th><th class="num">1:1 Hrs</th><th class="num">NP Hrs</th>' +
+    '<th class="num">Model EPOB</th><th class="num">Actual EPOB</th><th class="num">EPOB Δ</th>' +
+    '</tr></thead><tbody>';
+  rows.slice().reverse().forEach(r => {
+    const varPctClass = r.variancePct == null ? '' : (Math.abs(r.variancePct) > 15 ? 'var-pos' : Math.abs(r.variancePct) > 5 ? '' : 'var-neg');
+    const npHrs = r.unitPayroll ? UNIT_KEYS.reduce((s,k) => s + ((r.unitPayroll[k] && r.unitPayroll[k].actualNpHrs) || 0), 0) : 0;
+    html += `<tr>
+      <td><strong>${r.date}</strong></td>
+      <td class="num">${r.totalCensus ?? '—'}</td>
+      <td class="num">${fmt(r.occupancyPct,1)}%</td>
+      <td class="num">${fmt(r.modelVarHrsDay,0)}</td>
+      <td class="num">${fmt(r.actualVarHrsDay,1)}</td>
+      <td class="num">${r.varianceHrsDay > 0 ? '+' : ''}${fmt(r.varianceHrsDay,1)}</td>
+      <td class="num ${varPctClass}">${fmtPct(r.variancePct)}</td>
+      <td class="num">${fmt(r.actualOtTotal,1)}</td>
+      <td class="num">${fmt(r.obsHrs,1)}</td>
+      <td class="num">${fmtInt(npHrs)}</td>
+      <td class="num">${fmt(r.modelDcEpob,2)}</td>
+      <td class="num">${fmt(r.actualDcEpob,2)}</td>
+      <td class="num">${fmt(r.dcEpobVariance,2)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('accordionBody').innerHTML = html;
+}
+
+function toggleAccordion() {
+  document.getElementById('dailyAccordion').classList.toggle('open');
+}
+
+function exportDetailCsv() {
+  const rows = getFilteredData();
+  if (rows.length === 0) return;
+  const header = ['Date','Census','Occ%','ModelHrs','ActualHrs','VarHrs','Var%','OT','Obs1to1','NPHrs','ModelEPOB','ActualEPOB','EPOBDelta'];
+  const lines = [header.join(',')];
+  rows.forEach(r => {
+    const npHrs = r.unitPayroll ? UNIT_KEYS.reduce((s,k) => s + ((r.unitPayroll[k] && r.unitPayroll[k].actualNpHrs) || 0), 0) : 0;
+    lines.push([r.date, r.totalCensus, r.occupancyPct, r.modelVarHrsDay, r.actualVarHrsDay, r.varianceHrsDay, r.variancePct, r.actualOtTotal, r.obsHrs, npHrs, r.modelDcEpob, r.actualDcEpob, r.dcEpobVariance].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], {type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `Highland_EPOB_${currentPeriod}_${new Date().toISOString().slice(0,10)}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// EVENT HANDLERS
+// ============================================================
+document.querySelectorAll('.period-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.period-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentPeriod = btn.dataset.period;
+    expandedUnit = null;
+    document.getElementById('customRange').classList.toggle('show', currentPeriod === 'custom');
+    if (currentPeriod === 'custom') {
+      // Default custom range to last 14 days
+      if (!customStart && allData.length) {
+        const end = allData[allData.length-1].date;
+        const start = allData[Math.max(0, allData.length-14)].date;
+        customStart = start; customEnd = end;
+        document.getElementById('dateFrom').value = start;
+        document.getElementById('dateTo').value = end;
+      }
+    }
+    render();
+  });
+});
+
+function applyCustomRange() {
+  customStart = document.getElementById('dateFrom').value;
+  customEnd = document.getElementById('dateTo').value;
+  if (customStart && customEnd) render();
+}
+
+document.querySelectorAll('#heatmapTable thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.sort;
+    if (currentSort.col === col) {
+      currentSort.dir = currentSort.dir === 'asc' ? 'desc' : 'asc';
+    } else {
+      currentSort.col = col;
+      currentSort.dir = 'desc';
+    }
+    expandedUnit = null;
+    renderHeatmap(getFilteredData());
+  });
+});
+
+// Boot
+init();
+</script>
+</body>
+</html>
