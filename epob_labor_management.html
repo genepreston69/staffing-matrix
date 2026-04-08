@@ -361,6 +361,39 @@ function normalizeData(json) {
   const byDate = new Map();
   rows.forEach(r => {
     if (!r || !r.date) return;
+    // Reconstruct nested structures from flat Power Automate fields if needed
+    if (!r.unitPayroll) {
+      r.unitPayroll = {};
+      UNIT_KEYS.forEach(uk => {
+        const hasAny = r['actualHrsDay_' + uk] != null || r['modelHrsDay_' + uk] != null;
+        if (hasAny) {
+          r.unitPayroll[uk] = {
+            actualHrsDay: r['actualHrsDay_' + uk],
+            actualHC: r['actualHC_' + uk],
+            actualOT: r['actualOT_' + uk],
+            actualNpHrs: r['actualNpHrs_' + uk],
+            modelHrsDay: r['modelHrsDay_' + uk],
+            varianceHrs: r['varianceHrs_' + uk],
+            variancePct: r['variancePct_' + uk]
+          };
+        }
+      });
+    }
+    if (!r.censusByUnit) {
+      r.censusByUnit = {};
+      UNIT_KEYS.forEach(uk => {
+        // Try multiple naming conventions
+        const v = r['census' + uk] ?? r['census_' + uk] ?? r['Census_' + uk];
+        if (v != null) r.censusByUnit[uk] = v;
+      });
+    }
+    if (!r.occPctByUnit) {
+      r.occPctByUnit = {};
+      UNIT_KEYS.forEach(uk => {
+        const v = r['occPct' + uk] ?? r['occPct_' + uk] ?? r['OccPct_' + uk];
+        if (v != null) r.occPctByUnit[uk] = v;
+      });
+    }
     const existing = byDate.get(r.date);
     if (!existing) {
       byDate.set(r.date, r);
@@ -1047,3 +1080,4 @@ init();
 </script>
 </body>
 </html>
+
