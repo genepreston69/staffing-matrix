@@ -1060,19 +1060,25 @@ const MTD_UNITS = [
   { key:'HRC',   label:'HRC',    sub:'SUD/Detox',    type:'detox', maxBeds:16, bu:'Acute Adult-100'  }
 ];
 
-// --- Model constants (mirror SharePoint flow) ---
+// --- Model constants (match SharePoint EPOB methodology) ---
 const NP_PCT = 0.126;
-const FIXED_FTE_BASELINE = 105.9; // from payroll baseline (5 PP ending 3/17/26)
+const DC_DIVISOR    = 5.714;   // = 40/7 — converts daily hours to FTE for 24/7 ops
+const OTHER_DIVISOR = 8;       // for non-direct-care variable depts (5-day-a-week ops)
+const DC_SALARY_FTE    = 2;     // salary FTEs added to direct care
+const TOTAL_SALARY_FTE = 33.625; // salary FTEs added to total facility
 
-// Workday column groups (exact header names)
-const WORKED_HOUR_COLS = [
-  'Regular Hours','OT Hours','DT Hours','Call Back Hours',
-  'Holiday Worked Hours','Light Duty Workers Comp Hours','Travel Hours'
+// Direct Care hour categories (per Highland SharePoint methodology)
+//   Used for Direct Care EPOB only — excludes paid-not-worked time
+const DC_HOUR_COLS = [
+  'Regular Hours',
+  'Holiday Worked Hours',
+  'OT Hours',
+  'Orientation Hours',
+  'Training Hours',
+  'Light Duty Workers Comp Hours'
 ];
-const NP_HOUR_COLS = [
-  'PTO Hours','Sick Hours','Holiday Hours','Orientation Hours','Training Hours',
-  'Continuing Education Hours','Education Pay Hours','Jury Duty Hours','Bereavement Hours'
-];
+// Total EPOB uses "All Paid Hours" from TT Time Summary
+const ALL_PAID_COL = 'All Paid Hours';
 
 // --- Census-driven model hrs/day per unit (matches embedded SharePoint data) ---
 function modelHrsForUnit(type, census) {
@@ -1084,14 +1090,15 @@ function modelHrsForUnit(type, census) {
 }
 
 // --- State (persisted) ---
-const MTD_STORAGE_KEY = 'highland_mtd_recon_v1';
+const MTD_STORAGE_KEY = 'highland_mtd_recon_v2';
 let mtdState = {
   start: '',
   end: '',
   fileName: '',
   adc: {},        // {unitKey: number}
-  oneToOne: {},   // {unitKey: hrs/day}
-  actuals: {}     // {unitKey: {hours, ot, np, hc}}
+  oneToOne: {},   // {unitKey: total period 1:1 hrs}
+  actuals: {},    // {unitKey: {dcHours, allPaid, ot, hc}}
+  otherAllPaid: 0 // sum of All Paid Hours for non-direct-care BUs
 };
 
 function saveMtd() {
@@ -1139,7 +1146,7 @@ function buildMtdUnitGrid() {
   });
 }
 
-// --- Workday XLSX parser (exact column names from Highland Time Summary export) ---
+// --- Workday XLSX parser (Highland SharePoint methodology) ---
 function parseMtdFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
@@ -1148,7 +1155,7 @@ function parseMtdFile(file) {
       const sheet = wb.Sheets[wb.SheetNames[0]];
       const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
 
-      // Find header row (row containing "Business Units")
+      // Find header row
       let hdrIdx = -1, headers = [];
       for (let i=0; i<Math.min(rows.length, 25); i++) {
         const r = (rows[i]||[]).map(c => String(c).toLowerCase().trim());
@@ -1163,21 +1170,22 @@ function parseMtdFile(file) {
         return;
       }
 
-      // Build header → index map (case-insensitive exact match)
+      // Header → index map (case-insensitive exact match)
       const idx = {};
       headers.forEach((h, i) => { idx[h.toLowerCase()] = i; });
-      const findIdx = name => idx[name.toLowerCase()] ?? -1;
+      const findIdx = name => name.toLowerCase() in idx ? idx[name.toLowerCase()] : -1;
 
       const buCol     = findIdx('Business Units') >= 0 ? findIdx('Business Units') : findIdx('Business Unit');
       const workerCol = findIdx('Worker');
       const otCol     = findIdx('OT Hours');
+      const allPaidCol= findIdx(ALL_PAID_COL);
 
-      // Resolve worked + NP column indexes once
-      const workedIdxs = WORKED_HOUR_COLS.map(findIdx).filter(i => i >= 0);
-      const npIdxs     = NP_HOUR_COLS.map(findIdx).filter(i => i >= 0);
+      // Resolve direct-care hour column indexes once
+      const dcIdxs = DC_HOUR_COLS.map(findIdx).filter(i => i >= 0);
+      const missingDcCols = DC_HOUR_COLS.filter(c => findIdx(c) < 0);
 
-      if (buCol < 0 || workedIdxs.length === 0) {
-        showMtdWarn('Required columns not found. Need "Business Units" and at least one worked-hours column (e.g. "Regular Hours").');
+      if (buCol < 0 || dcIdxs.length === 0 || allPaidCol < 0) {
+        showMtdWarn('Required columns not found. Need Business Units, All Paid Hours, and at least one direct-care hour column.');
         return;
       }
 
@@ -1187,45 +1195,57 @@ function parseMtdFile(file) {
 
       // Aggregate
       const agg = {};
-      MTD_UNITS.forEach(u => agg[u.key] = { worked:0, ot:0, np:0, workers:new Set() });
+      MTD_UNITS.forEach(u => agg[u.key] = { dcHours:0, allPaid:0, ot:0, workers:new Set() });
+      let otherAllPaid = 0;
+      const otherBus = new Set();
       const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
 
-      let matched = 0, skipped = 0;
+      let dcMatched = 0, otherCount = 0;
       for (let i=hdrIdx+1; i<rows.length; i++) {
         const row = rows[i];
         if (!row || row.length === 0) continue;
         const buRaw = String(row[buCol]||'').trim();
         if (!buRaw) continue;
         const key = buMap[buRaw.toLowerCase()];
-        if (!key) { skipped++; continue; }
+        const allPaid = num(row[allPaidCol]);
 
-        let worked = 0;
-        workedIdxs.forEach(c => { worked += num(row[c]); });
-        let np = 0;
-        npIdxs.forEach(c => { np += num(row[c]); });
-        const ot = otCol >= 0 ? num(row[otCol]) : 0;
-
-        agg[key].worked += worked;
-        agg[key].ot     += ot;
-        agg[key].np     += np;
-        if (workerCol >= 0 && row[workerCol]) agg[key].workers.add(String(row[workerCol]));
-        matched++;
+        if (key) {
+          let dc = 0;
+          dcIdxs.forEach(c => { dc += num(row[c]); });
+          const ot = otCol >= 0 ? num(row[otCol]) : 0;
+          agg[key].dcHours += dc;
+          agg[key].allPaid += allPaid;
+          agg[key].ot      += ot;
+          if (workerCol >= 0 && row[workerCol]) agg[key].workers.add(String(row[workerCol]));
+          dcMatched++;
+        } else {
+          otherAllPaid += allPaid;
+          otherBus.add(buRaw);
+          otherCount++;
+        }
       }
 
       mtdState.actuals = {};
       Object.keys(agg).forEach(k => {
         mtdState.actuals[k] = {
-          worked: agg[k].worked,
-          ot:     agg[k].ot,
-          np:     agg[k].np,
-          hc:     agg[k].workers.size || null
+          dcHours: agg[k].dcHours,
+          allPaid: agg[k].allPaid,
+          ot:      agg[k].ot,
+          hc:      agg[k].workers.size || null
         };
       });
+      mtdState.otherAllPaid = otherAllPaid;
       mtdState.fileName = file.name;
       saveMtd();
-      document.getElementById('mtdFileStatus').textContent = `${file.name} · ${matched} rows matched, ${skipped} non-variable rows skipped`;
+
+      const status = `${file.name} · ${dcMatched} direct-care rows · ${otherCount} other rows (${otherBus.size} other depts)`;
+      document.getElementById('mtdFileStatus').textContent = status;
       document.getElementById('mtdFileStatus').classList.add('loaded');
-      hideMtdWarn();
+      if (missingDcCols.length) {
+        showMtdWarn('Missing optional DC columns: ' + missingDcCols.join(', '));
+      } else {
+        hideMtdWarn();
+      }
       renderMtd();
     } catch(err) {
       showMtdWarn('Failed to parse file: ' + err.message);
@@ -1253,35 +1273,48 @@ function mtdDayCount() {
 }
 
 // --- Aggregate per unit and facility for the MTD period ---
-// FTE convention (matches SharePoint flow):
-//   - Worked hours from payroll already exclude paid-not-worked time
-//   - Productive worked hrs/day = (worked - NP) / days   [NP subtracted out]
-//   - FTE = prod_hrs/day × 7 / 40                        [no NP gross-up on actual]
-//   - Model FTE = model_hrs/day × 7 / 40 / (1 - NP%)     [NP gross-up applied to model]
-//   - Obs (1:1) FTE add-on for model only: total_obs_hrs / 40 / (1 - NP%) over the week,
-//     i.e. (obs_hrs/day × 7) / 40 / (1 - NP%)
+//
+// SHAREPOINT EPOB METHODOLOGY (per Highland documentation):
+//
+// DIRECT CARE EPOB:
+//   Sum these 6 categories per direct-care BU:
+//     Regular Hours + Holiday Worked Hours + OT Hours
+//     + Orientation Hours + Training Hours + Light Duty Workers Comp Hours
+//   Total Direct Care Hours / 5.714 (per day) = Direct Care FTEs
+//   + 2 salary FTEs
+//   ÷ ADC = Direct Care EPOB
+//
+// TOTAL FACILITY EPOB:
+//   Direct care depts All Paid Hours / 5.714 (per day) = DC FTEs
+//   Other (variable) depts All Paid Hours / 8 (per day) = Other FTEs
+//   + 33.625 salary FTEs
+//   ÷ ADC = Total EPOB
+//
+// MODEL side uses staffing-matrix grid hours grossed up by NP% + 1:1 obs FTE,
+// then the SAME +2 salary / +33.625 salary / +other-dept actuals are added so
+// model and actual EPOBs are directly comparable.
 function buildMtdRows() {
   const days = mtdDayCount();
   return MTD_UNITS.map(u => {
     const adc = mtdState.adc[u.key];
-    const otoTotal = mtdState.oneToOne[u.key] || 0;     // total 1:1 hrs for the period
+    const otoTotal  = mtdState.oneToOne[u.key] || 0;     // total 1:1 hrs for the period
     const otoPerDay = days > 0 ? otoTotal / days : 0;
-    const act = mtdState.actuals[u.key] || { worked:0, ot:0, np:0, hc:null };
+    const act = mtdState.actuals[u.key] || { dcHours:0, allPaid:0, ot:0, hc:null };
     const modelHrsDay   = modelHrsForUnit(u.type, adc);
-    const workedHrsDay  = days > 0 ? act.worked / days : 0;
-    const npHrsDay      = days > 0 ? act.np     / days : 0;
-    const actualHrsDay  = workedHrsDay - npHrsDay;       // productive only
-    const varianceHrs   = actualHrsDay - modelHrsDay;
+    const dcHrsDay      = days > 0 ? act.dcHours / days : 0;   // direct care productive hrs/day
+    const allPaidHrsDay = days > 0 ? act.allPaid / days : 0;   // for total EPOB
+    const varianceHrs   = dcHrsDay - modelHrsDay;
     const variancePct   = modelHrsDay > 0 ? (varianceHrs / modelHrsDay) * 100 : null;
-    // 1:1 obs hrs/day → adj FTE add (model side)
-    const obsFteAdj = (otoPerDay * 7) / 40 / (1 - NP_PCT);
+    // Per-unit FTE views
+    const actualUnitFte = dcHrsDay / DC_DIVISOR;                            // direct care FTE
+    const obsFteAdj     = (otoPerDay * 7) / 40 / (1 - NP_PCT);              // model side only
     return {
       unit: u, adc, oneToOneTotal: otoTotal, oneToOnePerDay: otoPerDay,
-      workedHours: act.worked, npHours: act.np,
-      workedHrsDay, npHrsDay,
-      actualHrsDay, actualOT: act.ot, actualHC: act.hc,
+      dcHours: act.dcHours, allPaidHours: act.allPaid,
+      dcHrsDay, allPaidHrsDay, npImpliedHrsDay: allPaidHrsDay - dcHrsDay,
+      actualHrsDay: dcHrsDay, actualOT: act.ot, actualHC: act.hc,
       modelHrsDay, varianceHrs, variancePct,
-      obsFteAdj
+      actualUnitFte, obsFteAdj
     };
   });
 }
@@ -1290,30 +1323,49 @@ function aggregateMtdFacility(rows) {
   const days = mtdDayCount();
   const validAdc = rows.filter(r => r.adc != null && r.adc > 0);
   const totalAdc = validAdc.reduce((s,r) => s + r.adc, 0);
-  const totalModelHrsDay  = rows.reduce((s,r) => s + r.modelHrsDay, 0);
-  const totalActualHrsDay = rows.reduce((s,r) => s + r.actualHrsDay, 0);   // already productive
-  const totalOt           = rows.reduce((s,r) => s + r.actualOT, 0);
-  const totalObsFte       = rows.reduce((s,r) => s + r.obsFteAdj, 0);
 
-  // Model: grid hrs are productive → ×7/40 → adj via NP gross-up + obs FTE
-  const modelVarFteProd = (totalModelHrsDay * 7) / 40;
-  const modelVarFteAdj  = modelVarFteProd / (1 - NP_PCT) + totalObsFte;
+  const totalModelHrsDay   = rows.reduce((s,r) => s + r.modelHrsDay,    0);
+  const totalDcHrsDay      = rows.reduce((s,r) => s + r.dcHrsDay,       0);
+  const totalAllPaidHrsDay = rows.reduce((s,r) => s + r.allPaidHrsDay,  0);
+  const totalOt            = rows.reduce((s,r) => s + r.actualOT,       0);
+  const totalObsFte        = rows.reduce((s,r) => s + r.obsFteAdj,      0);
 
-  // Actual: NP already removed → ×7/40 directly, no gross-up
-  const actualVarFte    = (totalActualHrsDay * 7) / 40;
+  // Other (non-direct-care) departments — per SharePoint Total EPOB methodology
+  const otherAllPaidHrsDay = days > 0 ? (mtdState.otherAllPaid || 0) / days : 0;
+  const otherFte = otherAllPaidHrsDay / OTHER_DIVISOR;
 
-  const modelDcEpob   = totalAdc > 0 ? modelVarFteAdj / totalAdc : null;
-  const actualDcEpob  = totalAdc > 0 ? actualVarFte   / totalAdc : null;
-  const modelTotalEpob  = totalAdc > 0 ? (modelVarFteAdj + FIXED_FTE_BASELINE) / totalAdc : null;
-  const actualTotalEpob = totalAdc > 0 ? (actualVarFte   + FIXED_FTE_BASELINE) / totalAdc : null;
-  const variancePct = totalModelHrsDay > 0 ? ((totalActualHrsDay - totalModelHrsDay)/totalModelHrsDay)*100 : null;
+  // === DIRECT CARE EPOB ===
+  // Actual: DC hours / 5.714 + 2 salary
+  const actualDcFte = totalDcHrsDay / DC_DIVISOR;
+  // Model: grid hrs grossed up by NP% + obs FTE + 2 salary (for apples-to-apples)
+  const modelGridFte    = (totalModelHrsDay * 7) / 40 / (1 - NP_PCT);
+  const modelDcFte      = modelGridFte + totalObsFte;
+  const actualDcEpob = totalAdc > 0 ? (actualDcFte + DC_SALARY_FTE) / totalAdc : null;
+  const modelDcEpob  = totalAdc > 0 ? (modelDcFte  + DC_SALARY_FTE) / totalAdc : null;
+
+  // === TOTAL FACILITY EPOB ===
+  // Actual: DC All Paid /5.714 + Other All Paid /8 + 33.625
+  const actualDcAllPaidFte = totalAllPaidHrsDay / DC_DIVISOR;
+  const actualTotalFte = actualDcAllPaidFte + otherFte + TOTAL_SALARY_FTE;
+  // Model: model DC FTE (already grossed up to all-paid equivalent) + same other + 33.625
+  const modelTotalFte  = modelDcFte + otherFte + TOTAL_SALARY_FTE;
+  const actualTotalEpob = totalAdc > 0 ? actualTotalFte / totalAdc : null;
+  const modelTotalEpob  = totalAdc > 0 ? modelTotalFte  / totalAdc : null;
+
+  const variancePct = totalModelHrsDay > 0
+    ? ((totalDcHrsDay - totalModelHrsDay)/totalModelHrsDay)*100 : null;
+
   return {
     days, totalAdc,
-    totalModelHrsDay, totalActualHrsDay,
-    varianceHrsDay: totalActualHrsDay - totalModelHrsDay,
+    totalModelHrsDay,
+    totalActualHrsDay: totalDcHrsDay,           // for KPI display (DC hrs/day)
+    totalAllPaidHrsDay,
+    varianceHrsDay: totalDcHrsDay - totalModelHrsDay,
     variancePct,
     totalOt,
-    modelVarFteAdj, actualVarFte,
+    actualDcFte, modelDcFte,
+    actualDcAllPaidFte, otherFte,
+    actualTotalFte, modelTotalFte,
     modelDcEpob, actualDcEpob,
     modelTotalEpob, actualTotalEpob
   };
@@ -1393,7 +1445,7 @@ function renderMtdHeatmap(rows) {
 
   let html = '';
   sorted.forEach(r => {
-    if (r.adc == null && r.workedHours === 0) return;
+    if (r.adc == null && r.dcHours === 0) return;
     const status = statusFromVar(r.variancePct);
     const varPctClass = r.variancePct == null ? 'var-neutral' : (r.variancePct > 0 ? 'var-pos' : 'var-neg');
     const varHrsClass = r.varianceHrs == null ? 'var-neutral' : (r.varianceHrs > 0 ? 'var-pos' : 'var-neg');
@@ -1417,10 +1469,11 @@ function renderMtdHeatmap(rows) {
 // --- Render per-unit detail table ---
 function renderMtdDetail(rows) {
   let html = '<table class="detail-table"><thead><tr>' +
-    '<th>Unit</th><th>BU</th><th class="num">ADC</th><th class="num">1:1 Hrs (period)</th>' +
-    '<th class="num">Worked Hrs</th><th class="num">NP Hrs</th><th class="num">Prod Hrs/Day</th>' +
-    '<th class="num">Model Hrs/Day</th><th class="num">Var Hrs</th><th class="num">Var %</th>' +
-    '<th class="num">OT Hrs</th><th class="num">HC</th>' +
+    '<th>Unit</th><th>BU</th><th class="num">ADC</th><th class="num">1:1 Hrs</th>' +
+    '<th class="num">DC Hrs</th><th class="num">All Paid</th>' +
+    '<th class="num">DC Hrs/Day</th><th class="num">Model Hrs/Day</th>' +
+    '<th class="num">Var Hrs</th><th class="num">Var %</th>' +
+    '<th class="num">Unit FTE</th><th class="num">OT</th><th class="num">HC</th>' +
     '</tr></thead><tbody>';
   rows.forEach(r => {
     const cls = r.variancePct == null ? '' : (Math.abs(r.variancePct) > 15 ? 'var-pos' : Math.abs(r.variancePct) > 5 ? '' : 'var-neg');
@@ -1429,17 +1482,66 @@ function renderMtdDetail(rows) {
       <td style="font-family:monospace;font-size:11px;color:var(--gray-500);">${r.unit.bu}</td>
       <td class="num">${fmt(r.adc,1)}</td>
       <td class="num">${fmt(r.oneToOneTotal,1)}</td>
-      <td class="num">${fmt(r.workedHours,1)}</td>
-      <td class="num">${fmt(r.npHours,1)}</td>
-      <td class="num">${fmt(r.actualHrsDay,1)}</td>
+      <td class="num">${fmt(r.dcHours,1)}</td>
+      <td class="num">${fmt(r.allPaidHours,1)}</td>
+      <td class="num">${fmt(r.dcHrsDay,1)}</td>
       <td class="num">${fmt(r.modelHrsDay,0)}</td>
       <td class="num">${r.varianceHrs > 0 ? '+' : ''}${fmt(r.varianceHrs,1)}</td>
       <td class="num ${cls}">${fmtPct(r.variancePct)}</td>
+      <td class="num">${fmt(r.actualUnitFte,2)}</td>
       <td class="num">${fmt(r.actualOT,1)}</td>
       <td class="num">${r.actualHC ?? '—'}</td>
     </tr>`;
   });
+  // Footer row with facility totals
+  const totDc      = rows.reduce((s,r)=>s+r.dcHours,0);
+  const totAllPaid = rows.reduce((s,r)=>s+r.allPaidHours,0);
+  const totDcDay   = rows.reduce((s,r)=>s+r.dcHrsDay,0);
+  const totModel   = rows.reduce((s,r)=>s+r.modelHrsDay,0);
+  const totFte     = rows.reduce((s,r)=>s+r.actualUnitFte,0);
+  const totOt      = rows.reduce((s,r)=>s+r.actualOT,0);
+  html += `<tr style="background:var(--off-white);font-weight:700;border-top:2px solid var(--navy);">
+    <td colspan="4">DIRECT CARE TOTAL</td>
+    <td class="num">${fmt(totDc,1)}</td>
+    <td class="num">${fmt(totAllPaid,1)}</td>
+    <td class="num">${fmt(totDcDay,1)}</td>
+    <td class="num">${fmt(totModel,0)}</td>
+    <td class="num">${fmt(totDcDay-totModel,1)}</td>
+    <td class="num">${fmtPct(totModel>0 ? (totDcDay-totModel)/totModel*100 : null)}</td>
+    <td class="num">${fmt(totFte,2)}</td>
+    <td class="num">${fmt(totOt,1)}</td>
+    <td class="num">—</td>
+  </tr>`;
   html += '</tbody></table>';
+
+  // Methodology + other-dept summary block
+  const days = mtdDayCount();
+  const otherPaid = mtdState.otherAllPaid || 0;
+  const otherDaily = days > 0 ? otherPaid/days : 0;
+  const otherFte   = otherDaily / OTHER_DIVISOR;
+  html += `
+    <div style="margin-top:18px;padding:14px 18px;background:var(--off-white);border-radius:8px;border:1px solid var(--gray-200);font-size:12px;color:var(--gray-700);">
+      <div style="font-weight:700;color:var(--navy);margin-bottom:8px;font-size:13px;">EPOB Calculation Walk</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;">
+        <div>
+          <div style="font-weight:600;color:var(--navy);margin-bottom:4px;">Direct Care EPOB</div>
+          <div>DC Hours (period): <strong>${fmt(totDc,1)}</strong></div>
+          <div>÷ ${days} days = <strong>${fmt(totDcDay,1)}</strong> hrs/day</div>
+          <div>÷ ${DC_DIVISOR} = <strong>${fmt(totDcDay/DC_DIVISOR,2)}</strong> DC FTE</div>
+          <div>+ ${DC_SALARY_FTE} salary FTE = <strong>${fmt(totDcDay/DC_DIVISOR + DC_SALARY_FTE,2)}</strong></div>
+          <div>÷ ${rows.reduce((s,r)=>s+(r.adc||0),0)} ADC = <strong style="color:var(--navy);">${fmt((totDcDay/DC_DIVISOR + DC_SALARY_FTE)/Math.max(rows.reduce((s,r)=>s+(r.adc||0),0),1),3)} EPOB</strong></div>
+        </div>
+        <div>
+          <div style="font-weight:600;color:var(--navy);margin-bottom:4px;">Total Facility EPOB</div>
+          <div>DC All Paid: <strong>${fmt(totAllPaid,1)}</strong> → ${fmt(totAllPaid/Math.max(days,1)/DC_DIVISOR,2)} FTE</div>
+          <div>Other depts All Paid: <strong>${fmt(otherPaid,1)}</strong> → ${fmt(otherFte,2)} FTE (÷${OTHER_DIVISOR})</div>
+          <div>+ ${TOTAL_SALARY_FTE} salary FTE</div>
+          <div>= <strong>${fmt(totAllPaid/Math.max(days,1)/DC_DIVISOR + otherFte + TOTAL_SALARY_FTE,2)}</strong> total FTE</div>
+          <div>÷ ${rows.reduce((s,r)=>s+(r.adc||0),0)} ADC = <strong style="color:var(--navy);">${fmt((totAllPaid/Math.max(days,1)/DC_DIVISOR + otherFte + TOTAL_SALARY_FTE)/Math.max(rows.reduce((s,r)=>s+(r.adc||0),0),1),3)} EPOB</strong></div>
+        </div>
+      </div>
+    </div>
+  `;
   document.getElementById('mtdAccordionBody').innerHTML = html;
 }
 
@@ -1463,7 +1565,7 @@ function recomputeMtd() { renderMtd(); }
 
 function resetMtd() {
   if (!confirm('Clear all MTD reconciliation inputs (dates, ADC, 1:1 hours, uploaded file)?')) return;
-  mtdState = { start:'', end:'', fileName:'', adc:{}, oneToOne:{}, actuals:{} };
+  mtdState = { start:'', end:'', fileName:'', adc:{}, oneToOne:{}, actuals:{}, otherAllPaid:0 };
   saveMtd();
   document.getElementById('mtdStart').value = '';
   document.getElementById('mtdEnd').value = '';
