@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Highland Hospital — EPOB & Labor Management</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700&family=Source+Sans+3:wght@300;400;500;600;700&display=swap');
 
@@ -58,13 +59,12 @@
   .refresh-btn:hover { background:var(--teal); color:var(--white); }
 
   /* Hero KPI Cards */
-  .kpi-row { display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; margin-bottom:28px; }
+  .kpi-row { display:grid; grid-template-columns:repeat(5, 1fr); gap:14px; margin-bottom:28px; }
   .kpi-card { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-md); padding:18px 20px; position:relative; overflow:hidden; }
   .kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; background:var(--navy); }
   .kpi-card.epob::before { background:var(--teal); }
   .kpi-card.ot::before { background:var(--warning); }
   .kpi-card.var::before { background:var(--danger); }
-  .kpi-card.obs::before { background:#8e44ad; }
   .kpi-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.8px; color:var(--gray-500); margin-bottom:8px; }
   .kpi-big { font-size:34px; font-weight:700; color:var(--navy); line-height:1.05; font-variant-numeric:tabular-nums; }
   .kpi-sub { font-size:11px; color:var(--gray-500); margin-top:4px; }
@@ -79,11 +79,6 @@
   .kpi-big.success { color:var(--success); }
   .kpi-big.warning { color:var(--warning); }
   .kpi-big.danger { color:var(--danger); }
-  .obs-impact-table { width:100%; border-collapse:collapse; margin-top:6px; }
-  .obs-impact-table th { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; color:var(--gray-500); text-align:right; padding:2px 4px; border-bottom:1px solid var(--gray-200); }
-  .obs-impact-table th:first-child { text-align:left; }
-  .obs-impact-table td { font-size:14px; font-weight:700; color:var(--navy); font-variant-numeric:tabular-nums; text-align:right; padding:5px 4px; }
-  .obs-impact-table td.rl { font-size:11px; font-weight:600; color:var(--gray-500); text-align:left; text-transform:uppercase; letter-spacing:0.3px; }
 
   /* Section Headers */
   .section-header { margin:32px 0 16px; padding-bottom:10px; border-bottom:2px solid var(--gray-200); display:flex; align-items:center; justify-content:space-between; }
@@ -141,7 +136,7 @@
   .drill-chart-title { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.5px; color:var(--gray-500); margin-bottom:8px; }
 
   /* Trend Charts */
-  .trends-row { display:grid; grid-template-columns:repeat(4, 1fr); gap:16px; margin-bottom:28px; }
+  .trends-row { display:grid; grid-template-columns:repeat(3, 1fr); gap:18px; margin-bottom:28px; }
   .trend-card { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-md); padding:18px 20px; }
   .trend-title { font-size:12px; font-weight:700; text-transform:uppercase; letter-spacing:0.6px; color:var(--gray-500); margin-bottom:4px; }
   .trend-sub { font-size:11px; color:var(--gray-300); margin-bottom:12px; }
@@ -180,20 +175,57 @@
 
   .footer { text-align:center; padding:24px; font-size:11px; color:var(--gray-500); border-top:1px solid var(--gray-200); margin-top:40px; }
 
-  @media (max-width:1400px) {
+  @media (max-width:1200px) {
     .kpi-row { grid-template-columns:repeat(3, 1fr); }
-    .trends-row { grid-template-columns:repeat(2, 1fr); }
-  }
-  @media (max-width:900px) {
-    .kpi-row { grid-template-columns:repeat(2, 1fr); }
     .trends-row { grid-template-columns:1fr; }
   }
   @media (max-width:700px) {
-    .kpi-row { grid-template-columns:1fr; }
+    .kpi-row { grid-template-columns:1fr 1fr; }
     .heatmap-table { font-size:11px; }
     .heatmap-table thead th, .heatmap-table tbody td { padding:8px 6px; }
     .drill-grid { grid-template-columns:1fr; }
   }
+
+  /* ===== Source-tab navigation ===== */
+  .src-tabs { display:flex; gap:4px; margin:0 0 24px 0; border-bottom:2px solid var(--gray-200); }
+  .src-tab-btn { padding:12px 28px; border:none; background:none; font-family:'Source Sans 3',sans-serif; font-size:14px; font-weight:600; color:var(--gray-500); cursor:pointer; border-bottom:3px solid transparent; margin-bottom:-2px; transition:all .2s; display:flex; align-items:center; gap:8px; }
+  .src-tab-btn:hover { color:var(--teal); }
+  .src-tab-btn.active { color:var(--navy); border-bottom-color:var(--teal); }
+  .src-tab-btn .pill { font-size:10px; font-weight:700; letter-spacing:.5px; padding:2px 8px; border-radius:10px; background:var(--gray-100); color:var(--gray-500); text-transform:uppercase; }
+  .src-tab-btn.active .pill { background:var(--teal-wash); color:var(--navy); }
+  .src-panel { display:none; } .src-panel.active { display:block; }
+
+  /* ===== MTD Recon panel ===== */
+  .mtd-input-card { background:var(--white); border-radius:var(--radius-lg); border:1px solid var(--gray-200); box-shadow:var(--shadow-md); padding:22px 26px; margin-bottom:24px; }
+  .mtd-input-card h3 { font-family:'Merriweather',serif; font-size:16px; color:var(--navy); margin:0 0 4px 0; font-weight:700; }
+  .mtd-input-card .sub { font-size:12px; color:var(--gray-500); margin-bottom:18px; }
+  .mtd-row { display:flex; gap:24px; flex-wrap:wrap; align-items:flex-end; }
+  .mtd-field { display:flex; flex-direction:column; gap:6px; }
+  .mtd-field label { font-size:11px; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:.5px; }
+  .mtd-field input[type="date"], .mtd-field input[type="number"] { padding:9px 12px; border:1px solid var(--gray-200); border-radius:6px; font-family:'Source Sans 3',sans-serif; font-size:14px; color:var(--gray-900); background:var(--white); }
+  .mtd-field input:focus { outline:none; border-color:var(--teal); box-shadow:0 0 0 3px var(--teal-wash); }
+  .mtd-upload { display:inline-flex; align-items:center; gap:10px; padding:10px 18px; background:var(--navy); color:var(--white); border:none; border-radius:6px; font-family:'Source Sans 3',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:background .2s; }
+  .mtd-upload:hover { background:var(--navy-deep); }
+  .mtd-upload input { display:none; }
+  .mtd-file-status { font-size:12px; color:var(--gray-500); margin-left:12px; }
+  .mtd-file-status.loaded { color:var(--success); font-weight:600; }
+  .mtd-unit-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(210px,1fr)); gap:14px; margin-top:18px; }
+  .mtd-unit-card { background:var(--off-white); border:1px solid var(--gray-200); border-radius:8px; padding:14px 16px; }
+  .mtd-unit-card .name { font-size:13px; font-weight:700; color:var(--navy); margin-bottom:2px; }
+  .mtd-unit-card .bu { font-size:10px; color:var(--gray-500); font-family:monospace; margin-bottom:10px; }
+  .mtd-unit-card .inputs { display:flex; gap:10px; }
+  .mtd-unit-card .inputs > div { flex:1; }
+  .mtd-unit-card .inputs label { font-size:10px; font-weight:600; color:var(--gray-500); text-transform:uppercase; display:block; margin-bottom:3px; }
+  .mtd-unit-card .inputs input { width:100%; padding:6px 8px; border:1px solid var(--gray-200); border-radius:4px; font-size:13px; font-family:'Source Sans 3',sans-serif; box-sizing:border-box; }
+  .mtd-actions { display:flex; gap:10px; align-items:center; margin-top:18px; padding-top:16px; border-top:1px solid var(--gray-100); }
+  .mtd-btn { padding:9px 20px; border:none; border-radius:6px; font-family:'Source Sans 3',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:all .2s; }
+  .mtd-btn.primary { background:var(--teal); color:var(--white); }
+  .mtd-btn.primary:hover { background:var(--navy); }
+  .mtd-btn.ghost { background:transparent; color:var(--gray-500); border:1px solid var(--gray-200); }
+  .mtd-btn.ghost:hover { color:var(--navy); border-color:var(--navy); }
+  .mtd-meta { font-size:11px; color:var(--gray-500); margin-left:auto; }
+  .mtd-warn { background:#fff8e6; border:1px solid #f4d77a; color:#7a5a00; padding:10px 14px; border-radius:6px; font-size:12px; margin-top:14px; display:none; }
+  .mtd-warn.show { display:block; }
 </style>
 </head>
 <body>
@@ -218,6 +250,15 @@
 
   <h1 class="page-title">EPOB & Labor <span>Management</span></h1>
   <div class="page-sub">Census-driven model vs payroll actuals · Direct care productivity tracking · Hours-based variance analysis</div>
+
+  <!-- Source Tabs -->
+  <div class="src-tabs">
+    <button class="src-tab-btn active" data-src="sp">SharePoint Daily <span class="pill">Live</span></button>
+    <button class="src-tab-btn" data-src="mtd">MTD Reconciliation <span class="pill">Workday</span></button>
+  </div>
+
+  <!-- ============ SHAREPOINT PANEL ============ -->
+  <div class="src-panel active" id="panel-sp">
 
   <!-- Control Bar -->
   <div class="control-bar">
@@ -291,9 +332,86 @@
     <div class="accordion-body" id="accordionBody"></div>
   </div>
 
+  </div><!-- /panel-sp -->
+
+  <!-- ============ MTD RECONCILIATION PANEL ============ -->
+  <div class="src-panel" id="panel-mtd">
+
+    <div class="mtd-input-card">
+      <h3>MTD Reconciliation Inputs</h3>
+      <div class="sub">Upload a Workday Time Summary covering the period below, then enter average daily census and 1:1 observation hours per unit. Inputs persist locally — no flow, no SharePoint dependency. Use this to reconcile against the daily SharePoint feed when time entries lag.</div>
+
+      <div class="mtd-row">
+        <div class="mtd-field">
+          <label>Period Start</label>
+          <input type="date" id="mtdStart">
+        </div>
+        <div class="mtd-field">
+          <label>Period End</label>
+          <input type="date" id="mtdEnd">
+        </div>
+        <div class="mtd-field">
+          <label>Workday Time Summary (.xlsx)</label>
+          <label class="mtd-upload">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            Choose File
+            <input type="file" id="mtdFile" accept=".xlsx,.xls">
+          </label>
+          <span class="mtd-file-status" id="mtdFileStatus">No file loaded</span>
+        </div>
+      </div>
+
+      <div class="mtd-warn" id="mtdWarn"></div>
+
+      <div class="mtd-unit-grid" id="mtdUnitGrid"></div>
+
+      <div class="mtd-actions">
+        <button class="mtd-btn primary" onclick="recomputeMtd()">Recalculate</button>
+        <button class="mtd-btn ghost" onclick="resetMtd()">Reset Inputs</button>
+        <span class="mtd-meta" id="mtdMeta"></span>
+      </div>
+    </div>
+
+    <!-- Same UI structure as SharePoint panel -->
+    <div class="kpi-row" id="mtdKpiRow"></div>
+
+    <div class="section-header">
+      <h2>Unit-Level Variance <span class="sub">Aggregated over the selected MTD period · Click headers to sort</span></h2>
+    </div>
+    <div class="heatmap-wrap">
+      <table class="heatmap-table" id="mtdHeatmapTable">
+        <thead>
+          <tr>
+            <th data-sort="name">Unit</th>
+            <th class="num" data-sort="census">ADC</th>
+            <th class="num" data-sort="model">Model Hrs/Day</th>
+            <th class="num" data-sort="actual">Actual Hrs/Day</th>
+            <th class="num" data-sort="variance">Variance Hrs</th>
+            <th class="num sort-desc" data-sort="variancePct">Variance %</th>
+            <th class="num" data-sort="ot">OT Hrs</th>
+            <th data-sort="status">Status</th>
+          </tr>
+        </thead>
+        <tbody id="mtdHeatmapBody"></tbody>
+      </table>
+    </div>
+
+    <div class="accordion open" id="mtdAccordion">
+      <div class="accordion-header" onclick="document.getElementById('mtdAccordion').classList.toggle('open')">
+        <div class="accordion-title">
+          <span class="chevron">▶</span>
+          Per-Unit Detail
+          <span class="sub" style="font-size:12px;color:var(--gray-500);font-weight:400;margin-left:8px;">Hours, FTE, EPOB and OT for the reconciliation period</span>
+        </div>
+      </div>
+      <div class="accordion-body" id="mtdAccordionBody"></div>
+    </div>
+
+  </div><!-- /panel-mtd -->
+
 </div>
 
-<div class="footer">Highland Hospital · A Summit BHC Facility · EPOB & Labor Management · Hours-only analysis · Daily refresh from SharePoint via Power Automate</div>
+<div class="footer">Highland Hospital · A Summit BHC Facility · EPOB & Labor Management · Hours-only analysis · SharePoint daily feed + Workday MTD reconciliation</div>
 
 <script>
 // ============================================================
@@ -335,78 +453,20 @@ function init() {
     .then(r => { if (!r.ok) throw new Error('No JSON'); return r.json(); })
     .then(json => {
       allData = normalizeData(json);
-      setDataStatus('live', buildStatusMessage(allData));
+      setDataStatus('live', `${allData.length} days loaded`);
       render();
     })
     .catch(() => {
       allData = EMBEDDED_DATA.slice();
-      setDataStatus('demo', `Sample data · ${allData.length} days`);
+      setDataStatus('demo', `${allData.length} days · sample data`);
       render();
     });
-}
-
-function buildStatusMessage(data) {
-  if (!data.length) return 'No data';
-  const latest = data[data.length - 1].date;
-  const now = new Date();
-  const nextRefresh = now.getHours() < 15 ? 'today at 3 PM' : 'tomorrow at 3 PM';
-  return `Current through ${latest} · Next refresh ${nextRefresh}`;
 }
 
 function normalizeData(json) {
   // Accept either an array of rows or a {dailyRows:[]} wrapper
   const rows = Array.isArray(json) ? json : (json.dailyRows || []);
-  // Defensive dedup: if multiple rows exist for the same date, keep the latest.
-  // "Latest" = highest modified timestamp if present, otherwise last occurrence in the source array.
-  const byDate = new Map();
-  rows.forEach(r => {
-    if (!r || !r.date) return;
-    // Reconstruct nested structures from flat Power Automate fields if needed
-    if (!r.unitPayroll) {
-      r.unitPayroll = {};
-      UNIT_KEYS.forEach(uk => {
-        const hasAny = r['actualHrsDay_' + uk] != null || r['modelHrsDay_' + uk] != null;
-        if (hasAny) {
-          r.unitPayroll[uk] = {
-            actualHrsDay: r['actualHrsDay_' + uk],
-            actualHC: r['actualHC_' + uk],
-            actualOT: r['actualOT_' + uk],
-            actualNpHrs: r['actualNpHrs_' + uk],
-            modelHrsDay: r['modelHrsDay_' + uk],
-            varianceHrs: r['varianceHrs_' + uk],
-            variancePct: r['variancePct_' + uk]
-          };
-        }
-      });
-    }
-    if (!r.censusByUnit) {
-      r.censusByUnit = {};
-      UNIT_KEYS.forEach(uk => {
-        // Try multiple naming conventions
-        const v = r['census' + uk] ?? r['census_' + uk] ?? r['Census_' + uk];
-        if (v != null) r.censusByUnit[uk] = v;
-      });
-    }
-    if (!r.occPctByUnit) {
-      r.occPctByUnit = {};
-      UNIT_KEYS.forEach(uk => {
-        const v = r['occPct' + uk] ?? r['occPct_' + uk] ?? r['OccPct_' + uk];
-        if (v != null) r.occPctByUnit[uk] = v;
-      });
-    }
-    const existing = byDate.get(r.date);
-    if (!existing) {
-      byDate.set(r.date, r);
-      return;
-    }
-    // Prefer row with a later modified timestamp if available
-    const existingStamp = existing.modified || existing.Modified || '';
-    const currentStamp = r.modified || r.Modified || '';
-    if (currentStamp >= existingStamp) {
-      byDate.set(r.date, r);
-    }
-  });
-  return Array.from(byDate.values()).sort((a, b) => a.date.localeCompare(b.date));
+  return rows.filter(r => r && r.date).sort((a,b) => a.date.localeCompare(b.date));
 }
 
 function setDataStatus(state, msg) {
@@ -466,18 +526,6 @@ function sum(arr, key) {
 }
 function aggregate(rows) {
   if (rows.length === 0) return null;
-  // Sum NP hours across all units for each row, then total across rows
-  const totalNpHrs = rows.reduce((sum, r) => {
-    if (!r.unitPayroll) return sum;
-    return sum + UNIT_KEYS.reduce((s, k) => s + ((r.unitPayroll[k] && r.unitPayroll[k].actualNpHrs) || 0), 0);
-  }, 0);
-  // Compute actual NP% from payroll: NP hours / total productive+NP hours
-  // Falls back to model NP% if no payroll data
-  const totalActualHrs = sum(rows, 'actualVarHrsDay') + sum(rows, 'actualFixHrsDay');
-  const actualNpPct = totalActualHrs > 0 ? (totalNpHrs / (totalActualHrs * rows.length / rows.length + totalNpHrs)) * 100 : null;
-  // Better calc: NP% = NP hours / total paid hours over the period
-  const totalPaidHrs = rows.reduce((s,r) => s + ((r.actualVarHrsDay||0) + (r.actualFixHrsDay||0)), 0);
-  const realNpPct = totalPaidHrs > 0 ? (totalNpHrs / (totalPaidHrs + totalNpHrs)) * 100 : avg(rows, 'NP_ModelPct');
   return {
     days: rows.length,
     avgCensus: avg(rows, 'totalCensus'),
@@ -493,12 +541,7 @@ function aggregate(rows) {
     totalOt: sum(rows, 'actualOtTotal'),
     avgVarFTE: avg(rows, 'varAdjFTE'),
     avgActualFTE: avg(rows, 'actualTotalFTE'),
-    avgGrandFTE: avg(rows, 'grandAdjFTE'),
-    avgObsHrs: avg(rows, 'obsHrs'),
-    totalObsHrs: sum(rows, 'obsHrs'),
-    totalNpHrs: totalNpHrs,
-    avgNpHrs: totalNpHrs / rows.length,
-    actualNpPct: realNpPct
+    avgGrandFTE: avg(rows, 'grandAdjFTE')
   };
 }
 function aggregateUnit(rows, unitKey) {
@@ -566,16 +609,6 @@ function statusFromVar(v) {
 function renderKpis(a) {
   const dcDelta = a.actualDcEpob != null && a.modelDcEpob != null ? a.actualDcEpob - a.modelDcEpob : null;
   const totDelta = a.actualTotalEpob != null && a.modelTotalEpob != null ? a.actualTotalEpob - a.modelTotalEpob : null;
-  // Dynamic NP gross-up: 1:1 hrs * 7/40, divided by (1 - actual NP%)
-  const npFraction = a.actualNpPct != null ? a.actualNpPct / 100 : 0.126;
-  const oneOneFte = a.avgObsHrs != null ? (a.avgObsHrs * 7 / 40) / (1 - npFraction) : null;
-  // NP FTE equivalent: avg NP hrs/day * 7 / 40 (already non-productive, no gross-up)
-  const npFte = a.avgNpHrs != null ? (a.avgNpHrs * 7 / 40) : null;
-  // EPOB impact = FTE / avg census (how much each is adding to direct care EPOB)
-  const oneOneEpobImpact = oneOneFte != null && a.avgCensus ? oneOneFte / a.avgCensus : null;
-  const npEpobImpact = npFte != null && a.avgCensus ? npFte / a.avgCensus : null;
-  const combinedEpobImpact = (oneOneEpobImpact || 0) + (npEpobImpact || 0);
-  const npPctDisplay = a.actualNpPct != null ? a.actualNpPct.toFixed(1) + '%' : '—';
   const html = `
     <div class="kpi-card">
       <div class="kpi-label">Avg Daily Census</div>
@@ -597,17 +630,6 @@ function renderKpis(a) {
         <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
       </div>
       ${totDelta != null ? `<span class="kpi-delta ${totDelta < 0 ? 'good' : totDelta > 0.05 ? 'bad' : 'neutral'}">${totDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(totDelta),2)}</span>` : ''}
-    </div>
-    <div class="kpi-card obs">
-      <div class="kpi-label">1:1 Obs & NP Impact</div>
-      <table class="obs-impact-table">
-        <thead><tr><th></th><th>Hours</th><th>FTE</th><th>EPOB</th></tr></thead>
-        <tbody>
-          <tr><td class="rl">1:1</td><td>${fmtInt(a.totalObsHrs)}</td><td>${fmt(oneOneFte,1)}</td><td>+${fmt(oneOneEpobImpact,2)}</td></tr>
-          <tr><td class="rl">NP</td><td>${fmtInt(a.totalNpHrs)}</td><td>${fmt(npFte,1)}</td><td>+${fmt(npEpobImpact,2)}</td></tr>
-        </tbody>
-      </table>
-      <div class="kpi-sub" style="margin-top:6px;">Combined EPOB impact <strong style="color:var(--navy);">+${fmt(combinedEpobImpact,2)}</strong> · Actual NP ${npPctDisplay}</div>
     </div>
     <div class="kpi-card ot">
       <div class="kpi-label">Total OT Hours</div>
@@ -814,57 +836,8 @@ function renderTrends(rows) {
       ${barChart(rows, 'actualOtTotal', '#c67a1a')}
       <div class="trend-legend"><span>Total facility OT per day</span></div>
     </div>
-    <div class="trend-card">
-      <div class="trend-title">1:1 Obs & NP Hours</div>
-      <div class="trend-sub">Observation + non-productive by day</div>
-      ${stackedBarChart(rows)}
-      <div class="trend-legend">
-        <span><span class="swatch" style="background:#8e44ad;"></span>1:1 Obs</span>
-        <span><span class="swatch" style="background:#c67a1a;"></span>NP Hrs</span>
-      </div>
-    </div>
   `;
   document.getElementById('trendsRow').innerHTML = html;
-}
-
-function stackedBarChart(rows) {
-  if (rows.length === 0) return '';
-  const w = 380, h = 160, pad = { l:34, r:10, t:12, b:24 };
-  const iw = w - pad.l - pad.r, ih = h - pad.t - pad.b;
-  // Compute NP hours per row from unit payroll
-  const data = rows.map(r => {
-    const np = r.unitPayroll ? UNIT_KEYS.reduce((s,k) => s + ((r.unitPayroll[k] && r.unitPayroll[k].actualNpHrs) || 0), 0) : 0;
-    return { date: r.date, obs: r.obsHrs || 0, np: np };
-  });
-  const maxV = Math.max(...data.map(d => Math.max(d.obs, d.np, d.obs + d.np * 0.3)), 1) * 1.15;
-  const barW = iw / rows.length * 0.35;
-  const gap = iw / rows.length * 0.3;
-  const groupW = barW * 2 + 2;
-  function x(i) { return pad.l + i * (groupW + gap) + gap/2; }
-  function y(v) { return pad.t + ih - (v / maxV) * ih; }
-  function bh(v) { return (v / maxV) * ih; }
-  let grid = '';
-  for (let i = 0; i <= 3; i++) {
-    const v = (maxV * i / 3);
-    const yy = pad.t + ih - (v/maxV)*ih;
-    grid += `<line x1="${pad.l}" y1="${yy}" x2="${w-pad.r}" y2="${yy}" stroke="#eef2f5"/>`;
-    grid += `<text x="${pad.l-5}" y="${yy+3}" font-size="9" fill="#607d8b" text-anchor="end">${v.toFixed(0)}</text>`;
-  }
-  let bars = '';
-  data.forEach((d,i) => {
-    const x0 = x(i);
-    // 1:1 Obs bar
-    bars += `<rect x="${x0}" y="${y(d.obs)}" width="${barW}" height="${bh(d.obs)}" fill="#8e44ad" rx="2"><title>${d.date}: 1:1 Obs ${d.obs.toFixed(1)} hrs</title></rect>`;
-    // NP bar
-    bars += `<rect x="${x0 + barW + 2}" y="${y(d.np)}" width="${barW}" height="${bh(d.np)}" fill="#c67a1a" rx="2"><title>${d.date}: NP ${d.np.toFixed(1)} hrs</title></rect>`;
-  });
-  let xlabels = '';
-  data.forEach((d,i) => {
-    if (rows.length <= 7 || i === 0 || i === rows.length-1) {
-      xlabels += `<text x="${x(i)+barW+1}" y="${h-8}" font-size="9" fill="#607d8b" text-anchor="middle">${d.date.slice(5)}</text>`;
-    }
-  });
-  return `<svg class="trend-svg" viewBox="0 0 ${w} ${h}">${grid}${bars}${xlabels}</svg>`;
 }
 
 function lineChart(rows, series, decimals=1) {
@@ -982,13 +955,11 @@ function renderDailyDetail(rows) {
   let html = '<table class="detail-table"><thead><tr>' +
     '<th>Date</th><th class="num">Census</th><th class="num">Occ %</th>' +
     '<th class="num">Model Hrs</th><th class="num">Actual Hrs</th>' +
-    '<th class="num">Variance Hrs</th><th class="num">Variance %</th>' +
-    '<th class="num">OT Hrs</th><th class="num">1:1 Hrs</th><th class="num">NP Hrs</th>' +
+    '<th class="num">Variance Hrs</th><th class="num">Variance %</th><th class="num">OT Hrs</th>' +
     '<th class="num">Model EPOB</th><th class="num">Actual EPOB</th><th class="num">EPOB Δ</th>' +
     '</tr></thead><tbody>';
   rows.slice().reverse().forEach(r => {
     const varPctClass = r.variancePct == null ? '' : (Math.abs(r.variancePct) > 15 ? 'var-pos' : Math.abs(r.variancePct) > 5 ? '' : 'var-neg');
-    const npHrs = r.unitPayroll ? UNIT_KEYS.reduce((s,k) => s + ((r.unitPayroll[k] && r.unitPayroll[k].actualNpHrs) || 0), 0) : 0;
     html += `<tr>
       <td><strong>${r.date}</strong></td>
       <td class="num">${r.totalCensus ?? '—'}</td>
@@ -998,8 +969,6 @@ function renderDailyDetail(rows) {
       <td class="num">${r.varianceHrsDay > 0 ? '+' : ''}${fmt(r.varianceHrsDay,1)}</td>
       <td class="num ${varPctClass}">${fmtPct(r.variancePct)}</td>
       <td class="num">${fmt(r.actualOtTotal,1)}</td>
-      <td class="num">${fmt(r.obsHrs,1)}</td>
-      <td class="num">${fmtInt(npHrs)}</td>
       <td class="num">${fmt(r.modelDcEpob,2)}</td>
       <td class="num">${fmt(r.actualDcEpob,2)}</td>
       <td class="num">${fmt(r.dcEpobVariance,2)}</td>
@@ -1016,11 +985,10 @@ function toggleAccordion() {
 function exportDetailCsv() {
   const rows = getFilteredData();
   if (rows.length === 0) return;
-  const header = ['Date','Census','Occ%','ModelHrs','ActualHrs','VarHrs','Var%','OT','Obs1to1','NPHrs','ModelEPOB','ActualEPOB','EPOBDelta'];
+  const header = ['Date','Census','Occ%','ModelHrs','ActualHrs','VarHrs','Var%','OT','ModelEPOB','ActualEPOB','EPOBDelta'];
   const lines = [header.join(',')];
   rows.forEach(r => {
-    const npHrs = r.unitPayroll ? UNIT_KEYS.reduce((s,k) => s + ((r.unitPayroll[k] && r.unitPayroll[k].actualNpHrs) || 0), 0) : 0;
-    lines.push([r.date, r.totalCensus, r.occupancyPct, r.modelVarHrsDay, r.actualVarHrsDay, r.varianceHrsDay, r.variancePct, r.actualOtTotal, r.obsHrs, npHrs, r.modelDcEpob, r.actualDcEpob, r.dcEpobVariance].join(','));
+    lines.push([r.date, r.totalCensus, r.occupancyPct, r.modelVarHrsDay, r.actualVarHrsDay, r.varianceHrsDay, r.variancePct, r.actualOtTotal, r.modelDcEpob, r.actualDcEpob, r.dcEpobVariance].join(','));
   });
   const blob = new Blob([lines.join('\n')], {type:'text/csv'});
   const url = URL.createObjectURL(blob);
@@ -1077,7 +1045,473 @@ document.querySelectorAll('#heatmapTable thead th').forEach(th => {
 
 // Boot
 init();
+
+// ============================================================
+// ============ MTD RECONCILIATION TAB ========================
+// ============================================================
+
+// --- Unit definitions: Workday BU → display key (BU names preserved exactly) ---
+const MTD_UNITS = [
+  { key:'1East', label:'1 East', sub:'Child Acute',  type:'acute', maxBeds:18, bu:'Acute Adult-100E' },
+  { key:'2East', label:'2 East', sub:'Adult Acute',  type:'acute', maxBeds:20, bu:'Acute Child-200E' },
+  { key:'2West', label:'2 West', sub:'Adolescent',   type:'acute', maxBeds:20, bu:'Acute Adol-200W'  },
+  { key:'3East', label:'3 East', sub:'Adult Acute',  type:'acute', maxBeds:20, bu:'Acute Adult-300E' },
+  { key:'3West', label:'3 West', sub:'Adult Acute',  type:'acute', maxBeds:20, bu:'Acute Adult-300W' },
+  { key:'HRC',   label:'HRC',    sub:'SUD/Detox',    type:'detox', maxBeds:16, bu:'Acute Adult-100'  }
+];
+
+// --- Model constants (mirror SharePoint flow) ---
+const NP_PCT = 0.126;
+const FIXED_FTE_BASELINE = 105.9; // from payroll baseline (5 PP ending 3/17/26)
+
+// Workday column groups (exact header names)
+const WORKED_HOUR_COLS = [
+  'Regular Hours','OT Hours','DT Hours','Call Back Hours',
+  'Holiday Worked Hours','Light Duty Workers Comp Hours','Travel Hours'
+];
+const NP_HOUR_COLS = [
+  'PTO Hours','Sick Hours','Holiday Hours','Orientation Hours','Training Hours',
+  'Continuing Education Hours','Education Pay Hours','Jury Duty Hours','Bereavement Hours'
+];
+
+// --- Census-driven model hrs/day per unit (matches embedded SharePoint data) ---
+function modelHrsForUnit(type, census) {
+  if (census == null || census <= 0) return 0;
+  if (type === 'detox') return 48;            // 6 staff @ 8h
+  if (census <= 15) return 64;                // 8 staff
+  if (census <= 16) return 72;                // 9 staff
+  return 88;                                  // 11 staff
+}
+
+// --- State (persisted) ---
+const MTD_STORAGE_KEY = 'highland_mtd_recon_v1';
+let mtdState = {
+  start: '',
+  end: '',
+  fileName: '',
+  adc: {},        // {unitKey: number}
+  oneToOne: {},   // {unitKey: hrs/day}
+  actuals: {}     // {unitKey: {hours, ot, np, hc}}
+};
+
+function saveMtd() {
+  try { localStorage.setItem(MTD_STORAGE_KEY, JSON.stringify(mtdState)); } catch(e) {}
+}
+function loadMtd() {
+  try {
+    const raw = localStorage.getItem(MTD_STORAGE_KEY);
+    if (raw) mtdState = Object.assign(mtdState, JSON.parse(raw));
+  } catch(e) {}
+}
+
+// --- Build the per-unit input grid ---
+function buildMtdUnitGrid() {
+  const wrap = document.getElementById('mtdUnitGrid');
+  wrap.innerHTML = MTD_UNITS.map(u => {
+    const adc = mtdState.adc[u.key] ?? '';
+    const oto = mtdState.oneToOne[u.key] ?? '';
+    return `
+      <div class="mtd-unit-card">
+        <div class="name">${u.label} <span style="font-weight:400;color:var(--gray-500);font-size:11px;">· ${u.sub}</span></div>
+        <div class="bu">${u.bu}</div>
+        <div class="inputs">
+          <div>
+            <label>ADC</label>
+            <input type="number" min="0" max="${u.maxBeds}" step="0.1" data-unit="${u.key}" data-field="adc" value="${adc}">
+          </div>
+          <div>
+            <label>1:1 Hrs (period)</label>
+            <input type="number" min="0" step="0.25" data-unit="${u.key}" data-field="oto" value="${oto}">
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  wrap.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const u = inp.dataset.unit, f = inp.dataset.field;
+      const v = inp.value === '' ? null : parseFloat(inp.value);
+      if (f === 'adc') mtdState.adc[u] = v;
+      else mtdState.oneToOne[u] = v;
+      saveMtd();
+      renderMtd();
+    });
+  });
+}
+
+// --- Workday XLSX parser (exact column names from Highland Time Summary export) ---
+function parseMtdFile(file) {
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const wb = XLSX.read(e.target.result, { type:'array' });
+      const sheet = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json(sheet, { header:1, defval:'' });
+
+      // Find header row (row containing "Business Units")
+      let hdrIdx = -1, headers = [];
+      for (let i=0; i<Math.min(rows.length, 25); i++) {
+        const r = (rows[i]||[]).map(c => String(c).toLowerCase().trim());
+        if (r.some(c => c === 'business units' || c === 'business unit' || c.includes('business unit'))) {
+          hdrIdx = i;
+          headers = rows[i].map(c => String(c).trim());
+          break;
+        }
+      }
+      if (hdrIdx < 0) {
+        showMtdWarn('Could not locate the Business Units column. Verify this is a Workday Time Summary export.');
+        return;
+      }
+
+      // Build header → index map (case-insensitive exact match)
+      const idx = {};
+      headers.forEach((h, i) => { idx[h.toLowerCase()] = i; });
+      const findIdx = name => idx[name.toLowerCase()] ?? -1;
+
+      const buCol     = findIdx('Business Units') >= 0 ? findIdx('Business Units') : findIdx('Business Unit');
+      const workerCol = findIdx('Worker');
+      const otCol     = findIdx('OT Hours');
+
+      // Resolve worked + NP column indexes once
+      const workedIdxs = WORKED_HOUR_COLS.map(findIdx).filter(i => i >= 0);
+      const npIdxs     = NP_HOUR_COLS.map(findIdx).filter(i => i >= 0);
+
+      if (buCol < 0 || workedIdxs.length === 0) {
+        showMtdWarn('Required columns not found. Need "Business Units" and at least one worked-hours column (e.g. "Regular Hours").');
+        return;
+      }
+
+      // BU → unit key map
+      const buMap = {};
+      MTD_UNITS.forEach(u => { buMap[u.bu.toLowerCase()] = u.key; });
+
+      // Aggregate
+      const agg = {};
+      MTD_UNITS.forEach(u => agg[u.key] = { worked:0, ot:0, np:0, workers:new Set() });
+      const num = v => { const n = parseFloat(v); return isNaN(n) ? 0 : n; };
+
+      let matched = 0, skipped = 0;
+      for (let i=hdrIdx+1; i<rows.length; i++) {
+        const row = rows[i];
+        if (!row || row.length === 0) continue;
+        const buRaw = String(row[buCol]||'').trim();
+        if (!buRaw) continue;
+        const key = buMap[buRaw.toLowerCase()];
+        if (!key) { skipped++; continue; }
+
+        let worked = 0;
+        workedIdxs.forEach(c => { worked += num(row[c]); });
+        let np = 0;
+        npIdxs.forEach(c => { np += num(row[c]); });
+        const ot = otCol >= 0 ? num(row[otCol]) : 0;
+
+        agg[key].worked += worked;
+        agg[key].ot     += ot;
+        agg[key].np     += np;
+        if (workerCol >= 0 && row[workerCol]) agg[key].workers.add(String(row[workerCol]));
+        matched++;
+      }
+
+      mtdState.actuals = {};
+      Object.keys(agg).forEach(k => {
+        mtdState.actuals[k] = {
+          worked: agg[k].worked,
+          ot:     agg[k].ot,
+          np:     agg[k].np,
+          hc:     agg[k].workers.size || null
+        };
+      });
+      mtdState.fileName = file.name;
+      saveMtd();
+      document.getElementById('mtdFileStatus').textContent = `${file.name} · ${matched} rows matched, ${skipped} non-variable rows skipped`;
+      document.getElementById('mtdFileStatus').classList.add('loaded');
+      hideMtdWarn();
+      renderMtd();
+    } catch(err) {
+      showMtdWarn('Failed to parse file: ' + err.message);
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+function showMtdWarn(msg) {
+  const el = document.getElementById('mtdWarn');
+  el.textContent = '⚠ ' + msg;
+  el.classList.add('show');
+}
+function hideMtdWarn() {
+  document.getElementById('mtdWarn').classList.remove('show');
+}
+
+// --- Day count between start/end inclusive ---
+function mtdDayCount() {
+  if (!mtdState.start || !mtdState.end) return 0;
+  const a = new Date(mtdState.start + 'T00:00:00');
+  const b = new Date(mtdState.end + 'T00:00:00');
+  const diff = Math.round((b - a) / 86400000) + 1;
+  return diff > 0 ? diff : 0;
+}
+
+// --- Aggregate per unit and facility for the MTD period ---
+// FTE convention (matches SharePoint flow):
+//   - Worked hours from payroll already exclude paid-not-worked time
+//   - Productive worked hrs/day = (worked - NP) / days   [NP subtracted out]
+//   - FTE = prod_hrs/day × 7 / 40                        [no NP gross-up on actual]
+//   - Model FTE = model_hrs/day × 7 / 40 / (1 - NP%)     [NP gross-up applied to model]
+//   - Obs (1:1) FTE add-on for model only: total_obs_hrs / 40 / (1 - NP%) over the week,
+//     i.e. (obs_hrs/day × 7) / 40 / (1 - NP%)
+function buildMtdRows() {
+  const days = mtdDayCount();
+  return MTD_UNITS.map(u => {
+    const adc = mtdState.adc[u.key];
+    const otoTotal = mtdState.oneToOne[u.key] || 0;     // total 1:1 hrs for the period
+    const otoPerDay = days > 0 ? otoTotal / days : 0;
+    const act = mtdState.actuals[u.key] || { worked:0, ot:0, np:0, hc:null };
+    const modelHrsDay   = modelHrsForUnit(u.type, adc);
+    const workedHrsDay  = days > 0 ? act.worked / days : 0;
+    const npHrsDay      = days > 0 ? act.np     / days : 0;
+    const actualHrsDay  = workedHrsDay - npHrsDay;       // productive only
+    const varianceHrs   = actualHrsDay - modelHrsDay;
+    const variancePct   = modelHrsDay > 0 ? (varianceHrs / modelHrsDay) * 100 : null;
+    // 1:1 obs hrs/day → adj FTE add (model side)
+    const obsFteAdj = (otoPerDay * 7) / 40 / (1 - NP_PCT);
+    return {
+      unit: u, adc, oneToOneTotal: otoTotal, oneToOnePerDay: otoPerDay,
+      workedHours: act.worked, npHours: act.np,
+      workedHrsDay, npHrsDay,
+      actualHrsDay, actualOT: act.ot, actualHC: act.hc,
+      modelHrsDay, varianceHrs, variancePct,
+      obsFteAdj
+    };
+  });
+}
+
+function aggregateMtdFacility(rows) {
+  const days = mtdDayCount();
+  const validAdc = rows.filter(r => r.adc != null && r.adc > 0);
+  const totalAdc = validAdc.reduce((s,r) => s + r.adc, 0);
+  const totalModelHrsDay  = rows.reduce((s,r) => s + r.modelHrsDay, 0);
+  const totalActualHrsDay = rows.reduce((s,r) => s + r.actualHrsDay, 0);   // already productive
+  const totalOt           = rows.reduce((s,r) => s + r.actualOT, 0);
+  const totalObsFte       = rows.reduce((s,r) => s + r.obsFteAdj, 0);
+
+  // Model: grid hrs are productive → ×7/40 → adj via NP gross-up + obs FTE
+  const modelVarFteProd = (totalModelHrsDay * 7) / 40;
+  const modelVarFteAdj  = modelVarFteProd / (1 - NP_PCT) + totalObsFte;
+
+  // Actual: NP already removed → ×7/40 directly, no gross-up
+  const actualVarFte    = (totalActualHrsDay * 7) / 40;
+
+  const modelDcEpob   = totalAdc > 0 ? modelVarFteAdj / totalAdc : null;
+  const actualDcEpob  = totalAdc > 0 ? actualVarFte   / totalAdc : null;
+  const modelTotalEpob  = totalAdc > 0 ? (modelVarFteAdj + FIXED_FTE_BASELINE) / totalAdc : null;
+  const actualTotalEpob = totalAdc > 0 ? (actualVarFte   + FIXED_FTE_BASELINE) / totalAdc : null;
+  const variancePct = totalModelHrsDay > 0 ? ((totalActualHrsDay - totalModelHrsDay)/totalModelHrsDay)*100 : null;
+  return {
+    days, totalAdc,
+    totalModelHrsDay, totalActualHrsDay,
+    varianceHrsDay: totalActualHrsDay - totalModelHrsDay,
+    variancePct,
+    totalOt,
+    modelVarFteAdj, actualVarFte,
+    modelDcEpob, actualDcEpob,
+    modelTotalEpob, actualTotalEpob
+  };
+}
+
+// --- Sort state for MTD heatmap ---
+let mtdSort = { col:'variancePct', dir:'desc' };
+
+// --- Render MTD KPIs (mirrors renderKpis shape) ---
+function renderMtdKpis(a) {
+  if (!a || a.totalAdc === 0) {
+    document.getElementById('mtdKpiRow').innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><div class="icon">📋</div><div class="msg">Enter ADC for at least one unit and upload a Workday file to see metrics</div></div>';
+    return;
+  }
+  const dcDelta  = a.actualDcEpob != null && a.modelDcEpob != null ? a.actualDcEpob - a.modelDcEpob : null;
+  const totDelta = a.actualTotalEpob != null && a.modelTotalEpob != null ? a.actualTotalEpob - a.modelTotalEpob : null;
+  document.getElementById('mtdKpiRow').innerHTML = `
+    <div class="kpi-card">
+      <div class="kpi-label">Avg Daily Census</div>
+      <div class="kpi-big">${fmt(a.totalAdc,1)}</div>
+      <div class="kpi-sub">${a.days} day${a.days===1?'':'s'} reconciliation period</div>
+    </div>
+    <div class="kpi-card epob">
+      <div class="kpi-label">Direct Care EPOB</div>
+      <div class="kpi-paired">
+        <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+      </div>
+      ${dcDelta != null ? `<span class="kpi-delta ${dcDelta < 0 ? 'good' : dcDelta > 0.05 ? 'bad' : 'neutral'}">${dcDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(dcDelta),2)}</span>` : ''}
+    </div>
+    <div class="kpi-card epob">
+      <div class="kpi-label">Total Facility EPOB</div>
+      <div class="kpi-paired">
+        <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+      </div>
+      ${totDelta != null ? `<span class="kpi-delta ${totDelta < 0 ? 'good' : totDelta > 0.05 ? 'bad' : 'neutral'}">${totDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(totDelta),2)}</span>` : ''}
+    </div>
+    <div class="kpi-card ot">
+      <div class="kpi-label">Total OT Hours</div>
+      <div class="kpi-big ${a.totalOt > 200 ? 'danger' : a.totalOt > 100 ? 'warning' : 'success'}">${fmtInt(a.totalOt)}</div>
+      <div class="kpi-sub">${a.days > 0 ? fmt(a.totalOt/a.days,1) : '—'} hrs/day average</div>
+    </div>
+    <div class="kpi-card var">
+      <div class="kpi-label">Avg Daily Variance</div>
+      <div class="kpi-big ${variancePctColor(a.variancePct)}">${fmtPct(a.variancePct)}</div>
+      <div class="kpi-sub">${a.varianceHrsDay > 0 ? '+' : ''}${fmt(a.varianceHrsDay,0)} hrs/day vs model</div>
+    </div>
+  `;
+}
+
+// --- Render MTD heatmap (mirrors renderHeatmap) ---
+function renderMtdHeatmap(rows) {
+  const sorted = rows.slice().sort((a,b) => {
+    let av, bv;
+    switch (mtdSort.col) {
+      case 'name': av = a.unit.label; bv = b.unit.label; break;
+      case 'census': av = a.adc; bv = b.adc; break;
+      case 'model': av = a.modelHrsDay; bv = b.modelHrsDay; break;
+      case 'actual': av = a.actualHrsDay; bv = b.actualHrsDay; break;
+      case 'variance': av = a.varianceHrs; bv = b.varianceHrs; break;
+      case 'variancePct': av = Math.abs(a.variancePct||0); bv = Math.abs(b.variancePct||0); break;
+      case 'ot': av = a.actualOT; bv = b.actualOT; break;
+      case 'status': av = Math.abs(a.variancePct||0); bv = Math.abs(b.variancePct||0); break;
+      default: av = 0; bv = 0;
+    }
+    if (av == null) av = -Infinity;
+    if (bv == null) bv = -Infinity;
+    if (typeof av === 'string') return mtdSort.dir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
+    return mtdSort.dir === 'asc' ? av - bv : bv - av;
+  });
+
+  document.querySelectorAll('#mtdHeatmapTable thead th').forEach(th => {
+    th.classList.remove('sort-asc','sort-desc');
+    if (th.dataset.sort === mtdSort.col) th.classList.add('sort-' + mtdSort.dir);
+  });
+
+  let html = '';
+  sorted.forEach(r => {
+    if (r.adc == null && r.workedHours === 0) return;
+    const status = statusFromVar(r.variancePct);
+    const varPctClass = r.variancePct == null ? 'var-neutral' : (r.variancePct > 0 ? 'var-pos' : 'var-neg');
+    const varHrsClass = r.varianceHrs == null ? 'var-neutral' : (r.varianceHrs > 0 ? 'var-pos' : 'var-neg');
+    html += `
+      <tr>
+        <td><div class="unit-name">${r.unit.label} <span class="unit-tag tag-${r.unit.type}">${r.unit.sub}</span></div></td>
+        <td class="num">${fmt(r.adc,1)}</td>
+        <td class="num">${fmt(r.modelHrsDay,1)}</td>
+        <td class="num">${fmt(r.actualHrsDay,1)}</td>
+        <td class="num"><span class="var-cell ${varHrsClass}">${r.varianceHrs > 0 ? '▲' : r.varianceHrs < 0 ? '▼' : ''} ${fmt(Math.abs(r.varianceHrs||0),1)}</span></td>
+        <td class="num"><span class="var-cell ${varPctClass}">${fmtPct(r.variancePct)}</span></td>
+        <td class="num">${fmtInt(r.actualOT)}</td>
+        <td><span class="status-badge ${status.cls}"><span class="dot"></span>${status.txt}</span></td>
+      </tr>
+    `;
+  });
+  if (!html) html = '<tr><td colspan="8" class="empty-state">Enter ADC and upload a Workday file to populate</td></tr>';
+  document.getElementById('mtdHeatmapBody').innerHTML = html;
+}
+
+// --- Render per-unit detail table ---
+function renderMtdDetail(rows) {
+  let html = '<table class="detail-table"><thead><tr>' +
+    '<th>Unit</th><th>BU</th><th class="num">ADC</th><th class="num">1:1 Hrs (period)</th>' +
+    '<th class="num">Worked Hrs</th><th class="num">NP Hrs</th><th class="num">Prod Hrs/Day</th>' +
+    '<th class="num">Model Hrs/Day</th><th class="num">Var Hrs</th><th class="num">Var %</th>' +
+    '<th class="num">OT Hrs</th><th class="num">HC</th>' +
+    '</tr></thead><tbody>';
+  rows.forEach(r => {
+    const cls = r.variancePct == null ? '' : (Math.abs(r.variancePct) > 15 ? 'var-pos' : Math.abs(r.variancePct) > 5 ? '' : 'var-neg');
+    html += `<tr>
+      <td><strong>${r.unit.label}</strong> <span style="color:var(--gray-500);font-size:11px;">${r.unit.sub}</span></td>
+      <td style="font-family:monospace;font-size:11px;color:var(--gray-500);">${r.unit.bu}</td>
+      <td class="num">${fmt(r.adc,1)}</td>
+      <td class="num">${fmt(r.oneToOneTotal,1)}</td>
+      <td class="num">${fmt(r.workedHours,1)}</td>
+      <td class="num">${fmt(r.npHours,1)}</td>
+      <td class="num">${fmt(r.actualHrsDay,1)}</td>
+      <td class="num">${fmt(r.modelHrsDay,0)}</td>
+      <td class="num">${r.varianceHrs > 0 ? '+' : ''}${fmt(r.varianceHrs,1)}</td>
+      <td class="num ${cls}">${fmtPct(r.variancePct)}</td>
+      <td class="num">${fmt(r.actualOT,1)}</td>
+      <td class="num">${r.actualHC ?? '—'}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  document.getElementById('mtdAccordionBody').innerHTML = html;
+}
+
+// --- Master MTD render ---
+function renderMtd() {
+  const rows = buildMtdRows();
+  const agg  = aggregateMtdFacility(rows);
+  renderMtdKpis(agg);
+  renderMtdHeatmap(rows);
+  renderMtdDetail(rows);
+
+  const meta = document.getElementById('mtdMeta');
+  if (mtdState.start && mtdState.end) {
+    meta.textContent = `${mtdState.start} → ${mtdState.end} · ${agg.days} day${agg.days===1?'':'s'}` + (mtdState.fileName ? ` · ${mtdState.fileName}` : '');
+  } else {
+    meta.textContent = 'Set period dates to begin';
+  }
+}
+
+function recomputeMtd() { renderMtd(); }
+
+function resetMtd() {
+  if (!confirm('Clear all MTD reconciliation inputs (dates, ADC, 1:1 hours, uploaded file)?')) return;
+  mtdState = { start:'', end:'', fileName:'', adc:{}, oneToOne:{}, actuals:{} };
+  saveMtd();
+  document.getElementById('mtdStart').value = '';
+  document.getElementById('mtdEnd').value = '';
+  document.getElementById('mtdFile').value = '';
+  document.getElementById('mtdFileStatus').textContent = 'No file loaded';
+  document.getElementById('mtdFileStatus').classList.remove('loaded');
+  hideMtdWarn();
+  buildMtdUnitGrid();
+  renderMtd();
+}
+
+// --- Tab switching ---
+document.querySelectorAll('.src-tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.src-tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.src-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.src).classList.add('active');
+  });
+});
+
+// --- MTD heatmap sort handlers ---
+document.querySelectorAll('#mtdHeatmapTable thead th').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.sort;
+    if (mtdSort.col === col) mtdSort.dir = mtdSort.dir === 'asc' ? 'desc' : 'asc';
+    else { mtdSort.col = col; mtdSort.dir = 'desc'; }
+    renderMtd();
+  });
+});
+
+// --- MTD init ---
+loadMtd();
+document.getElementById('mtdStart').value = mtdState.start || '';
+document.getElementById('mtdEnd').value   = mtdState.end   || '';
+document.getElementById('mtdStart').addEventListener('change', e => { mtdState.start = e.target.value; saveMtd(); renderMtd(); });
+document.getElementById('mtdEnd').addEventListener('change',   e => { mtdState.end   = e.target.value; saveMtd(); renderMtd(); });
+document.getElementById('mtdFile').addEventListener('change', e => {
+  if (e.target.files && e.target.files[0]) parseMtdFile(e.target.files[0]);
+});
+if (mtdState.fileName) {
+  document.getElementById('mtdFileStatus').textContent = mtdState.fileName + ' · loaded (cached)';
+  document.getElementById('mtdFileStatus').classList.add('loaded');
+}
+buildMtdUnitGrid();
+renderMtd();
 </script>
 </body>
 </html>
+
 
