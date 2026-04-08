@@ -560,7 +560,7 @@ const FIXED_DEPTS=[
   {name:'Business Office',cat:'Admin / G&A',hc:1,fte:0.1,salaryFTE:0},
   {name:'Facility IT',cat:'Admin / G&A',hc:2,fte:0.1,salaryFTE:2.00},
 ];
-const BASELINE_SALARY_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.salaryFTE,0);
+const BASELINE_SALARY_FTE=33.625; // matches epob_labor_management.html; FIXED_DEPTS sum ≈ 33.63
 const BASELINE_FIXED_FTE=FIXED_DEPTS.reduce((s,d)=>s+d.fte,0);
 const BASELINE_FIXED_HC=FIXED_DEPTS.reduce((s,d)=>s+d.hc,0);
 let payrollData = null;
@@ -832,7 +832,7 @@ function renderStaffing(vals,totalCensus){
   const out=document.getElementById('staffingOutput');const bar=document.getElementById('totalsBar');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate staffing requirements.</div>';bar.innerHTML='';return;}
   const { tRN, tLPN, tTech, shiftTot, rows } = aggregateStaffing(vals);
-  const ooHrs=getOneOneHrs();const ooProd=ooHrs*7/40;const prodFTE=shiftTot*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE)+grossUp(ooProd);
+  const ooHrs=getOneOneHrs();const ooProd=ooHrs*7/40;const prodFTE=shiftTot*FTE_MULTIPLIER;const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatFTE=Math.ceil(acuteOpen/2)*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE+floatFTE)+grossUp(ooProd);
   const fixed=getFixedTotals();
   bar.innerHTML=`
     <div class="total-stat"><div class="stat-label">Variable Staff/Shift</div><div class="stat-value">${Math.round(shiftTot/3)}</div><div class="stat-sub">${shiftTot} across 3 shifts</div></div>
