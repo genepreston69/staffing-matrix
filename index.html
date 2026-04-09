@@ -57,6 +57,20 @@
   .sp-status.ok { color:#4caf50; }
   .sp-status.err { color:var(--danger); }
 
+  /* ── Sync / Shared Data Controls ── */
+  .sp-sync-btn { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25); border-radius:6px; padding:6px 10px; color:var(--teal-accent); font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.2s; letter-spacing:0.3px; }
+  .sp-sync-btn:hover { background:rgba(255,255,255,0.2); border-color:var(--teal-accent); }
+  .sp-sync-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .sp-sync-btn svg { width:14px; height:14px; fill:currentColor; }
+  .sp-sync-btn.syncing svg { animation: sp-spin 1s linear infinite; }
+  .sp-sync-btn.synced { color:#4caf50; }
+  .sp-sync-btn.sync-err { color:var(--danger); }
+  @keyframes sp-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .sp-data-source { font-size:9px; padding:2px 8px; border-radius:10px; font-weight:600; letter-spacing:0.3px; text-transform:uppercase; }
+  .sp-data-source.shared { background:rgba(76,175,80,0.15); color:#4caf50; }
+  .sp-data-source.local { background:rgba(255,193,7,0.15); color:#ffc107; }
+  .sp-data-source.offline { background:rgba(158,158,158,0.15); color:#9e9e9e; }
+
   /* SharePoint Settings Modal */
   .sp-modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
   .sp-modal-overlay.active { display:flex; }
@@ -324,6 +338,11 @@
       </button>
     </div>
     <div class="sp-controls">
+      <span class="sp-data-source offline" id="spDataSource" title="Data source">offline</span>
+      <button class="sp-sync-btn" id="spSyncBtn" onclick="syncFromGitHub()" title="Pull latest shared data from GitHub">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        <span id="spSyncLabel">Sync</span>
+      </button>
       <button class="sp-push-btn" id="spPushBtn" onclick="pushAndClear()" title="Push current data to SharePoint list">
         <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
         <span id="spPushLabel">Push to SharePoint</span>
@@ -356,9 +375,28 @@
         <input type="text" id="spListName" placeholder="e.g., Staffing Matrix Daily">
         <div class="sp-help">For your reference. The actual list is configured in your Power Automate flow.</div>
       </div>
+      <div style="border-top:2px solid var(--gray-200);margin:20px 0 16px;padding-top:16px">
+        <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">GitHub Shared Data (Team Persistence)</div>
+        <div class="sp-field">
+          <label>GitHub Repository</label>
+          <input type="text" id="ghRepo" placeholder="owner/repo (e.g., genepreston69/staffing-matrix)">
+          <div class="sp-help">The GitHub repository where shared_data.json is stored. All team members read/write from this file.</div>
+        </div>
+        <div class="sp-field">
+          <label>GitHub Personal Access Token</label>
+          <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+          <div class="sp-help">A fine-grained PAT with <strong>Contents: Read and write</strong> permission on the repo. Stored in your browser only. <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color:var(--teal)">Create token</a></div>
+        </div>
+        <div class="sp-field">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
+            <input type="checkbox" id="ghAutoSync" checked style="accent-color:var(--teal-accent);cursor:pointer"> Auto-sync shared data on page load
+          </label>
+        </div>
+      </div>
     </div>
     <div class="sp-modal-actions">
-      <button class="sp-btn-test" onclick="testWebhook()">Test Connection</button>
+      <button class="sp-btn-test" onclick="testWebhook()">Test SP</button>
+      <button class="sp-btn-test" onclick="testGitHub()" style="background:var(--teal-wash);color:var(--teal);border-color:var(--teal)">Test GitHub</button>
       <button class="sp-btn-cancel" onclick="closeSpSettings()">Cancel</button>
       <button class="sp-btn-save" onclick="saveSpSettings()">Save</button>
     </div>
@@ -1715,6 +1753,9 @@ function openSpSettings() {
   const cfg = getSpConfig();
   document.getElementById('spWebhookUrl').value = cfg.webhookUrl || '';
   document.getElementById('spListName').value = cfg.listName || '';
+  document.getElementById('ghRepo').value = cfg.ghRepo || '';
+  document.getElementById('ghToken').value = cfg.ghToken || '';
+  document.getElementById('ghAutoSync').checked = cfg.ghAutoSync !== false;
   document.getElementById('spModal').classList.add('active');
 }
 
@@ -1725,9 +1766,14 @@ function closeSpSettings() {
 function saveSpSettings() {
   const webhookUrl = document.getElementById('spWebhookUrl').value.trim();
   const listName = document.getElementById('spListName').value.trim();
-  saveSpConfig({ webhookUrl, listName });
+  const ghRepo = document.getElementById('ghRepo').value.trim();
+  const ghToken = document.getElementById('ghToken').value.trim();
+  const ghAutoSync = document.getElementById('ghAutoSync').checked;
+  saveSpConfig({ webhookUrl, listName, ghRepo, ghToken, ghAutoSync });
   closeSpSettings();
-  updateSpStatus(webhookUrl ? 'Configured' : 'No webhook URL', webhookUrl ? 'ok' : '');
+  const hasGh = ghRepo && ghToken;
+  updateSpStatus(hasGh ? 'GitHub configured' : webhookUrl ? 'SP configured' : 'Not configured', (hasGh || webhookUrl) ? 'ok' : '');
+  updateDataSourceBadge(hasGh ? 'shared' : 'local');
 }
 
 function updateSpStatus(msg, cls) {
@@ -1973,9 +2019,34 @@ function updateTimeEntryDisplay() {
 
 async function pushToSharePoint() {
   const cfg = getSpConfig();
-  if (!cfg.webhookUrl) {
+  const hasGh = cfg.ghRepo && cfg.ghToken;
+  if (!cfg.webhookUrl && !hasGh) {
     openSpSettings();
-    updateSpStatus('Set webhook URL first', 'err');
+    updateSpStatus('Configure SharePoint or GitHub first', 'err');
+    return;
+  }
+  // GitHub-only mode: skip SharePoint, just save to GitHub
+  if (!cfg.webhookUrl && hasGh) {
+    const vals = getVals();
+    const totalCensus = vals.reduce((s, v) => s + v.census, 0);
+    if (totalCensus === 0) { updateSpStatus('Enter census first', 'err'); return; }
+    const btn = document.getElementById('spPushBtn');
+    const label = document.getElementById('spPushLabel');
+    btn.disabled = true;
+    btn.classList.add('sending');
+    label.textContent = 'Saving...';
+    try {
+      await saveToGitHub();
+      btn.classList.remove('sending');
+      btn.classList.add('success');
+      label.textContent = 'Saved!';
+    } catch (err) {
+      btn.classList.remove('sending');
+      btn.classList.add('error');
+      label.textContent = 'Failed';
+      updateSpStatus('GitHub save error: ' + err.message, 'err');
+    }
+    setTimeout(() => { btn.classList.remove('success', 'error'); btn.disabled = false; label.textContent = 'Push to SharePoint'; }, 3000);
     return;
   }
 
@@ -2051,30 +2122,14 @@ async function pushToSharePoint() {
       btn.classList.add('success');
       label.textContent = sentCount > 1 ? 'Sent ' + sentCount + ' dates!' : 'Sent!';
       updateSpStatus('Last push: ' + sentCount + ' record' + (sentCount > 1 ? 's' : '') + ' at ' + new Date().toLocaleTimeString(), 'ok');
-      // Clear entry fields after successful push so users start fresh
-      setTimeout(function() {
-        UNITS.forEach(function(u) {
-          var el = document.getElementById('input-' + u.id);
-          if (el) el.value = 0;
-          var oo = document.getElementById('oo-' + u.id);
-          if (oo) oo.value = 0;
-        });
-        onCensusChange();
-      }, 3500);
+      // Also save to GitHub for team persistence
+      saveToGitHub();
     } else if (sentCount > 0) {
       btn.classList.remove('sending');
       btn.classList.add('success');
       label.textContent = 'Sent ' + sentCount + '/' + totalDates;
       updateSpStatus(sentCount + '/' + totalDates + ' sent — check console for errors', 'err');
-      setTimeout(function() {
-        UNITS.forEach(function(u) {
-          var el = document.getElementById('input-' + u.id);
-          if (el) el.value = 0;
-          var oo = document.getElementById('oo-' + u.id);
-          if (oo) oo.value = 0;
-        });
-        onCensusChange();
-      }, 3500);
+      saveToGitHub();
     } else {
       throw lastError || new Error('No records sent');
     }
@@ -2118,12 +2173,205 @@ function onPayrollUploadSpHook() {
   return;
 }
 
-// Initialize SP settings on load
+/* ── GitHub Shared Data Persistence ── */
+const GH_API = 'https://api.github.com';
+const GH_DATA_PATH = 'data/shared_staffing.json';
+let ghFileSha = null; // tracks the SHA of the file for updates
+
+function updateDataSourceBadge(source) {
+  const el = document.getElementById('spDataSource');
+  if (!el) return;
+  el.className = 'sp-data-source ' + source;
+  el.textContent = source === 'shared' ? 'shared' : source === 'local' ? 'local' : 'offline';
+  el.title = source === 'shared' ? 'Data loaded from GitHub (shared with team)'
+    : source === 'local' ? 'Data from this browser only (not shared)'
+    : 'GitHub not configured — data is browser-only';
+}
+
+function ghHeaders(token) {
+  return {
+    'Accept': 'application/vnd.github.v3+json',
+    'Authorization': 'Bearer ' + token,
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+}
+
+async function testGitHub() {
+  const repo = document.getElementById('ghRepo').value.trim();
+  const token = document.getElementById('ghToken').value.trim();
+  if (!repo || !token) { alert('Enter both repository and token first.'); return; }
+  try {
+    const resp = await fetch(GH_API + '/repos/' + repo, { headers: ghHeaders(token) });
+    if (resp.ok) {
+      const data = await resp.json();
+      alert('Connected to ' + data.full_name + (data.private ? ' (private)' : ' (public)') + '.\nPermissions look good!');
+    } else if (resp.status === 401) {
+      alert('Authentication failed. Check your Personal Access Token.');
+    } else if (resp.status === 404) {
+      alert('Repository not found. Check the owner/repo format.');
+    } else {
+      alert('GitHub returned HTTP ' + resp.status + '. Check your settings.');
+    }
+  } catch (err) {
+    alert('Connection failed: ' + err.message);
+  }
+}
+
+async function readFromGitHub() {
+  const cfg = getSpConfig();
+  if (!cfg.ghRepo || !cfg.ghToken) return null;
+
+  const url = GH_API + '/repos/' + cfg.ghRepo + '/contents/' + GH_DATA_PATH;
+  const resp = await fetch(url, { headers: ghHeaders(cfg.ghToken) });
+
+  if (resp.status === 404) {
+    ghFileSha = null;
+    return null;
+  }
+  if (!resp.ok) throw new Error('GitHub read failed: HTTP ' + resp.status);
+
+  const file = await resp.json();
+  ghFileSha = file.sha;
+  const decoded = atob(file.content.replace(/\n/g, ''));
+  return JSON.parse(decoded);
+}
+
+async function writeToGitHub(data) {
+  const cfg = getSpConfig();
+  if (!cfg.ghRepo || !cfg.ghToken) return;
+
+  // Get current SHA if we don't have it
+  if (!ghFileSha) {
+    try {
+      const checkUrl = GH_API + '/repos/' + cfg.ghRepo + '/contents/' + GH_DATA_PATH;
+      const checkResp = await fetch(checkUrl, { headers: ghHeaders(cfg.ghToken) });
+      if (checkResp.ok) {
+        const existing = await checkResp.json();
+        ghFileSha = existing.sha;
+      }
+    } catch (e) { /* file may not exist yet */ }
+  }
+
+  const payload = {
+    message: 'Update staffing data — ' + (data.TimeEntryDate || new Date().toISOString().slice(0, 10)),
+    content: btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2)))),
+  };
+  if (ghFileSha) payload.sha = ghFileSha;
+
+  const url = GH_API + '/repos/' + cfg.ghRepo + '/contents/' + GH_DATA_PATH;
+  const resp = await fetch(url, {
+    method: 'PUT',
+    headers: ghHeaders(cfg.ghToken),
+    body: JSON.stringify(payload)
+  });
+
+  if (!resp.ok) {
+    const body = await resp.text();
+    throw new Error('GitHub write failed: HTTP ' + resp.status + ' — ' + body);
+  }
+
+  const result = await resp.json();
+  ghFileSha = result.content.sha;
+  return result;
+}
+
+async function syncFromGitHub() {
+  const cfg = getSpConfig();
+  if (!cfg.ghRepo || !cfg.ghToken) {
+    openSpSettings();
+    updateSpStatus('Configure GitHub to enable sync', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('spSyncBtn');
+  const label = document.getElementById('spSyncLabel');
+  btn.classList.remove('synced', 'sync-err');
+  btn.classList.add('syncing');
+  btn.disabled = true;
+  label.textContent = 'Syncing...';
+
+  try {
+    const data = await readFromGitHub();
+    if (!data || (!data.TotalCensus && data.TotalCensus !== 0)) {
+      label.textContent = 'No data';
+      btn.classList.remove('syncing');
+      btn.classList.add('sync-err');
+      updateSpStatus('No shared data yet — push first', '');
+      setTimeout(() => { btn.classList.remove('sync-err'); btn.disabled = false; label.textContent = 'Sync'; }, 3000);
+      return;
+    }
+    applySharedData(data);
+    btn.classList.remove('syncing');
+    btn.classList.add('synced');
+    label.textContent = 'Synced!';
+    updateDataSourceBadge('shared');
+    const ts = data.Timestamp ? new Date(data.Timestamp).toLocaleTimeString() : 'now';
+    updateSpStatus('Synced @ ' + ts, 'ok');
+  } catch (err) {
+    btn.classList.remove('syncing');
+    btn.classList.add('sync-err');
+    label.textContent = 'Failed';
+    console.error('[GH Sync] Error:', err);
+    updateSpStatus('Sync error: ' + err.message, 'err');
+  }
+
+  setTimeout(() => {
+    btn.classList.remove('synced', 'sync-err');
+    btn.disabled = false;
+    label.textContent = 'Sync';
+  }, 3000);
+}
+
+function applySharedData(sp) {
+  UNITS.forEach(u => {
+    const censusEl = document.getElementById('input-' + u.id);
+    const ooEl = document.getElementById('oo-' + u.id);
+    if (sp['Census_' + u.key] != null && censusEl) censusEl.value = sp['Census_' + u.key];
+    if (sp['ObsHrs_' + u.key] != null && ooEl) ooEl.value = sp['ObsHrs_' + u.key];
+  });
+  if (sp.NP_ModelPct != null) document.getElementById('npInput').value = sp.NP_ModelPct;
+  if (sp.TimeEntryDate) {
+    currentTimeEntryDate = sp.TimeEntryDate;
+    updateTimeEntryDisplay();
+  }
+  saveDailyData();
+  onCensusChange();
+}
+
+async function saveToGitHub() {
+  const cfg = getSpConfig();
+  if (!cfg.ghRepo || !cfg.ghToken) return;
+  try {
+    const payload = collectSharePointPayload();
+    await writeToGitHub(payload);
+    updateDataSourceBadge('shared');
+    updateSpStatus('Saved to GitHub @ ' + new Date().toLocaleTimeString(), 'ok');
+    console.log('[GH] Saved shared data successfully');
+  } catch (err) {
+    console.error('[GH Save] Error:', err);
+    updateSpStatus('GitHub save error: ' + err.message, 'err');
+  }
+}
+
+// Initialize settings on load
 (function initSP() {
   const cfg = getSpConfig();
-  if (cfg.webhookUrl) updateSpStatus('Configured', 'ok');
-  // Auto-push disabled — no longer restore auto-push preference
+  const hasGh = cfg.ghRepo && cfg.ghToken;
+  if (hasGh) {
+    updateSpStatus('GitHub configured', 'ok');
+    updateDataSourceBadge('shared');
+  } else if (cfg.webhookUrl) {
+    updateSpStatus('SP configured', 'ok');
+    updateDataSourceBadge('local');
+  } else {
+    updateDataSourceBadge('offline');
+  }
   spAutoPush = false;
+
+  // Auto-sync from GitHub on load
+  if (hasGh && cfg.ghAutoSync !== false) {
+    syncFromGitHub();
+  }
 })();
 
 </script>
