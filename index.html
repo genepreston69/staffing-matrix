@@ -841,7 +841,7 @@ function updateEpobKpi(vals,totalCensus){
       const actTotalFTE=actVarFTE+actFixFTE;
 
       const actDcEpob=actVarFTE/totalCensus;
-      const dcVar=actDcEpob-dcEpob;
+      const dcVar=actDcEpob-m.dcEpob;
       document.getElementById('kpiDcActualBlock').style.display='';
       document.getElementById('kpiDcActual').textContent=actDcEpob.toFixed(2);
       document.getElementById('kpiDcActual').style.color=actDcEpob>EPOB_DC_DANGER?'var(--danger)':actDcEpob>EPOB_DC_WARN?'var(--warning)':'var(--success)';
@@ -849,7 +849,7 @@ function updateEpobKpi(vals,totalCensus){
       document.getElementById('kpiDcVariance').style.color=dcVar>EPOB_VARIANCE_THRESH?'var(--danger)':dcVar<-EPOB_VARIANCE_THRESH?'var(--warning)':'var(--success)';
 
       const actTotalEpob=actTotalFTE/totalCensus;
-      const totalVar=actTotalEpob-totalEpob;
+      const totalVar=actTotalEpob-m.totalEpob;
       document.getElementById('kpiTotalActualBlock').style.display='';
       document.getElementById('kpiTotalActual').textContent=actTotalEpob.toFixed(2);
       document.getElementById('kpiTotalActual').style.color=actTotalEpob>EPOB_TOTAL_DANGER?'var(--danger)':actTotalEpob>EPOB_TOTAL_WARN?'var(--warning)':'var(--success)';
