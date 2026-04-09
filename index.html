@@ -57,6 +57,20 @@
   .sp-status.ok { color:#4caf50; }
   .sp-status.err { color:var(--danger); }
 
+  /* ── Sync / Shared Data Controls ── */
+  .sp-sync-btn { background:rgba(255,255,255,0.12); border:1px solid rgba(255,255,255,0.25); border-radius:6px; padding:6px 10px; color:var(--teal-accent); font-size:11px; font-weight:600; cursor:pointer; display:flex; align-items:center; gap:5px; transition:all 0.2s; letter-spacing:0.3px; }
+  .sp-sync-btn:hover { background:rgba(255,255,255,0.2); border-color:var(--teal-accent); }
+  .sp-sync-btn:disabled { opacity:0.4; cursor:not-allowed; }
+  .sp-sync-btn svg { width:14px; height:14px; fill:currentColor; }
+  .sp-sync-btn.syncing svg { animation: sp-spin 1s linear infinite; }
+  .sp-sync-btn.synced { color:#4caf50; }
+  .sp-sync-btn.sync-err { color:var(--danger); }
+  @keyframes sp-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .sp-data-source { font-size:9px; padding:2px 8px; border-radius:10px; font-weight:600; letter-spacing:0.3px; text-transform:uppercase; }
+  .sp-data-source.shared { background:rgba(76,175,80,0.15); color:#4caf50; }
+  .sp-data-source.local { background:rgba(255,193,7,0.15); color:#ffc107; }
+  .sp-data-source.offline { background:rgba(158,158,158,0.15); color:#9e9e9e; }
+
   /* SharePoint Settings Modal */
   .sp-modal-overlay { display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; align-items:center; justify-content:center; }
   .sp-modal-overlay.active { display:flex; }
@@ -324,6 +338,11 @@
       </button>
     </div>
     <div class="sp-controls">
+      <span class="sp-data-source offline" id="spDataSource" title="Data source">offline</span>
+      <button class="sp-sync-btn" id="spSyncBtn" onclick="syncFromSharePoint()" title="Pull latest shared data from SharePoint">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        <span id="spSyncLabel">Sync</span>
+      </button>
       <button class="sp-push-btn" id="spPushBtn" onclick="pushAndClear()" title="Push current data to SharePoint list">
         <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
         <span id="spPushLabel">Push to SharePoint</span>
@@ -352,10 +371,32 @@
         <div class="sp-help">Create a "When an HTTP request is received" trigger in Power Automate, then paste the generated URL here. Saved in your browser only.</div>
       </div>
       <div class="sp-field">
+        <label>Power Automate Read URL (for shared data)</label>
+        <input type="url" id="spReadUrl" placeholder="https://prod-XX.westus.logic.azure.com:443/workflows/...">
+        <div class="sp-help">Create a second Power Automate flow with "When an HTTP request is received" that returns the latest SharePoint list item as JSON. This enables all team members to see the same data. <strong>See setup guide below.</strong></div>
+      </div>
+      <div class="sp-field">
+        <label>Auto-sync on load</label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:400;text-transform:none;letter-spacing:0;cursor:pointer">
+          <input type="checkbox" id="spAutoSync" style="accent-color:var(--teal-accent);cursor:pointer"> Automatically fetch shared data when the page loads
+        </label>
+        <div class="sp-help">When enabled, the app will pull the latest shared data from SharePoint each time a team member opens or refreshes the page.</div>
+      </div>
+      <div class="sp-field">
         <label>SharePoint List Name (reference only)</label>
         <input type="text" id="spListName" placeholder="e.g., Staffing Matrix Daily">
         <div class="sp-help">For your reference. The actual list is configured in your Power Automate flow.</div>
       </div>
+      <details style="margin-top:8px;font-size:12px;color:var(--gray-700);line-height:1.6">
+        <summary style="cursor:pointer;font-weight:700;color:var(--navy)">Setup Guide: Power Automate Read Flow</summary>
+        <ol style="margin:8px 0 0 16px;padding:0">
+          <li>In Power Automate, create a new <strong>Instant cloud flow</strong></li>
+          <li>Add trigger: <strong>"When an HTTP request is received"</strong> (method: POST)</li>
+          <li>Add action: <strong>"Get items"</strong> from your SharePoint list, sorted by <code>TimeEntryDate desc</code>, top count = 1</li>
+          <li>Add action: <strong>"Response"</strong> &mdash; Status 200, Body = <code>first(body('Get_items')?['value'])</code>, Content-Type: <code>application/json</code></li>
+          <li>Save the flow, copy the HTTP POST URL, and paste it in the <strong>Read URL</strong> field above</li>
+        </ol>
+      </details>
     </div>
     <div class="sp-modal-actions">
       <button class="sp-btn-test" onclick="testWebhook()">Test Connection</button>
@@ -738,8 +779,21 @@ function renderCensusGrid(){
 
 function getVals(){return UNITS.map(u=>({...u,census:Math.min(Math.max(Math.floor(getInputVal('input-'+u.id,0)),0),u.maxBeds),ooHrs:getUnitOoHrs(u.id)}));}
 
+function scheduleAutoSync() {
+  if (spDebounceTimer) clearTimeout(spDebounceTimer);
+  const cfg = getSpConfig();
+  if (!cfg.webhookUrl || !cfg.readUrl) return;
+  spDebounceTimer = setTimeout(function() {
+    const vals = getVals();
+    const totalCensus = vals.reduce((s, v) => s + v.census, 0);
+    if (totalCensus === 0) return;
+    pushToSharePoint();
+  }, 30000);
+}
+
 function onCensusChange() {
   saveDailyData();
+  scheduleAutoSync();
   const vals = getVals();
   const totalCensus = vals.reduce((s, v) => s + v.census, 0);
   const npPct = getNP();
@@ -1714,6 +1768,8 @@ function saveSpConfig(cfg) {
 function openSpSettings() {
   const cfg = getSpConfig();
   document.getElementById('spWebhookUrl').value = cfg.webhookUrl || '';
+  document.getElementById('spReadUrl').value = cfg.readUrl || '';
+  document.getElementById('spAutoSync').checked = cfg.autoSync !== false;
   document.getElementById('spListName').value = cfg.listName || '';
   document.getElementById('spModal').classList.add('active');
 }
@@ -1724,10 +1780,13 @@ function closeSpSettings() {
 
 function saveSpSettings() {
   const webhookUrl = document.getElementById('spWebhookUrl').value.trim();
+  const readUrl = document.getElementById('spReadUrl').value.trim();
+  const autoSync = document.getElementById('spAutoSync').checked;
   const listName = document.getElementById('spListName').value.trim();
-  saveSpConfig({ webhookUrl, listName });
+  saveSpConfig({ webhookUrl, readUrl, autoSync, listName });
   closeSpSettings();
-  updateSpStatus(webhookUrl ? 'Configured' : 'No webhook URL', webhookUrl ? 'ok' : '');
+  updateSpStatus(webhookUrl || readUrl ? 'Configured' : 'No webhook URL', (webhookUrl || readUrl) ? 'ok' : '');
+  updateDataSourceBadge(readUrl ? 'shared' : 'local');
 }
 
 function updateSpStatus(msg, cls) {
@@ -2051,30 +2110,14 @@ async function pushToSharePoint() {
       btn.classList.add('success');
       label.textContent = sentCount > 1 ? 'Sent ' + sentCount + ' dates!' : 'Sent!';
       updateSpStatus('Last push: ' + sentCount + ' record' + (sentCount > 1 ? 's' : '') + ' at ' + new Date().toLocaleTimeString(), 'ok');
-      // Clear entry fields after successful push so users start fresh
-      setTimeout(function() {
-        UNITS.forEach(function(u) {
-          var el = document.getElementById('input-' + u.id);
-          if (el) el.value = 0;
-          var oo = document.getElementById('oo-' + u.id);
-          if (oo) oo.value = 0;
-        });
-        onCensusChange();
-      }, 3500);
+      updateDataSourceBadge('shared');
+      // Data persists — user clicks "New Day" to clear
     } else if (sentCount > 0) {
       btn.classList.remove('sending');
       btn.classList.add('success');
       label.textContent = 'Sent ' + sentCount + '/' + totalDates;
       updateSpStatus(sentCount + '/' + totalDates + ' sent — check console for errors', 'err');
-      setTimeout(function() {
-        UNITS.forEach(function(u) {
-          var el = document.getElementById('input-' + u.id);
-          if (el) el.value = 0;
-          var oo = document.getElementById('oo-' + u.id);
-          if (oo) oo.value = 0;
-        });
-        onCensusChange();
-      }, 3500);
+      updateDataSourceBadge('shared');
     } else {
       throw lastError || new Error('No records sent');
     }
@@ -2118,12 +2161,120 @@ function onPayrollUploadSpHook() {
   return;
 }
 
+/* ── Shared Data: Fetch from SharePoint (Read flow) ── */
+
+function updateDataSourceBadge(source) {
+  const el = document.getElementById('spDataSource');
+  if (!el) return;
+  el.className = 'sp-data-source ' + source;
+  el.textContent = source === 'shared' ? 'shared' : source === 'local' ? 'local' : 'offline';
+  el.title = source === 'shared' ? 'Data loaded from SharePoint (shared with team)'
+    : source === 'local' ? 'Data from this browser only (not shared)'
+    : 'No SharePoint read URL configured';
+}
+
+async function syncFromSharePoint() {
+  const cfg = getSpConfig();
+  if (!cfg.readUrl) {
+    openSpSettings();
+    updateSpStatus('Set Read URL to enable sync', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('spSyncBtn');
+  const label = document.getElementById('spSyncLabel');
+  btn.classList.remove('synced', 'sync-err');
+  btn.classList.add('syncing');
+  btn.disabled = true;
+  label.textContent = 'Syncing...';
+
+  try {
+    const payload = { action: 'getLatest', date: currentTimeEntryDate };
+    const resp = await fetch(cfg.readUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    const data = await resp.json();
+    if (!data || (!data.TotalCensus && data.TotalCensus !== 0)) {
+      label.textContent = 'No data';
+      btn.classList.add('sync-err');
+      updateSpStatus('No shared data found for ' + currentTimeEntryDate, '');
+      setTimeout(() => { btn.classList.remove('syncing', 'sync-err'); btn.disabled = false; label.textContent = 'Sync'; }, 3000);
+      return;
+    }
+    applySharedData(data);
+    btn.classList.remove('syncing');
+    btn.classList.add('synced');
+    label.textContent = 'Synced!';
+    updateDataSourceBadge('shared');
+    const ts = data.Timestamp ? new Date(data.Timestamp).toLocaleTimeString() : 'now';
+    updateSpStatus('Synced @ ' + ts, 'ok');
+  } catch (err) {
+    btn.classList.remove('syncing');
+    btn.classList.add('sync-err');
+    label.textContent = 'Failed';
+    console.error('[SP Sync] Error:', err);
+    updateSpStatus('Sync error: ' + err.message, 'err');
+  }
+
+  setTimeout(() => {
+    btn.classList.remove('synced', 'sync-err');
+    btn.disabled = false;
+    label.textContent = 'Sync';
+  }, 3000);
+}
+
+function applySharedData(sp) {
+  // Apply census values from SharePoint payload
+  UNITS.forEach(u => {
+    const censusKey = 'Census_' + u.key;
+    const ooKey = 'ObsHrs_' + u.key;
+    const censusEl = document.getElementById('input-' + u.id);
+    const ooEl = document.getElementById('oo-' + u.id);
+    if (sp[censusKey] != null && censusEl) censusEl.value = sp[censusKey];
+    if (sp[ooKey] != null && ooEl) ooEl.value = sp[ooKey];
+  });
+
+  // Apply NP%
+  if (sp.NP_ModelPct != null) {
+    document.getElementById('npInput').value = sp.NP_ModelPct;
+  }
+
+  // Apply time entry date
+  if (sp.TimeEntryDate) {
+    currentTimeEntryDate = sp.TimeEntryDate;
+    updateTimeEntryDisplay();
+  }
+
+  // Save to localStorage as cache
+  saveDailyData();
+
+  // Recalculate
+  onCensusChange();
+}
+
 // Initialize SP settings on load
 (function initSP() {
   const cfg = getSpConfig();
-  if (cfg.webhookUrl) updateSpStatus('Configured', 'ok');
+  if (cfg.webhookUrl || cfg.readUrl) updateSpStatus('Configured', 'ok');
   // Auto-push disabled — no longer restore auto-push preference
   spAutoPush = false;
+
+  // Set initial data source badge
+  if (cfg.readUrl) {
+    updateDataSourceBadge('shared');
+  } else if (storeGet('dailyStaffingData')) {
+    updateDataSourceBadge('local');
+  } else {
+    updateDataSourceBadge('offline');
+  }
+
+  // Auto-sync on load if configured
+  if (cfg.readUrl && cfg.autoSync !== false) {
+    syncFromSharePoint();
+  }
 })();
 
 </script>
