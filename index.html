@@ -514,14 +514,30 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>
 const UNITS = [
-  { id:'u100e', payrollBU:'Acute Adult-100E', type:'acute', maxBeds:18, label:'1 East · Child Acute' },
-  { id:'u200e', payrollBU:'Acute Child-200E', type:'acute', maxBeds:20, label:'2 East · Adult Acute' },
-  { id:'u200w', payrollBU:'Acute Adol-200W',  type:'acute', maxBeds:20, label:'2 West · Adolescent' },
-  { id:'u300e', payrollBU:'Acute Adult-300E', type:'acute', maxBeds:20, label:'3 East · Adult Acute' },
-  { id:'u300w', payrollBU:'Acute Adult-300W', type:'acute', maxBeds:20, label:'3 West · Adult Acute' },
-  { id:'detox', payrollBU:'Acute Adult-100',  type:'detox', maxBeds:16, label:'HRC · SUD/Detox ASAM 3.7' },
+  { id:'u100e', key:'1East', payrollBU:'Acute Adult-100E', type:'acute', maxBeds:18, label:'1 East · Child Acute' },
+  { id:'u200e', key:'2East', payrollBU:'Acute Child-200E', type:'acute', maxBeds:20, label:'2 East · Adult Acute' },
+  { id:'u200w', key:'2West', payrollBU:'Acute Adol-200W',  type:'acute', maxBeds:20, label:'2 West · Adolescent' },
+  { id:'u300e', key:'3East', payrollBU:'Acute Adult-300E', type:'acute', maxBeds:20, label:'3 East · Adult Acute' },
+  { id:'u300w', key:'3West', payrollBU:'Acute Adult-300W', type:'acute', maxBeds:20, label:'3 West · Adult Acute' },
+  { id:'detox', key:'HRC',   payrollBU:'Acute Adult-100',  type:'detox', maxBeds:16, label:'HRC · SUD/Detox ASAM 3.7' },
 ];
 const TOTAL_STAFFED=114, FTE_MULTIPLIER=1.4;
+
+/* ── Named Constants (avoid magic numbers) ── */
+const DEFAULT_NP_PCT       = 12.6;   // default non-productive %
+const MAX_NP_PCT           = 40;     // max allowed NP %
+const HOURS_PER_SHIFT      = 8;      // hours per shift position
+const DAYS_PER_WEEK        = 7;
+const HOURS_PER_FTE_WEEK   = 40;
+const DAYS_TO_FTE          = DAYS_PER_WEEK / HOURS_PER_FTE_WEEK; // 0.175
+const COOKIE_EXPIRY_DAYS   = 400;
+const MS_PER_DAY           = 86400000;
+const VARIANCE_THRESHOLD   = 2;      // hours — color threshold for variance display
+const EPOB_VARIANCE_THRESH = 0.05;   // EPOB variance color threshold
+const EPOB_DC_WARN         = 0.9;    // DC EPOB warning threshold
+const EPOB_DC_DANGER       = 1.2;    // DC EPOB danger threshold
+const EPOB_TOTAL_WARN      = 1.5;    // Total EPOB warning threshold
+const EPOB_TOTAL_DANGER    = 2.0;    // Total EPOB danger threshold
 
 const ACUTE_GRID={
   day:{rn:[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],lpn:[0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,1],tech:[1,1,1,1,1,1,1,1,1,1,1,2,2,1,1,1,2,2,2,2]},
@@ -573,7 +589,7 @@ let currentTimeEntryDate = new Date().toISOString().slice(0, 10);
 function storeSet(key, value) {
   try { localStorage.setItem(key, value); } catch(e) {}
   try {
-    const expires = new Date(Date.now() + 400 * 86400000).toUTCString();
+    const expires = new Date(Date.now() + COOKIE_EXPIRY_DAYS * MS_PER_DAY).toUTCString();
     document.cookie = encodeURIComponent(key) + '=' + encodeURIComponent(value)
       + '; expires=' + expires + '; path=/; SameSite=Lax';
   } catch(e) {}
@@ -594,11 +610,11 @@ function saveDailyData() {
     timeEntryDate: currentTimeEntryDate,
     census: {},
     ooHrs: {},
-    npPct: parseFloat(document.getElementById('npInput').value) || 12.6
+    npPct: getInputVal('npInput', DEFAULT_NP_PCT)
   };
   UNITS.forEach(u => {
-    data.census[u.id] = parseInt(document.getElementById('input-' + u.id).value) || 0;
-    data.ooHrs[u.id] = parseFloat(document.getElementById('oo-' + u.id).value) || 0;
+    data.census[u.id] = Math.floor(getInputVal('input-' + u.id, 0));
+    data.ooHrs[u.id] = getInputVal('oo-' + u.id, 0);
   });
   storeSet('dailyStaffingData', JSON.stringify(data));
 }
@@ -647,7 +663,7 @@ function getFixedTotals() {
   // Payroll-sourced departments (non-variable BUs) — hourly hours only (salaried filtered at parse)
   Object.entries(payrollData).forEach(([bu, d]) => {
     if (variableBUs.includes(bu)) return;
-    const hourlyFTE = (d.hours / days) * 7 / 40;
+    const hourlyFTE = (d.hours / days) * DAYS_TO_FTE;
     const baseline = matchFixedDept(bu);
     const salaryFTE = baseline ? baseline.salaryFTE : 0;
     const combinedFTE = hourlyFTE + salaryFTE;
@@ -681,9 +697,10 @@ function getStaffing(grid, census) {
 }
 function fmt(n){return Number(n).toFixed(1);}
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
-function getNP(){const v=parseFloat(document.getElementById('npInput').value);return isNaN(v)?12.6:Math.min(Math.max(v,0),40);}
-function getOneOneHrs(){return UNITS.reduce((s,u)=>{const v=parseFloat(document.getElementById('oo-'+u.id).value);return s+(isNaN(v)?0:Math.max(v,0));},0);}
-function getUnitOoHrs(uid){const v=parseFloat(document.getElementById('oo-'+uid).value);return isNaN(v)?0:Math.max(v,0);}
+function getInputVal(id,dflt){const el=document.getElementById(id);if(!el)return dflt;const v=parseFloat(el.value);return isNaN(v)?dflt:v;}
+function getNP(){const v=getInputVal('npInput',DEFAULT_NP_PCT);return Math.min(Math.max(v,0),MAX_NP_PCT);}
+function getOneOneHrs(){return UNITS.reduce((s,u)=>s+Math.max(getInputVal('oo-'+u.id,0),0),0);}
+function getUnitOoHrs(uid){return Math.max(getInputVal('oo-'+uid,0),0);}
 function grossUp(p){return p/(1-getNP()/100);}
 
 function aggregateStaffing(vals) {
@@ -701,6 +718,43 @@ function aggregateStaffing(vals) {
     rows.push({ ...v, s, rn, lpn, tech, total: rn + lpn + tech });
   });
   return { tRN, tLPN, tTech, shiftTot: tRN + tLPN + tTech, rows };
+}
+
+/* ── Shared staffing metrics — single source for all FTE/EPOB calculations ── */
+function computeStaffingMetrics(vals, ooHrs, npPct) {
+  const totalCensus = vals.reduce((s, v) => s + v.census, 0);
+  const { tRN, tLPN, tTech, shiftTot, rows } = aggregateStaffing(vals);
+  const acuteOpen = vals.filter(v => v.type === 'acute' && v.census > 0).length;
+  const floatShift = Math.ceil(acuteOpen / 2);
+  const floatFTE = floatShift * FTE_MULTIPLIER;
+
+  const rnFTE = tRN * FTE_MULTIPLIER;
+  const lpnFTE = tLPN * FTE_MULTIPLIER;
+  const techFTE = tTech * FTE_MULTIPLIER;
+  const nursingProd = rnFTE + lpnFTE + techFTE;
+
+  const oneOneProd = ooHrs * DAYS_TO_FTE;
+  const oneOneAdj = oneOneProd / (1 - npPct / 100);
+  const totalVarProd = nursingProd + floatFTE + oneOneProd;
+  const totalVarAdj = (nursingProd + floatFTE) / (1 - npPct / 100) + oneOneAdj;
+  const varNPadd = totalVarAdj - totalVarProd;
+
+  const fixed = getFixedTotals();
+  const grandProd = totalVarProd + fixed.fte;
+  const grandAdj = totalVarAdj + fixed.fte;
+
+  const dcEpob = totalCensus > 0 ? totalVarAdj / totalCensus : 0;
+  const totalEpob = totalCensus > 0 ? grandAdj / totalCensus : 0;
+
+  return {
+    totalCensus, tRN, tLPN, tTech, shiftTot, rows,
+    acuteOpen, floatShift, floatFTE,
+    rnFTE, lpnFTE, techFTE, nursingProd,
+    ooHrs, oneOneProd, oneOneAdj,
+    totalVarProd, totalVarAdj, varNPadd,
+    fixed, grandProd, grandAdj,
+    dcEpob, totalEpob
+  };
 }
 
 function renderCensusGrid(){
@@ -722,7 +776,7 @@ function renderCensusGrid(){
     </div>`).join('');
 }
 
-function getVals(){return UNITS.map(u=>({...u,census:Math.min(Math.max(parseInt(document.getElementById('input-'+u.id).value)||0,0),u.maxBeds),ooHrs:getUnitOoHrs(u.id)}));}
+function getVals(){return UNITS.map(u=>({...u,census:Math.min(Math.max(Math.floor(getInputVal('input-'+u.id,0)),0),u.maxBeds),ooHrs:getUnitOoHrs(u.id)}));}
 
 function onCensusChange() {
   saveDailyData();
@@ -759,30 +813,19 @@ function onCensusChange() {
 }
 
 function updateEpobKpi(vals,totalCensus){
-  const { tRN, tLPN, tTech, shiftTot } = aggregateStaffing(vals);
-  const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;
-  const floatFTE=Math.ceil(acuteOpen/2)*FTE_MULTIPLIER;
-  const nursingProd=shiftTot*FTE_MULTIPLIER;
-  const ooHrs=getOneOneHrs();
-  const oneOneProd=ooHrs*7/40;
-  const oneOneAdj=grossUp(oneOneProd);
-  document.getElementById('oneOneFteDisplay').textContent=oneOneAdj.toFixed(1);
-  const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj;
-  const fixed=getFixedTotals();
-  const grandAdj=totalVarAdj+fixed.fte;
-  document.getElementById('kpiFixFTE').textContent=fmt(fixed.fte);
-  document.getElementById('kpiVarFTE').textContent=totalCensus>0?totalVarAdj.toFixed(1):'—';
-  document.getElementById('kpiVarFTE2').textContent=totalCensus>0?totalVarAdj.toFixed(1):'—';
-  document.getElementById('kpiTotalFTE').textContent=totalCensus>0?grandAdj.toFixed(1):'—';
+  const m = computeStaffingMetrics(vals, getOneOneHrs(), getNP());
+  document.getElementById('oneOneFteDisplay').textContent=m.oneOneAdj.toFixed(1);
+  document.getElementById('kpiFixFTE').textContent=fmt(m.fixed.fte);
+  document.getElementById('kpiVarFTE').textContent=totalCensus>0?m.totalVarAdj.toFixed(1):'—';
+  document.getElementById('kpiVarFTE2').textContent=totalCensus>0?m.totalVarAdj.toFixed(1):'—';
+  document.getElementById('kpiTotalFTE').textContent=totalCensus>0?m.grandAdj.toFixed(1):'—';
   if(totalCensus>0){
-    const dcEpob=totalVarAdj/totalCensus;
-    const totalEpob=grandAdj/totalCensus;
-    document.getElementById('kpiDcEpob').textContent=dcEpob.toFixed(2);
-    document.getElementById('kpiDcEpob').style.color=dcEpob>1.2?'var(--danger)':dcEpob>0.9?'var(--warning)':'var(--success)';
-    document.getElementById('kpiDcLine').textContent=totalVarAdj.toFixed(1)+' FTEs ÷ '+totalCensus+' ADC'+(ooHrs>0?' (incl '+ooHrs+'h 1:1s)':'');
-    document.getElementById('kpiEpob').textContent=totalEpob.toFixed(2);
-    document.getElementById('kpiEpob').style.color=totalEpob>2.0?'var(--danger)':totalEpob>1.5?'var(--warning)':'var(--success)';
-    document.getElementById('kpiCensusLine').textContent=grandAdj.toFixed(1)+' FTEs ÷ '+totalCensus+' ADC'+(fixed.source==='payroll'?' (payroll)':'');
+    document.getElementById('kpiDcEpob').textContent=m.dcEpob.toFixed(2);
+    document.getElementById('kpiDcEpob').style.color=m.dcEpob>EPOB_DC_DANGER?'var(--danger)':m.dcEpob>EPOB_DC_WARN?'var(--warning)':'var(--success)';
+    document.getElementById('kpiDcLine').textContent=m.totalVarAdj.toFixed(1)+' FTEs ÷ '+totalCensus+' ADC'+(m.ooHrs>0?' (incl '+m.ooHrs+'h 1:1s)':'');
+    document.getElementById('kpiEpob').textContent=m.totalEpob.toFixed(2);
+    document.getElementById('kpiEpob').style.color=m.totalEpob>EPOB_TOTAL_DANGER?'var(--danger)':m.totalEpob>EPOB_TOTAL_WARN?'var(--warning)':'var(--success)';
+    document.getElementById('kpiCensusLine').textContent=m.grandAdj.toFixed(1)+' FTEs ÷ '+totalCensus+' ADC'+(m.fixed.source==='payroll'?' (payroll)':'');
 
     // Actual EPOB & variance from payroll
     if(payrollData && payrollMeta){
@@ -793,25 +836,25 @@ function updateEpobKpi(vals,totalCensus){
         const d=payrollData[bu];
         if(variableBUs.includes(bu)) actVarProdHrs+=(d.hours-d.npHrs)/days; else actFixHrs+=d.hours/days;
       });
-      const actVarFTE=(actVarProdHrs*7)/40;
-      const actFixFTE=(actFixHrs*7)/40+BASELINE_SALARY_FTE;
+      const actVarFTE=actVarProdHrs*DAYS_TO_FTE;
+      const actFixFTE=actFixHrs*DAYS_TO_FTE+BASELINE_SALARY_FTE;
       const actTotalFTE=actVarFTE+actFixFTE;
 
       const actDcEpob=actVarFTE/totalCensus;
       const dcVar=actDcEpob-dcEpob;
       document.getElementById('kpiDcActualBlock').style.display='';
       document.getElementById('kpiDcActual').textContent=actDcEpob.toFixed(2);
-      document.getElementById('kpiDcActual').style.color=actDcEpob>1.2?'var(--danger)':actDcEpob>0.9?'var(--warning)':'var(--success)';
+      document.getElementById('kpiDcActual').style.color=actDcEpob>EPOB_DC_DANGER?'var(--danger)':actDcEpob>EPOB_DC_WARN?'var(--warning)':'var(--success)';
       document.getElementById('kpiDcVariance').textContent=(dcVar>=0?'+':'')+dcVar.toFixed(2);
-      document.getElementById('kpiDcVariance').style.color=dcVar>0.05?'var(--danger)':dcVar<-0.05?'var(--warning)':'var(--success)';
+      document.getElementById('kpiDcVariance').style.color=dcVar>EPOB_VARIANCE_THRESH?'var(--danger)':dcVar<-EPOB_VARIANCE_THRESH?'var(--warning)':'var(--success)';
 
       const actTotalEpob=actTotalFTE/totalCensus;
       const totalVar=actTotalEpob-totalEpob;
       document.getElementById('kpiTotalActualBlock').style.display='';
       document.getElementById('kpiTotalActual').textContent=actTotalEpob.toFixed(2);
-      document.getElementById('kpiTotalActual').style.color=actTotalEpob>2.0?'var(--danger)':actTotalEpob>1.5?'var(--warning)':'var(--success)';
+      document.getElementById('kpiTotalActual').style.color=actTotalEpob>EPOB_TOTAL_DANGER?'var(--danger)':actTotalEpob>EPOB_TOTAL_WARN?'var(--warning)':'var(--success)';
       document.getElementById('kpiTotalVariance').textContent=(totalVar>=0?'+':'')+totalVar.toFixed(2);
-      document.getElementById('kpiTotalVariance').style.color=totalVar>0.05?'var(--danger)':totalVar<-0.05?'var(--warning)':'var(--success)';
+      document.getElementById('kpiTotalVariance').style.color=totalVar>EPOB_VARIANCE_THRESH?'var(--danger)':totalVar<-EPOB_VARIANCE_THRESH?'var(--warning)':'var(--success)';
     }else{
       document.getElementById('kpiDcActualBlock').style.display='none';
       document.getElementById('kpiTotalActualBlock').style.display='none';
@@ -831,9 +874,10 @@ function updateEpobKpi(vals,totalCensus){
 function renderStaffing(vals,totalCensus){
   const out=document.getElementById('staffingOutput');const bar=document.getElementById('totalsBar');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate staffing requirements.</div>';bar.innerHTML='';return;}
-  const { tRN, tLPN, tTech, shiftTot, rows } = aggregateStaffing(vals);
-  const ooHrs=getOneOneHrs();const ooProd=ooHrs*7/40;const prodFTE=shiftTot*FTE_MULTIPLIER;const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatFTE=Math.ceil(acuteOpen/2)*FTE_MULTIPLIER;const adjFTE=grossUp(prodFTE+floatFTE)+grossUp(ooProd);
-  const fixed=getFixedTotals();
+  const m = computeStaffingMetrics(vals, getOneOneHrs(), getNP());
+  const { tRN, tLPN, tTech, shiftTot, rows } = m;
+  const prodFTE=m.nursingProd;const adjFTE=m.totalVarAdj;
+  const fixed=m.fixed;
   bar.innerHTML=`
     <div class="total-stat"><div class="stat-label">Variable Staff/Shift</div><div class="stat-value">${Math.round(shiftTot/3)}</div><div class="stat-sub">${shiftTot} across 3 shifts</div></div>
     <div class="total-stat alt"><div class="stat-label">RN / LPN / Tech</div><div class="stat-value">${tRN}/${tLPN}/${tTech}</div><div class="stat-sub">Sum across all shifts</div></div>
@@ -853,13 +897,11 @@ function renderPositionControl(vals,totalCensus){
   const out=document.getElementById('posControlOutput');
   if(totalCensus===0){out.innerHTML='<div class="no-census-msg">Enter census values above to generate position control.</div>';return;}
   const npPct=getNP();
-  const { tRN, tLPN, tTech, shiftTot, rows: aggRows } = aggregateStaffing(vals);
+  const m = computeStaffingMetrics(vals, getOneOneHrs(), npPct);
+  const { tRN, tLPN, tTech, shiftTot, rows: aggRows } = m;
   const uRows = aggRows.map(r => ({ name: r.payrollBU, type: r.type, census: r.census, rn: r.rn, lpn: r.lpn, tech: r.tech }));
-  const acuteOpen=vals.filter(v=>v.type==='acute'&&v.census>0).length;const floatShift=Math.ceil(acuteOpen/2);
-  const rnFTE=tRN*FTE_MULTIPLIER,lpnFTE=tLPN*FTE_MULTIPLIER,techFTE=tTech*FTE_MULTIPLIER;const nursingProd=rnFTE+lpnFTE+techFTE;const floatFTE=floatShift*FTE_MULTIPLIER;
-  const ooHrs=getOneOneHrs();const oneOneProd=ooHrs*7/40;const oneOneAdj=grossUp(oneOneProd);const totalVarProd=nursingProd+floatFTE+oneOneProd;const totalVarAdj=grossUp(nursingProd+floatFTE)+oneOneAdj;const varNPadd=totalVarAdj-totalVarProd;
-  const fixed=getFixedTotals();
-  const grandProd=totalVarProd+fixed.fte;const grandAdj=totalVarAdj+fixed.fte;
+  const { floatShift, floatFTE, rnFTE, lpnFTE, techFTE, nursingProd, ooHrs, oneOneProd, oneOneAdj, totalVarProd, totalVarAdj, varNPadd, fixed } = m;
+  const { grandProd, grandAdj } = m;
   let h='';
   h+=`<div class="section-header-row"><h3 class="section-title">Variable FTEs — Direct Care Units <span class="sub">· Flex with census · NP ${npPct}% applied</span></h3><button class="export-btn" onclick="exportToExcel('poscontrol')"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>Export to Excel</button></div>`;
   h+=`<div class="table-wrap"><table><thead><tr><td class="pc-section-header var" colspan="8">VARIABLE — NURSING UNITS (Census-Driven)</td></tr><tr><th>Unit</th><th>Type</th><th class="num">RN</th><th class="num">LPN</th><th class="num">Tech</th><th class="num">Shift Tot</th><th class="num">Prod FTEs</th><th class="num warn-head">Adj FTEs</th></tr></thead><tbody>`;
@@ -906,7 +948,7 @@ function renderTrends() {
     const rec = payrollHistory[dk];
     const d = rec.data;
     const days = rec.meta.dayCount;
-    const recNP = rec.npPct || 12.6;
+    const recNP = rec.npPct || DEFAULT_NP_PCT;
 
     // Census from snapshot
     const totalCensus = rec.census.reduce((s, c) => s + c.census, 0);
@@ -924,8 +966,8 @@ function renderTrends() {
       fixHC += d[bu].headcount;
     });
 
-    const varFTE = (varProdHrs * 7) / 40;
-    const fixHourlyFTE = (fixHrs * 7) / 40;
+    const varFTE = varProdHrs * DAYS_TO_FTE;
+    const fixHourlyFTE = fixHrs * DAYS_TO_FTE;
     const fixFTE = fixHourlyFTE + BASELINE_SALARY_FTE;
     const totalFTE = varFTE + fixFTE;
     const totalHrs = varHrs + fixHrs;
@@ -945,7 +987,7 @@ function renderTrends() {
     const modelFloatFTE = Math.ceil(acuteOpen / 2) * FTE_MULTIPLIER;
     const modelNursingProd = modelVarShifts * FTE_MULTIPLIER;
     const modelGrossUp = v => v / (1 - recNP / 100);
-    const oneOneProd = totalOoHrs * 7 / 40;
+    const oneOneProd = totalOoHrs * DAYS_TO_FTE;
     const modelVarAdj = modelGrossUp(modelNursingProd + modelFloatFTE) + modelGrossUp(oneOneProd);
 
     return {
@@ -1273,7 +1315,7 @@ function renderVariance() {
     const s = getStaffing(g, v.census);
     let totalStaff = 0;
     ['day','evening','night'].forEach(sh => { totalStaff += s[sh].rn + s[sh].lpn + s[sh].tech; });
-    const dailyHrs = totalStaff * 8;
+    const dailyHrs = totalStaff * HOURS_PER_SHIFT;
     const prodFTE = totalStaff * FTE_MULTIPLIER;
     const adjFTE = grossUp(prodFTE);
     modelBU[v.payrollBU] = {
@@ -1341,15 +1383,15 @@ function renderVariance() {
   });
 
   const grandVariance = (totActualHrs - totModelHrs);
-  const grandVarianceCls = grandVariance > 2 ? 'over' : grandVariance < -2 ? 'under' : 'balanced';
+  const grandVarianceCls = grandVariance > VARIANCE_THRESHOLD ? 'over' : grandVariance < -VARIANCE_THRESHOLD ? 'under' : 'balanced';
 
   // EPOB calculations
   // DC EPOB uses productive hours only (excluding NP); Total adds salaried FTE proxy
-  const actualVarFTE = (totActualProdHrs * 7) / 40;
-  const actualFixHourlyFTE = (totFixActualHrs * 7) / 40;
+  const actualVarFTE = totActualProdHrs * DAYS_TO_FTE;
+  const actualFixHourlyFTE = totFixActualHrs * DAYS_TO_FTE;
   const actualFixFTE = actualFixHourlyFTE + BASELINE_SALARY_FTE;
   const actualTotalFTE = actualVarFTE + actualFixFTE;
-  const ooFTE = (totOoHrs * 7) / 40;
+  const ooFTE = totOoHrs * DAYS_TO_FTE;
   const actualVarFTEex11 = actualVarFTE - ooFTE;
   const actualTotalFTEex11 = actualTotalFTE - ooFTE;
   const modelVarFTE = totModelFTE;
@@ -1360,7 +1402,7 @@ function renderVariance() {
   const modelEpob = totalCensus > 0 ? modelTotalFTE / totalCensus : 0;
   const epobVariance = actualEpob - modelEpob;
   const epobVarianceEx11 = actualEpobEx11 - modelEpob;
-  const epobCls = epobVariance > 0.05 ? 'over' : epobVariance < -0.05 ? 'under' : 'balanced';
+  const epobCls = epobVariance > EPOB_VARIANCE_THRESH ? 'over' : epobVariance < -EPOB_VARIANCE_THRESH ? 'under' : 'balanced';
 
   // Date badge
   const dateStr = payrollMeta.minDate ? payrollMeta.minDate.toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '—';
@@ -1374,14 +1416,14 @@ function renderVariance() {
   h += `<div class="var-card ${grandVarianceCls}"><div class="vc-label">Daily Hours Variance</div><div class="vc-val">${grandVariance>=0?'+':''}${grandVariance.toFixed(1)}h</div><div class="vc-sub">Actual vs Model (variable units)</div></div>`;
   h += `<div class="var-card"><div class="vc-label">Actual Daily Hours</div><div class="vc-val">${totActualHrs.toFixed(1)}</div><div class="vc-sub">${(totActualHrs+totFixActualHrs).toFixed(1)}h total incl. fixed</div></div>`;
   h += `<div class="var-card"><div class="vc-label">Model Daily Hours</div><div class="vc-val">${totModelHrs.toFixed(1)}</div><div class="vc-sub">Census: ${totalCensus} | NP: ${npPct}%</div></div>`;
-  const epobEx11Cls = epobVarianceEx11 > 0.05 ? 'over' : epobVarianceEx11 < -0.05 ? 'under' : 'balanced';
+  const epobEx11Cls = epobVarianceEx11 > EPOB_VARIANCE_THRESH ? 'over' : epobVarianceEx11 < -EPOB_VARIANCE_THRESH ? 'under' : 'balanced';
   h += `<div class="var-card ${epobCls}"><div class="vc-label">EPOB (incl 1:1)</div><div class="vc-val">${totalCensus > 0 ? actualEpob.toFixed(2) : '—'}</div><div class="vc-sub">${totalCensus > 0 ? 'Model: '+modelEpob.toFixed(2)+' · Δ '+(epobVariance>=0?'+':'')+epobVariance.toFixed(2) : 'Enter census'}</div></div>`;
   h += `<div class="var-card ${epobEx11Cls}"><div class="vc-label">EPOB (ex 1:1)</div><div class="vc-val">${totalCensus > 0 ? actualEpobEx11.toFixed(2) : '—'}</div><div class="vc-sub">${totalCensus > 0 ? 'Model: '+modelEpob.toFixed(2)+' · Δ '+(epobVarianceEx11>=0?'+':'')+epobVarianceEx11.toFixed(2)+(totOoHrs > 0 ? ' · '+totOoHrs.toFixed(0)+'h 1:1' : '') : 'Enter census'}</div></div>`;
   h += '</div>';
 
   // EPOB Detail Bar
   if(totalCensus > 0) {
-    h += `<div class="epob-footer" style="margin-bottom:24px"><div class="ef-col"><div class="ef-label" style="color:var(--teal)">Model EPOB</div><div class="ef-val" style="color:var(--navy)">${modelEpob.toFixed(2)}</div><div class="ef-sub">${modelTotalFTE.toFixed(1)} FTEs ÷ ${totalCensus} ADC</div></div><div class="ef-col"><div class="ef-label" style="color:var(--navy)">Actual EPOB</div><div class="ef-val" style="color:${epobVariance > 0.05 ? 'var(--danger)' : epobVariance < -0.05 ? 'var(--warning)' : 'var(--success)'}">${actualEpob.toFixed(2)}</div><div class="ef-sub">${actualTotalFTE.toFixed(1)} FTEs ÷ ${totalCensus} ADC</div></div><div class="ef-col"><div class="ef-label" style="color:var(--success)">Actual Variable FTE</div><div class="ef-val" style="color:var(--success)">${actualVarFTE.toFixed(1)}</div><div class="ef-sub">${totActualHrs.toFixed(1)} daily hrs × 7 ÷ 40</div></div><div class="ef-col"><div class="ef-label" style="color:var(--gray-500)">OT Hours (Period)</div><div class="ef-val" style="color:${totOT > 0 ? 'var(--danger)' : 'var(--gray-500)'}">${totOT.toFixed(1)}</div><div class="ef-sub">${days} day${days>1?'s':''} · variable units</div></div></div>`;
+    h += `<div class="epob-footer" style="margin-bottom:24px"><div class="ef-col"><div class="ef-label" style="color:var(--teal)">Model EPOB</div><div class="ef-val" style="color:var(--navy)">${modelEpob.toFixed(2)}</div><div class="ef-sub">${modelTotalFTE.toFixed(1)} FTEs ÷ ${totalCensus} ADC</div></div><div class="ef-col"><div class="ef-label" style="color:var(--navy)">Actual EPOB</div><div class="ef-val" style="color:${epobVariance > EPOB_VARIANCE_THRESH ? 'var(--danger)' : epobVariance < -EPOB_VARIANCE_THRESH ? 'var(--warning)' : 'var(--success)'}">${actualEpob.toFixed(2)}</div><div class="ef-sub">${actualTotalFTE.toFixed(1)} FTEs ÷ ${totalCensus} ADC</div></div><div class="ef-col"><div class="ef-label" style="color:var(--success)">Actual Variable FTE</div><div class="ef-val" style="color:var(--success)">${actualVarFTE.toFixed(1)}</div><div class="ef-sub">${totActualHrs.toFixed(1)} daily hrs × 7 ÷ 40</div></div><div class="ef-col"><div class="ef-label" style="color:var(--gray-500)">OT Hours (Period)</div><div class="ef-val" style="color:${totOT > 0 ? 'var(--danger)' : 'var(--gray-500)'}">${totOT.toFixed(1)}</div><div class="ef-sub">${days} day${days>1?'s':''} · variable units</div></div></div>`;
   }
 
   // Variable Units Table
@@ -1390,8 +1432,8 @@ function renderVariance() {
 
   varRows.forEach(r => {
     const census = r.model ? vals.find(v=>v.payrollBU===r.bu)?.census || 0 : 0;
-    const vCls = r.variance > 2 ? 'var-over' : r.variance < -2 ? 'var-under' : 'var-ok';
-    const vEx11Cls = r.varianceEx11 > 2 ? 'var-over' : r.varianceEx11 < -2 ? 'var-under' : 'var-ok';
+    const vCls = r.variance > VARIANCE_THRESHOLD ? 'var-over' : r.variance < -VARIANCE_THRESHOLD ? 'var-under' : 'var-ok';
+    const vEx11Cls = r.varianceEx11 > VARIANCE_THRESHOLD ? 'var-over' : r.varianceEx11 < -VARIANCE_THRESHOLD ? 'var-under' : 'var-ok';
     const varSign = r.variance >= 0 ? '+' : '';
     const varEx11Sign = r.varianceEx11 >= 0 ? '+' : '';
     const barW = Math.min(Math.abs(r.variancePct), 100);
@@ -1421,7 +1463,7 @@ function renderVariance() {
     h += `<div class="var-section-hdr"><h3>Fixed & Support Departments — Actuals <span class="sub">· Hourly from payroll + salaried hardcoded @ 40 hrs/wk</span></h3></div>`;
     h += `<div class="table-wrap"><table><thead><tr><th>Business Unit</th><th class="num">Baseline HC</th><th class="num">Baseline FTE</th><th class="num teal-head">Hourly Hrs/Day</th><th class="num teal-head">Hourly FTE</th><th class="num teal-head">Salary FTE</th><th class="num teal-head">Total FTE</th><th class="num teal-head">Actual HC</th></tr></thead><tbody>`;
     fixRows.forEach(r => {
-      const hourlyFTE = (r.actualDailyHrs * 7) / 40;
+      const hourlyFTE = r.actualDailyHrs * DAYS_TO_FTE;
       const totalFTE = hourlyFTE + r.salaryFTE;
       h += `<tr><td>${esc(r.bu)} ${r.fixedFTE !== null ? '<span class="unit-tag tag-fixed">FIXED</span>' : '<span class="unit-tag tag-acute">OTHER</span>'}</td>`;
       h += `<td class="num">${r.fixedHC !== null ? r.fixedHC : '—'}</td>`;
@@ -1472,22 +1514,12 @@ function renderExecSummary() {
 
   const npPct = getNP();
   const ooHrs = getOneOneHrs();
-  const { tRN, tLPN, tTech, shiftTot, rows: aggRows } = aggregateStaffing(vals);
-  const acuteOpen = vals.filter(v => v.type === 'acute' && v.census > 0).length;
-  const floatShift = Math.ceil(acuteOpen / 2);
-  const rnFTE = tRN * FTE_MULTIPLIER, lpnFTE = tLPN * FTE_MULTIPLIER, techFTE = tTech * FTE_MULTIPLIER;
-  const nursingProd = rnFTE + lpnFTE + techFTE;
-  const floatFTE = floatShift * FTE_MULTIPLIER;
-  const oneOneProd = ooHrs * 7 / 40;
-  const oneOneAdj = grossUp(oneOneProd);
-  const totalVarProd = nursingProd + floatFTE + oneOneProd;
-  const totalVarAdj = grossUp(nursingProd + floatFTE) + oneOneAdj;
-  const fixed = getFixedTotals();
-  const grandProd = totalVarProd + fixed.fte;
-  const grandAdj = totalVarAdj + fixed.fte;
-  const dcEpob = totalVarAdj / totalCensus;
-  const totalEpob = grandAdj / totalCensus;
-  const ooFTE = (ooHrs * 7) / 40;
+  const m = computeStaffingMetrics(vals, ooHrs, npPct);
+  const { tRN, tLPN, tTech, shiftTot, rows: aggRows, acuteOpen, floatShift,
+          rnFTE, lpnFTE, techFTE, nursingProd, floatFTE,
+          oneOneProd, oneOneAdj, totalVarProd, totalVarAdj,
+          fixed, grandProd, grandAdj, dcEpob, totalEpob } = m;
+  const ooFTE = ooHrs * DAYS_TO_FTE;
 
   const hasPayroll = !!payrollData && !!payrollMeta;
   const days = hasPayroll ? payrollMeta.dayCount : 1;
@@ -1507,8 +1539,8 @@ function renderExecSummary() {
       }
     });
   }
-  const actVarFTE = (actVarProdHrs * 7) / 40;
-  const actFixFTE = (actFixHrs * 7) / 40 + BASELINE_SALARY_FTE;
+  const actVarFTE = actVarProdHrs * DAYS_TO_FTE;
+  const actFixFTE = actFixHrs * DAYS_TO_FTE + BASELINE_SALARY_FTE;
   const actTotalFTE = actVarFTE + actFixFTE;
   const actDcEpob = hasPayroll && totalCensus > 0 ? actVarFTE / totalCensus : 0;
   const actTotalEpob = hasPayroll && totalCensus > 0 ? actTotalFTE / totalCensus : 0;
@@ -1587,7 +1619,7 @@ function renderExecSummary() {
     const variance = actualHrs - modelHrs;
     const varEx11 = actualHrs - v.ooHrs - modelHrs;
     const occPct = v.maxBeds > 0 ? (v.census / v.maxBeds * 100) : 0;
-    const vCls = variance > 2 ? 'row-over' : variance < -2 ? 'row-under' : '';
+    const vCls = variance > VARIANCE_THRESHOLD ? 'row-over' : variance < -VARIANCE_THRESHOLD ? 'row-under' : '';
     const vEx11Cls = varEx11 > 2 ? 'row-over' : varEx11 < -2 ? 'row-under' : '';
     totBeds += v.maxBeds; totStaff += row ? row.total : 0; totModelHrs += modelHrs;
     h += `<tr><td>${esc(v.payrollBU)}</td><td class="num">${v.maxBeds}</td>`;
@@ -1642,7 +1674,7 @@ function renderExecSummary() {
       const cat = baseline ? baseline.cat : 'Other';
       const salFTE = baseline ? baseline.salaryFTE : 0;
       const dailyHrs = d.hours / days;
-      const fte = (dailyHrs * 7) / 40 + salFTE;
+      const fte = dailyHrs * DAYS_TO_FTE + salFTE;
       if (!fixedCats[cat]) fixedCats[cat] = [];
       fixedCats[cat].push({ name, baselineFTE: baseline ? baseline.fte : null, dailyHrs, fte, hc: d.headcount });
       fTotHrs += dailyHrs; fTotFTE += fte; fTotHC += d.headcount;
@@ -1752,26 +1784,14 @@ function toggleAutoPush() {
 
 function collectSharePointPayload() {
   const vals = getVals();
-  const totalCensus = vals.reduce((s, v) => s + v.census, 0);
   const npPct = getNP();
   const ooHrs = getOneOneHrs();
-  const { tRN, tLPN, tTech, shiftTot, rows: aggRows } = aggregateStaffing(vals);
-
-  const acuteOpen = vals.filter(v => v.type === 'acute' && v.census > 0).length;
-  const floatShift = Math.ceil(acuteOpen / 2);
-  const floatFTE = floatShift * FTE_MULTIPLIER;
-  const rnFTE = tRN * FTE_MULTIPLIER, lpnFTE = tLPN * FTE_MULTIPLIER, techFTE = tTech * FTE_MULTIPLIER;
-  const nursingProd = rnFTE + lpnFTE + techFTE;
-  const oneOneProd = ooHrs * 7 / 40;
-  const oneOneAdj = grossUp(oneOneProd);
-  const totalVarProd = nursingProd + floatFTE + oneOneProd;
-  const totalVarAdj = grossUp(nursingProd + floatFTE) + oneOneAdj;
-  const varNPadd = totalVarAdj - totalVarProd;
-  const fixed = getFixedTotals();
-  const grandProd = totalVarProd + fixed.fte;
-  const grandAdj = totalVarAdj + fixed.fte;
-  const dcEpob = totalCensus > 0 ? (totalVarAdj / totalCensus) : 0;
-  const totalEpob = totalCensus > 0 ? (grandAdj / totalCensus) : 0;
+  const m = computeStaffingMetrics(vals, ooHrs, npPct);
+  const { totalCensus, tRN, tLPN, tTech, shiftTot, rows: aggRows,
+          acuteOpen, floatShift, floatFTE, rnFTE, lpnFTE, techFTE,
+          nursingProd, oneOneProd, oneOneAdj,
+          totalVarProd, totalVarAdj, varNPadd,
+          fixed, grandProd, grandAdj, dcEpob, totalEpob } = m;
 
   const days = payrollMeta ? payrollMeta.dayCount : 1;
 
@@ -1782,15 +1802,8 @@ function collectSharePointPayload() {
     return npPct;
   };
 
-  // Unit short-key mapping for payload field names
-  const unitKeys = [
-    { id:'u100e', key:'1East', bu:'Acute Adult-100E' },
-    { id:'u200e', key:'2East', bu:'Acute Child-200E' },
-    { id:'u200w', key:'2West', bu:'Acute Adol-200W' },
-    { id:'u300e', key:'3East', bu:'Acute Adult-300E' },
-    { id:'u300w', key:'3West', bu:'Acute Adult-300W' },
-    { id:'detox', key:'HRC',   bu:'Acute Adult-100' },
-  ];
+  // Use UNITS array (key & payrollBU already defined there)
+  const unitKeys = UNITS.map(u => ({ id: u.id, key: u.key, bu: u.payrollBU }));
 
   // ── Build payload ──
   const payload = {
@@ -1903,7 +1916,7 @@ function collectSharePointPayload() {
         const s = getStaffing(g, v.census);
         let staff = 0;
         ['day','evening','night'].forEach(sh => { staff += s[sh].rn + s[sh].lpn + s[sh].tech; });
-        modelDailyHrs = staff * 8;
+        modelDailyHrs = staff * HOURS_PER_SHIFT;
       }
       const actualDailyHrs = actual ? actual.hours / days : 0;
       const actualDailyProdHrs = actual ? (actual.hours - actual.npHrs) / days : 0;
@@ -1946,8 +1959,8 @@ function collectSharePointPayload() {
       ? parseFloat(((totActVarHrs - totModelHrs) / totModelHrs * 100).toFixed(1)) : 0;
 
     // Actual FTEs from payroll — DC uses productive hours; Total adds salaried FTE proxy
-    const actualVarFTE = (totActVarProdHrs * 7) / 40;
-    const actualFixFTE = (totActFixHrs * 7) / 40 + BASELINE_SALARY_FTE;
+    const actualVarFTE = totActVarProdHrs * DAYS_TO_FTE;
+    const actualFixFTE = totActFixHrs * DAYS_TO_FTE + BASELINE_SALARY_FTE;
     const actualTotalFTE = actualVarFTE + actualFixFTE;
     payload.Actual_VarFTE = parseFloat(actualVarFTE.toFixed(1));
     payload.Actual_FixFTE = parseFloat(actualFixFTE.toFixed(1));
