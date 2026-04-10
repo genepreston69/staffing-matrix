@@ -1941,7 +1941,12 @@ let spAutoPush = false;
 let spDebounceTimer = null;
 
 function getSpConfig() {
-  try { return JSON.parse(storeGet('spConfig') || '{}'); } catch { return {}; }
+  let cfg;
+  try { cfg = JSON.parse(storeGet('spConfig') || '{}'); } catch { cfg = {}; }
+  // Always prefer the separately-stored token (immune to browser autofill issues)
+  const directToken = storeGet('ghTokenDirect');
+  if (directToken) cfg.ghToken = directToken;
+  return cfg;
 }
 
 function saveSpConfig(cfg) {
@@ -1954,12 +1959,12 @@ function openSpSettings() {
   document.getElementById('spPullUrl').value = cfg.pullUrl || '';
   document.getElementById('spListName').value = cfg.listName || '';
   document.getElementById('ghRepo').value = cfg.ghRepo || '';
-  document.getElementById('ghToken').value = cfg.ghToken || '';
   document.getElementById('ghAutoSync').checked = cfg.ghAutoSync !== false;
+  // Load token from its own storage key to avoid browser autofill corruption
+  const storedToken = storeGet('ghTokenDirect') || cfg.ghToken || '';
+  document.getElementById('ghToken').value = storedToken;
   document.getElementById('spModal').classList.add('active');
-  // Re-set token after brief delay to defeat browser autofill
-  const savedToken = cfg.ghToken || '';
-  setTimeout(() => { document.getElementById('ghToken').value = savedToken; }, 100);
+  setTimeout(() => { document.getElementById('ghToken').value = storedToken; }, 150);
 }
 
 function closeSpSettings() {
@@ -1973,6 +1978,8 @@ function saveSpSettings() {
   const ghRepo = document.getElementById('ghRepo').value.trim();
   const ghToken = document.getElementById('ghToken').value.trim();
   const ghAutoSync = document.getElementById('ghAutoSync').checked;
+  // Save token to its own key as well, so browser autofill can't corrupt it
+  storeSet('ghTokenDirect', ghToken);
   saveSpConfig({ webhookUrl, pullUrl, listName, ghRepo, ghToken, ghAutoSync });
   closeSpSettings();
   const hasGh = ghRepo && ghToken;
