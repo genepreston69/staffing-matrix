@@ -103,6 +103,19 @@
   .metrics-row { display:grid; grid-template-columns:repeat(5, 1fr); gap:12px; align-items:stretch; }
   .census-grid { display:grid; grid-template-columns:repeat(6, 1fr); gap:12px; }
 
+  /* Census Table Inputs */
+  .census-table { width:100%; }
+  .census-table td { vertical-align:middle; }
+  .census-tbl-input { width:56px; padding:5px 6px; border:1.5px solid var(--gray-200); border-radius:5px; font-family:'Source Sans 3',sans-serif; font-size:15px; font-weight:700; color:var(--navy); text-align:center; outline:none; -moz-appearance:textfield; }
+  .census-tbl-input::-webkit-outer-spin-button, .census-tbl-input::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .census-tbl-input:focus { border-color:var(--teal); box-shadow:0 0 0 3px rgba(74,143,170,0.15); }
+  .census-tbl-oo { width:52px; padding:5px 6px; border:1.5px solid var(--gray-200); border-radius:5px; font-family:'Source Sans 3',sans-serif; font-size:15px; font-weight:700; color:var(--danger); text-align:center; outline:none; -moz-appearance:textfield; }
+  .census-tbl-oo::-webkit-outer-spin-button, .census-tbl-oo::-webkit-inner-spin-button { -webkit-appearance:none; margin:0; }
+  .census-tbl-oo:focus { border-color:var(--danger); box-shadow:0 0 0 3px rgba(192,57,43,0.12); }
+  .census-tbl-notes { width:100%; min-width:140px; padding:5px 8px; border:1.5px solid var(--gray-200); border-radius:5px; font-family:'Source Sans 3',sans-serif; font-size:12px; color:var(--gray-700); outline:none; resize:vertical; line-height:1.4; }
+  .census-tbl-notes:focus { border-color:var(--teal); box-shadow:0 0 0 3px rgba(74,143,170,0.15); }
+  .census-tbl-notes::placeholder { color:var(--gray-300); }
+
   /* ── Uniform Card ── */
   .card { background:var(--white); border-radius:var(--radius); border:1px solid var(--gray-200); padding:14px 16px; box-shadow:var(--shadow-sm); display:flex; flex-direction:column; justify-content:center; }
   .card-label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:0.7px; color:var(--gray-500); margin-bottom:1px; line-height:1.3; }
@@ -590,7 +603,7 @@
     </div>
     <div class="top-census">
       <div class="top-col-title">Census by Unit</div>
-      <div class="census-grid" id="censusGrid"></div>
+      <div class="table-wrap" id="censusGrid"></div>
     </div>
   </div>
 
@@ -736,11 +749,14 @@ function saveDailyData() {
     timeEntryDate: currentTimeEntryDate,
     census: {},
     ooHrs: {},
+    ooNotes: {},
     npPct: getInputVal('npInput', DEFAULT_NP_PCT)
   };
   UNITS.forEach(u => {
     data.census[u.id] = Math.floor(getInputVal('input-' + u.id, 0));
     data.ooHrs[u.id] = getInputVal('oo-' + u.id, 0);
+    const notesEl = document.getElementById('oonotes-' + u.id);
+    data.ooNotes[u.id] = notesEl ? notesEl.value : '';
   });
   storeSet('dailyStaffingData', JSON.stringify(data));
 }
@@ -755,8 +771,10 @@ function loadDailyData() {
     UNITS.forEach(u => {
       const censusEl = document.getElementById('input-' + u.id);
       const ooEl = document.getElementById('oo-' + u.id);
+      const notesEl = document.getElementById('oonotes-' + u.id);
       if (data.census && data.census[u.id] != null && censusEl) censusEl.value = data.census[u.id];
       if (data.ooHrs && data.ooHrs[u.id] != null && ooEl) ooEl.value = data.ooHrs[u.id];
+      if (data.ooNotes && data.ooNotes[u.id] && notesEl) notesEl.value = data.ooNotes[u.id];
     });
   } catch(e) {}
   updateTimeEntryDisplay();
@@ -884,22 +902,32 @@ function computeStaffingMetrics(vals, ooHrs, npPct) {
 }
 
 function renderCensusGrid(){
-  document.getElementById('censusGrid').innerHTML=UNITS.map(u=>`
-    <div class="card ${u.type}">
-      <div class="card-label">${u.label}</div>
-      <div class="card-title">${u.payrollBU}</div>
-      <div class="card-row">
-        <input type="number" class="card-input" id="input-${u.id}" inputmode="numeric" min="0" max="${u.maxBeds}" value="0" oninput="onCensusChange()">
-        <span class="card-meta">/ ${u.maxBeds}</span>
-        <span class="card-badge" id="pct-${u.id}">0%</span>
-      </div>
-      <div class="card-oo-row">
-        <span class="oo-label">1:1</span>
-        <input type="number" class="card-oo-input" id="oo-${u.id}" inputmode="numeric" min="0" max="96" step="1" value="0" oninput="onCensusChange()">
-        <span class="card-oo-meta">hrs/day</span>
-      </div>
-      <div class="card-np-actual" id="np-actual-${u.id}"></div>
-    </div>`).join('');
+  let h = '<table class="census-table"><thead><tr>';
+  h += '<th>Unit</th><th>Business Unit</th><th style="text-align:center">Census</th><th style="text-align:center">Beds</th><th style="text-align:center">Occ %</th>';
+  h += '<th style="text-align:center">1:1 Hrs</th><th>1:1 Description</th>';
+  h += '</tr></thead><tbody>';
+  UNITS.forEach(u => {
+    h += `<tr>`;
+    h += `<td><span class="unit-tag ${u.type==='acute'?'tag-acute':'tag-detox'}">${u.type==='acute'?'ACUTE':'DETOX'}</span> ${u.label}</td>`;
+    h += `<td style="font-weight:600;color:var(--navy);font-size:12px">${u.payrollBU}</td>`;
+    h += `<td style="text-align:center"><input type="number" class="census-tbl-input" id="input-${u.id}" inputmode="numeric" min="0" max="${u.maxBeds}" value="0" oninput="onCensusChange()"></td>`;
+    h += `<td class="num" style="color:var(--gray-500)">${u.maxBeds}</td>`;
+    h += `<td class="num"><span class="card-badge" id="pct-${u.id}" style="display:inline-block">0%</span></td>`;
+    h += `<td style="text-align:center"><input type="number" class="census-tbl-oo" id="oo-${u.id}" inputmode="numeric" min="0" max="96" step="1" value="0" oninput="onCensusChange()"></td>`;
+    h += `<td><textarea class="census-tbl-notes" id="oonotes-${u.id}" rows="1" placeholder="Describe 1:1 observation..." oninput="onCensusChange()"></textarea></td>`;
+    h += `</tr>`;
+  });
+  // Totals row
+  h += `<tr class="subtotal-row">`;
+  h += `<td colspan="2" style="font-weight:700">Facility Total</td>`;
+  h += `<td class="num" style="font-weight:700" id="tblTotalCensus">0</td>`;
+  h += `<td class="num">${UNITS.reduce((s,u)=>s+u.maxBeds,0)}</td>`;
+  h += `<td class="num"><span class="card-badge" id="tblTotalOcc" style="display:inline-block">0%</span></td>`;
+  h += `<td class="num" style="font-weight:700" id="tblTotalOoHrs">0</td>`;
+  h += `<td></td>`;
+  h += `</tr>`;
+  h += '</tbody></table>';
+  document.getElementById('censusGrid').innerHTML = h;
 }
 
 function getVals(){return UNITS.map(u=>({...u,census:Math.min(Math.max(Math.floor(getInputVal('input-'+u.id,0)),0),u.maxBeds),ooHrs:getUnitOoHrs(u.id)}));}
@@ -930,6 +958,18 @@ function onCensusChange() {
   // Total census card
   document.getElementById('totalCensusNum').textContent=totalCensus;
   document.getElementById('totalOccPct').textContent=Math.round(totalCensus/TOTAL_STAFFED*100);
+
+  // Census table totals row
+  const tblCensus = document.getElementById('tblTotalCensus');
+  const tblOcc = document.getElementById('tblTotalOcc');
+  const tblOo = document.getElementById('tblTotalOoHrs');
+  if (tblCensus) tblCensus.textContent = totalCensus;
+  if (tblOo) tblOo.textContent = totalOoHrs;
+  if (tblOcc) {
+    const occPct = Math.round(totalCensus / TOTAL_STAFFED * 100);
+    tblOcc.textContent = occPct + '%';
+    tblOcc.className = 'card-badge ' + (occPct < 50 ? 'pct-low' : occPct < 80 ? 'pct-mid' : 'pct-high');
+  }
 
   renderStaffing(vals,totalCensus);
   renderPositionControl(vals,totalCensus);
@@ -1989,6 +2029,11 @@ function collectSharePointPayload() {
   // ─── Inputs: 1:1 Observation Hours ───
   payload.ObsHrs_Total = ooHrs;
   unitKeys.forEach(uk => { payload['ObsHrs_' + uk.key] = getUnitOoHrs(uk.id); });
+  // 1:1 Observation Notes
+  unitKeys.forEach(uk => {
+    const notesEl = document.getElementById('oonotes-' + uk.id);
+    payload['ObsNotes_' + uk.key] = notesEl ? notesEl.value : '';
+  });
 
   // ─── Inputs: Non-Productive ───
   payload.NP_ModelPct = npPct;
@@ -2144,6 +2189,8 @@ function clearEntryFields() {
     if (el) el.value = 0;
     const oo = document.getElementById('oo-' + u.id);
     if (oo) oo.value = 0;
+    const notes = document.getElementById('oonotes-' + u.id);
+    if (notes) notes.value = '';
   });
   onCensusChange();
 }
@@ -2508,8 +2555,10 @@ function applySharedData(sp) {
   UNITS.forEach(u => {
     const censusEl = document.getElementById('input-' + u.id);
     const ooEl = document.getElementById('oo-' + u.id);
+    const notesEl = document.getElementById('oonotes-' + u.id);
     if (sp['Census_' + u.key] != null && censusEl) censusEl.value = sp['Census_' + u.key];
     if (sp['ObsHrs_' + u.key] != null && ooEl) ooEl.value = sp['ObsHrs_' + u.key];
+    if (sp['ObsNotes_' + u.key] && notesEl) notesEl.value = sp['ObsNotes_' + u.key];
   });
   if (sp.NP_ModelPct != null) document.getElementById('npInput').value = sp.NP_ModelPct;
   if (sp.TimeEntryDate) {
