@@ -2334,15 +2334,19 @@ async function testPullWebhook() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'pullTrends', test: true, limit: 1 })
     });
+    let respBody = '';
+    try { respBody = await resp.text(); } catch(e) {}
+    console.log('[SP Pull Test] Response:', resp.status, resp.statusText, respBody);
     if (resp.ok || resp.status === 202) {
-      const data = await resp.json().catch(() => null);
-      const count = data ? (data.records || data.value || data).length || 0 : 0;
+      let count = 0;
+      try { const data = JSON.parse(respBody); count = (data.records || data.value || data).length || 0; } catch(e) {}
       alert('Pull connection successful! Received ' + count + ' record(s).');
     } else {
-      alert('Pull connection returned HTTP ' + resp.status + '. Check your Power Automate flow.');
+      alert('Pull returned HTTP ' + resp.status + '.\n\nResponse: ' + (respBody || '(empty)').slice(0, 300) + '\n\nCheck your Power Automate flow run history for details.');
     }
   } catch (err) {
-    alert('Pull connection failed: ' + err.message + '\n\nMake sure the Pull webhook URL is correct and the flow is enabled.');
+    console.error('[SP Pull Test] Error:', err);
+    alert('Pull connection failed: ' + err.message + '\n\nTroubleshooting:\n1. Is the Pull flow turned ON in Power Automate?\n2. Re-copy the trigger URL (it may change after edits)\n3. Open browser DevTools (F12) > Console for details');
   }
 }
 
@@ -2544,23 +2548,22 @@ async function pullTrendsFromSharePoint() {
   if (btn) { btn.disabled = true; btn.textContent = 'Pulling...'; }
 
   try {
-    // Build request URL with query params
-    const url = new URL(cfg.pullUrl);
-    url.searchParams.set('action', 'pullTrends');
-    url.searchParams.set('limit', '30');
-
-    const resp = await fetch(url.toString(), {
+    const resp = await fetch(cfg.pullUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ action: 'pullTrends', limit: 30 })
     });
 
+    let respBody = '';
+    try { respBody = await resp.text(); } catch(e) {}
+    console.log('[SP Pull] Response:', resp.status, resp.statusText, respBody);
+
     if (!resp.ok && resp.status !== 202) {
-      const errText = await resp.text().catch(() => '');
-      throw new Error('HTTP ' + resp.status + ' — ' + errText);
+      throw new Error('HTTP ' + resp.status + ' — ' + (respBody || '(empty)').slice(0, 200));
     }
 
-    const result = await resp.json();
+    let result;
+    try { result = JSON.parse(respBody); } catch(e) { throw new Error('Invalid JSON response from Power Automate'); }
     const records = result.records || result.value || result;
 
     if (!Array.isArray(records) || records.length === 0) {
