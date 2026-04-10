@@ -331,6 +331,13 @@
   .nav-item svg { width:18px; height:18px; fill:currentColor; flex-shrink:0; opacity:0.7; }
   .nav-item.active svg { opacity:1; }
   .nav-section-label { padding:16px 20px 6px; font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:rgba(255,255,255,0.3); }
+  /* Sidebar Controls */
+  .sidebar-controls { padding:12px 16px; border-top:1px solid rgba(255,255,255,0.08); }
+  .sidebar-ted { text-align:center; margin-bottom:10px; }
+  .sidebar-ted-label { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.4); }
+  .sidebar-ted-date { font-size:16px; font-weight:700; color:var(--teal-accent); margin:2px 0; }
+  .sidebar-actions { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
+
   .sidebar-history { padding:8px 16px 16px; border-top:1px solid rgba(255,255,255,0.08); }
   .sidebar-history-title { font-size:9px; font-weight:700; text-transform:uppercase; letter-spacing:1.2px; color:rgba(255,255,255,0.3); margin-bottom:8px; padding:0 4px; }
   .history-list { max-height:180px; overflow-y:auto; }
@@ -371,35 +378,7 @@
     <button class="sidebar-toggle" id="sidebarToggle" onclick="toggleSidebar()">
       <svg viewBox="0 0 24 24"><path d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
     </button>
-    <div class="header-badge">Staffing Operations</div>
     <div class="header-date" id="headerDate"></div>
-    <div class="time-entry-banner" id="timeEntryBanner">
-      <div>
-        <div class="ted-label">Time Entry Date</div>
-        <div class="ted-date" id="tedDisplay">—</div>
-      </div>
-      <button class="new-day-btn" onclick="startNewDay()" title="Clear all data and start a new day">
-        <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zM7 12h5v5H7v-5z"/></svg>
-        New Day
-      </button>
-    </div>
-    <div class="sp-controls">
-      <span class="sp-data-source offline" id="spDataSource" title="Data source">offline</span>
-      <button class="sp-sync-btn" id="spSyncBtn" onclick="syncFromGitHub()" title="Pull latest shared data from GitHub">
-        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
-        <span id="spSyncLabel">Sync</span>
-      </button>
-      <button class="sp-push-btn" id="spPushBtn" onclick="pushAndClear()" title="Push current data to SharePoint list">
-        <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
-        <span id="spPushLabel">Push to SharePoint</span>
-      </button>
-      <!-- Auto-push disabled: users must click Push to SharePoint -->
-      <input type="checkbox" id="spAutoToggle" style="display:none">
-      <button class="sp-settings-btn" onclick="openSpSettings()" title="SharePoint settings">
-        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/></svg>
-      </button>
-      <div class="sp-status" id="spStatus"></div>
-    </div>
   </div>
 </header>
 
@@ -434,6 +413,34 @@
       Executive Brief
     </li>
   </ul>
+  <!-- Sidebar Controls -->
+  <div class="sidebar-controls">
+    <div class="sidebar-ted">
+      <div class="sidebar-ted-label">Time Entry Date</div>
+      <div class="sidebar-ted-date" id="tedDisplay">—</div>
+      <button class="new-day-btn" onclick="startNewDay()" title="Clear all data and start a new day" style="margin-top:6px;width:100%;justify-content:center">
+        <svg viewBox="0 0 24 24"><path d="M19 4h-1V2h-2v2H8V2H6v2H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V6a2 2 0 00-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zM7 12h5v5H7v-5z"/></svg>
+        New Day
+      </button>
+    </div>
+    <div class="sidebar-actions">
+      <span class="sp-data-source offline" id="spDataSource" title="Data source">offline</span>
+      <button class="sp-sync-btn" id="spSyncBtn" onclick="syncFromGitHub()" title="Pull latest shared data from GitHub" style="flex:1">
+        <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0012 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0112 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        <span id="spSyncLabel">Sync</span>
+      </button>
+      <button class="sp-push-btn" id="spPushBtn" onclick="pushAndClear()" title="Push current data to SharePoint list" style="flex:1">
+        <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4v6zm-4 2h14v2H5v-2z"/></svg>
+        <span id="spPushLabel">Push</span>
+      </button>
+      <input type="checkbox" id="spAutoToggle" style="display:none">
+      <button class="sp-settings-btn" onclick="openSpSettings()" title="Settings">
+        <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 00.12-.61l-1.92-3.32a.49.49 0 00-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54a.484.484 0 00-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.07.62-.07.94s.02.64.07.94l-2.03 1.58a.49.49 0 00-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1112 8.4a3.6 3.6 0 010 7.2z"/></svg>
+      </button>
+    </div>
+    <div class="sp-status" id="spStatus" style="text-align:center;padding:0 16px"></div>
+  </div>
+
   <div class="sidebar-history">
     <div class="sidebar-history-title">History</div>
     <div class="history-list" id="historyList">
