@@ -2745,7 +2745,7 @@ async function pullTrendsFromSharePoint() {
         }
       });
 
-      // If no per-unit breakdown, build a single synthetic entry from totals
+      // If no per-unit variable breakdown, build a synthetic variable entry from totals
       const hasBUData = Object.keys(buMap).length > 0;
       if (!hasBUData && (varHrsDay > 0 || varHC > 0)) {
         buMap['_VariableTotal'] = {
@@ -2759,7 +2759,8 @@ async function pullTrendsFromSharePoint() {
           jobs: varHC
         };
       }
-      if (!hasBUData && (fixHrsDay > 0 || fixHC > 0)) {
+      // Always add fixed data — per-unit BUs are all variable, so fixed needs its own entry
+      if (fixHrsDay > 0 || fixHC > 0) {
         buMap['_FixedTotal'] = {
           bu: '_FixedTotal',
           hours: fixHrsDay * dayCount,
