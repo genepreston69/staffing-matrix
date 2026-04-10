@@ -316,11 +316,13 @@
   @media print { .app-sidebar,.top-bar { display:none !important; } .app-layout { display:block; } .table-wrap { box-shadow:none; border:1px solid #ccc; } body { background:#fff; } }
 
   /* ── App Layout: Sidebar Navigation ── */
-  .app-layout { display:grid; grid-template-rows:auto 1fr auto; grid-template-columns:240px 1fr; min-height:100vh; }
+  .app-layout { display:grid; grid-template-rows:auto auto 1fr auto; grid-template-columns:240px 1fr; min-height:100vh; }
   .app-header { grid-column:1 / -1; }
-  .app-sidebar { grid-row:2; background:var(--navy-deep); overflow-y:auto; border-right:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; }
-  .app-main { grid-row:2; overflow-y:auto; background:var(--off-white); }
+  .app-layout > header { grid-column:1 / -1; }
+  .app-sidebar { grid-row:3; background:var(--navy-deep); overflow-y:auto; border-right:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; }
+  .app-main { grid-row:3; overflow-y:auto; background:var(--off-white); }
   .app-footer { grid-column:1 / -1; }
+  .sidebar-overlay { display:none; }
 
   /* Sidebar Nav */
   .sidebar-nav { list-style:none; padding:8px 0; flex:1; }
