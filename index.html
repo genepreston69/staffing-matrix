@@ -2536,6 +2536,76 @@ async function saveToGitHub() {
 }
 
 // ── Pull Trends from SharePoint via Power Automate ──
+
+// Map SharePoint internal column names (field_X) to app field names
+// Derived from the Push flow's Create Item column mapping
+const SP_FIELD_MAP = {
+  'field_1':'Date', 'TimeEntryDate0':'TimeEntryDate',
+  'field_142':'PayrollStartDate', 'field_143':'PayrollEndDate',
+  'field_2':'TotalStaffedBeds', 'field_3':'TotalCensus', 'field_4':'OccupancyPct',
+  'field_5':'Census_1East', 'field_6':'Census_2East', 'field_7':'Census_2West',
+  'field_8':'Census_3East', 'field_9':'Census_3West', 'field_10':'Census_HRC',
+  'field_11':'OccPct_1East', 'field_12':'OccPct_2East', 'field_13':'OccPct_2West',
+  'field_14':'OccPct_3East', 'field_15':'OccPct_3West', 'field_16':'OccPct_HRC',
+  'field_17':'ObsHrs_Total',
+  'field_18':'ObsHrs_1East', 'field_19':'ObsHrs_2East', 'field_20':'ObsHrs_2West',
+  'field_21':'ObsHrs_3East', 'field_22':'ObsHrs_3West', 'field_23':'ObsHrs_HRC',
+  'field_24':'NP_ModelPct', 'field_25':'NP_Multiplier',
+  'field_26':'NP_1East', 'field_27':'NP_2East', 'field_28':'NP_2West',
+  'field_29':'NP_3East', 'field_30':'NP_3West', 'field_31':'NP_HRC',
+  'field_110':'Total_RN', 'field_111':'Total_LPN', 'field_112':'Total_Tech',
+  'field_113':'Total_ShiftStaff', 'field_114':'StaffPerShift', 'field_115':'FloatShiftPositions',
+  'field_116':'RN_ProdFTE', 'field_117':'RN_AdjFTE',
+  'field_118':'LPN_ProdFTE', 'field_119':'LPN_AdjFTE',
+  'field_120':'Tech_ProdFTE', 'field_121':'Tech_AdjFTE',
+  'field_122':'Float_ProdFTE', 'field_123':'Float_AdjFTE',
+  'field_124':'OneOne_ProdFTE', 'field_125':'OneOne_AdjFTE',
+  'field_126':'VarProdFTE', 'field_127':'VarAdjFTE', 'field_128':'VarNP_Add',
+  'field_129':'FixedFTE', 'field_130':'FixedHC', 'field_131':'FixedSource',
+  'field_132':'GrandProdFTE', 'field_133':'GrandAdjFTE',
+  'field_134':'EPOB_DirectCare', 'field_135':'EPOB_TotalFacility',
+  'field_136':'EPOB_Productive', 'field_137':'EPOB_VarPerPatient', 'field_138':'EPOB_FixPerPatient',
+  'field_140':'PayrollFileName', 'field_141':'PayrollDayCount',
+  'field_144':'Actual_HrsDay_1East', 'field_145':'Actual_HC_1East',
+  'field_146':'Actual_OT_1East', 'field_147':'Actual_NpHrs_1East', 'field_148':'Actual_Wages_1East',
+  'field_149':'Model_HrsDay_1East', 'field_150':'Variance_HrsDay_1East', 'field_151':'Variance_Pct_1East',
+  'field_152':'Actual_HrsDay_2East', 'field_153':'Actual_HC_2East',
+  'field_154':'Actual_OT_2East', 'field_155':'Actual_NpHrs_2East', 'field_156':'Actual_Wages_2East',
+  'field_157':'Model_HrsDay_2East', 'field_158':'Variance_HrsDay_2East', 'field_159':'Variance_Pct_2East',
+  'field_160':'Actual_HrsDay_2West', 'field_161':'Actual_HC_2West',
+  'field_162':'Actual_OT_2West', 'field_163':'Actual_NpHrs_2West', 'field_164':'Actual_Wages_2West',
+  'field_165':'Model_HrsDay_2West', 'field_166':'Variance_HrsDay_2West', 'field_167':'Variance_Pct_2West',
+  'field_168':'Actual_HrsDay_3East', 'field_169':'Actual_HC_3East',
+  'field_170':'Actual_OT_3East', 'field_171':'Actual_NpHrs_3East', 'field_172':'Actual_Wages_3East',
+  'field_173':'Model_HrsDay_3East', 'field_174':'Variance_HrsDay_3East', 'field_175':'Variance_Pct_3East',
+  'field_176':'Actual_HrsDay_3West', 'field_177':'Actual_HC_3West',
+  'field_178':'Actual_OT_3West', 'field_179':'Actual_NpHrs_3West', 'field_180':'Actual_Wages_3West',
+  'field_181':'Model_HrsDay_3West', 'field_182':'Variance_HrsDay_3West', 'field_183':'Variance_Pct_3West',
+  'field_184':'Actual_HrsDay_HRC', 'field_185':'Actual_HC_HRC',
+  'field_186':'Actual_OT_HRC', 'field_187':'Actual_NpHrs_HRC', 'field_188':'Actual_Wages_HRC',
+  'field_189':'Model_HrsDay_HRC', 'field_190':'Variance_HrsDay_HRC', 'field_191':'Variance_Pct_HRC',
+  'field_192':'Actual_VarHrsDay_Total', 'field_193':'Actual_FixHrsDay_Total',
+  'field_194':'Actual_VarHC_Total', 'field_195':'Actual_FixHC_Total',
+  'field_196':'Actual_OT_Total',
+  'field_197':'Model_VarHrsDay_Total', 'field_198':'Variance_VarHrsDay_Total', 'field_199':'Variance_VarPct_Total',
+  'field_200':'Actual_VarFTE', 'field_201':'Actual_FixFTE', 'field_202':'Actual_TotalFTE',
+  'field_203':'Actual_EPOB_DC', 'field_204':'Actual_EPOB_Total',
+  'field_205':'EPOB_DC_Variance', 'field_206':'EPOB_Total_Variance'
+};
+
+function normalizeSpRecord(raw) {
+  // If record already uses friendly names, return as-is
+  if (raw.TotalCensus != null || raw.TimeEntryDate != null) return raw;
+  // Map field_X internal names to friendly names
+  const out = {};
+  Object.keys(raw).forEach(k => {
+    const friendly = SP_FIELD_MAP[k];
+    if (friendly) out[friendly] = raw[k];
+    else out[k] = raw[k]; // keep unmapped fields
+  });
+  return out;
+}
+
 async function pullTrendsFromSharePoint() {
   const cfg = getSpConfig();
   if (!cfg.pullUrl) {
@@ -2564,13 +2634,17 @@ async function pullTrendsFromSharePoint() {
 
     let result;
     try { result = JSON.parse(respBody); } catch(e) { throw new Error('Invalid JSON response from Power Automate'); }
-    const records = result.records || result.value || result;
+    const rawRecords = result.records || result.value || result;
 
-    if (!Array.isArray(records) || records.length === 0) {
+    if (!Array.isArray(rawRecords) || rawRecords.length === 0) {
       updateSpStatus('No historical records in SharePoint', '');
       if (btn) { btn.disabled = false; btn.textContent = 'Pull from SharePoint'; }
       return;
     }
+
+    // Normalize SharePoint field_X names to friendly names
+    const records = rawRecords.map(normalizeSpRecord);
+    console.log('[SP Pull] Normalized first record:', JSON.stringify(records[0], null, 2));
 
     // Transform SharePoint records into payrollHistory format
     let imported = 0;
