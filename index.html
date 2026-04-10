@@ -504,7 +504,7 @@
         </div>
         <div class="sp-field">
           <label>GitHub Personal Access Token</label>
-          <input type="password" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off">
+          <input type="text" id="ghToken" placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="new-password" style="-webkit-text-security:disc" spellcheck="false">
           <div class="sp-help">A fine-grained PAT with <strong>Contents: Read and write</strong> permission on the repo. Stored in your browser only. <a href="https://github.com/settings/tokens?type=beta" target="_blank" style="color:var(--teal)">Create token</a></div>
         </div>
         <div class="sp-field">
@@ -1957,6 +1957,9 @@ function openSpSettings() {
   document.getElementById('ghToken').value = cfg.ghToken || '';
   document.getElementById('ghAutoSync').checked = cfg.ghAutoSync !== false;
   document.getElementById('spModal').classList.add('active');
+  // Re-set token after brief delay to defeat browser autofill
+  const savedToken = cfg.ghToken || '';
+  setTimeout(() => { document.getElementById('ghToken').value = savedToken; }, 100);
 }
 
 function closeSpSettings() {
