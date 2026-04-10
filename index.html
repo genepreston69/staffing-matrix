@@ -463,14 +463,19 @@
     </div>
     <div class="sp-modal-body">
       <div class="sp-field">
-        <label>Power Automate Webhook URL</label>
+        <label>Power Automate Push Webhook URL</label>
         <input type="url" id="spWebhookUrl" placeholder="https://prod-XX.westus.logic.azure.com:443/workflows/...">
-        <div class="sp-help">Create a "When an HTTP request is received" trigger in Power Automate, then paste the generated URL here. Saved in your browser only.</div>
+        <div class="sp-help">The "When an HTTP request is received" trigger URL for your <strong>Push</strong> flow (writes daily snapshots to SharePoint).</div>
+      </div>
+      <div class="sp-field">
+        <label>Power Automate Pull Webhook URL</label>
+        <input type="url" id="spPullUrl" placeholder="https://prod-XX.westus.logic.azure.com:443/workflows/...">
+        <div class="sp-help">The "When an HTTP request is received" trigger URL for your <strong>Pull</strong> flow (reads historical records from SharePoint for the Trends page).</div>
       </div>
       <div class="sp-field">
         <label>SharePoint List Name (reference only)</label>
         <input type="text" id="spListName" placeholder="e.g., Staffing Matrix Daily">
-        <div class="sp-help">For your reference. The actual list is configured in your Power Automate flow.</div>
+        <div class="sp-help">For your reference. The actual list is configured in your Power Automate flows.</div>
       </div>
       <div style="border-top:2px solid var(--gray-200);margin:20px 0 16px;padding-top:16px">
         <div style="font-size:13px;font-weight:700;color:var(--navy);margin-bottom:12px">GitHub Shared Data (Team Persistence)</div>
@@ -492,7 +497,8 @@
       </div>
     </div>
     <div class="sp-modal-actions">
-      <button class="sp-btn-test" onclick="testWebhook()">Test SP</button>
+      <button class="sp-btn-test" onclick="testWebhook()">Test Push</button>
+      <button class="sp-btn-test" onclick="testPullWebhook()" style="background:var(--success-light);color:var(--success);border-color:var(--success)">Test Pull</button>
       <button class="sp-btn-test" onclick="testGitHub()" style="background:var(--teal-wash);color:var(--teal);border-color:var(--teal)">Test GitHub</button>
       <button class="sp-btn-cancel" onclick="closeSpSettings()">Cancel</button>
       <button class="sp-btn-save" onclick="saveSpSettings()">Save</button>
@@ -604,7 +610,14 @@
 
   <!-- ══ PAGE: Trends ══ -->
   <div class="app-page" id="page-trends">
-    <div id="trendsOutput"><div class="no-upload-msg">Upload time entry summaries for multiple dates to view trends. Each file is stored by its Start Date.</div></div>
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div></div>
+      <button id="spPullTrendsBtn" class="export-btn" onclick="pullTrendsFromSharePoint()" style="gap:6px" title="Pull historical records from SharePoint">
+        <svg viewBox="0 0 24 24" style="width:14px;height:14px;fill:currentColor"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+        Pull from SharePoint
+      </button>
+    </div>
+    <div id="trendsOutput"><div class="no-upload-msg">Upload time entry summaries for multiple dates to view trends, or pull historical data from SharePoint.</div></div>
   </div>
 
   <!-- ══ PAGE: Executive Brief ══ -->
@@ -1893,6 +1906,7 @@ function saveSpConfig(cfg) {
 function openSpSettings() {
   const cfg = getSpConfig();
   document.getElementById('spWebhookUrl').value = cfg.webhookUrl || '';
+  document.getElementById('spPullUrl').value = cfg.pullUrl || '';
   document.getElementById('spListName').value = cfg.listName || '';
   document.getElementById('ghRepo').value = cfg.ghRepo || '';
   document.getElementById('ghToken').value = cfg.ghToken || '';
@@ -1906,11 +1920,12 @@ function closeSpSettings() {
 
 function saveSpSettings() {
   const webhookUrl = document.getElementById('spWebhookUrl').value.trim();
+  const pullUrl = document.getElementById('spPullUrl').value.trim();
   const listName = document.getElementById('spListName').value.trim();
   const ghRepo = document.getElementById('ghRepo').value.trim();
   const ghToken = document.getElementById('ghToken').value.trim();
   const ghAutoSync = document.getElementById('ghAutoSync').checked;
-  saveSpConfig({ webhookUrl, listName, ghRepo, ghToken, ghAutoSync });
+  saveSpConfig({ webhookUrl, pullUrl, listName, ghRepo, ghToken, ghAutoSync });
   closeSpSettings();
   const hasGh = ghRepo && ghToken;
   updateSpStatus(hasGh ? 'GitHub configured' : webhookUrl ? 'SP configured' : 'Not configured', (hasGh || webhookUrl) ? 'ok' : '');
@@ -2309,6 +2324,28 @@ async function testWebhook() {
   }
 }
 
+async function testPullWebhook() {
+  const url = document.getElementById('spPullUrl').value.trim();
+  if (!url) { alert('Enter a Pull Webhook URL first.'); return; }
+
+  try {
+    const resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'pullTrends', test: true, limit: 1 })
+    });
+    if (resp.ok || resp.status === 202) {
+      const data = await resp.json().catch(() => null);
+      const count = data ? (data.records || data.value || data).length || 0 : 0;
+      alert('Pull connection successful! Received ' + count + ' record(s).');
+    } else {
+      alert('Pull connection returned HTTP ' + resp.status + '. Check your Power Automate flow.');
+    }
+  } catch (err) {
+    alert('Pull connection failed: ' + err.message + '\n\nMake sure the Pull webhook URL is correct and the flow is enabled.');
+  }
+}
+
 function onPayrollUploadSpHook() {
   // Auto-push disabled — users must click "Push to SharePoint" manually
   return;
@@ -2491,6 +2528,156 @@ async function saveToGitHub() {
   } catch (err) {
     console.error('[GH Save] Error:', err);
     updateSpStatus('GitHub save error: ' + err.message, 'err');
+  }
+}
+
+// ── Pull Trends from SharePoint via Power Automate ──
+async function pullTrendsFromSharePoint() {
+  const cfg = getSpConfig();
+  if (!cfg.pullUrl) {
+    openSpSettings();
+    updateSpStatus('Configure Pull Webhook URL first', 'err');
+    return;
+  }
+
+  const btn = document.getElementById('spPullTrendsBtn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Pulling...'; }
+
+  try {
+    // Build request URL with query params
+    const url = new URL(cfg.pullUrl);
+    url.searchParams.set('action', 'pullTrends');
+    url.searchParams.set('limit', '30');
+
+    const resp = await fetch(url.toString(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'pullTrends', limit: 30 })
+    });
+
+    if (!resp.ok && resp.status !== 202) {
+      const errText = await resp.text().catch(() => '');
+      throw new Error('HTTP ' + resp.status + ' — ' + errText);
+    }
+
+    const result = await resp.json();
+    const records = result.records || result.value || result;
+
+    if (!Array.isArray(records) || records.length === 0) {
+      updateSpStatus('No historical records in SharePoint', '');
+      if (btn) { btn.disabled = false; btn.textContent = 'Pull from SharePoint'; }
+      return;
+    }
+
+    // Transform SharePoint records into payrollHistory format
+    let imported = 0;
+    records.forEach(rec => {
+      const dateKey = rec.TimeEntryDate;
+      if (!dateKey) return;
+
+      // Skip dates already in payrollHistory (local data takes priority)
+      if (payrollHistory[dateKey]) return;
+
+      const totalCensus = parseFloat(rec.TotalCensus) || 0;
+      const npPct = parseFloat(rec.NP_ModelPct) || DEFAULT_NP_PCT;
+      const varHrsDay = parseFloat(rec.Actual_VarHrsDay_Total) || 0;
+      const fixHrsDay = parseFloat(rec.Actual_FixHrsDay_Total) || 0;
+      const varHC = parseInt(rec.Actual_VarHC_Total) || 0;
+      const fixHC = parseInt(rec.Actual_FixHC_Total) || parseInt(rec.FixedHC) || 0;
+      const varOT = parseFloat(rec.Actual_OT_Total) || 0;
+      const varFTE = parseFloat(rec.Actual_VarFTE) || 0;
+      const fixFTE = parseFloat(rec.Actual_FixFTE) || parseFloat(rec.FixedFTE) || 0;
+      const modelVarAdj = parseFloat(rec.VarAdjFTE) || 0;
+      const dayCount = parseInt(rec.PayrollDayCount) || 1;
+
+      // Reconstruct census snapshot from unit fields
+      const censusSnap = UNITS.map(u => ({
+        id: u.id,
+        census: parseInt(rec['Census_' + u.key]) || 0,
+        ooHrs: parseFloat(rec['ObsHrs_' + u.key]) || 0
+      }));
+
+      // Build a synthetic buMap from the aggregates so renderTrends can compute
+      const buMap = {};
+      UNITS.forEach(u => {
+        const unitHrs = parseFloat(rec['Actual_HrsDay_' + u.key]) || 0;
+        const unitOT = parseFloat(rec['Actual_OT_' + u.key]) || 0;
+        const unitNP = parseFloat(rec['Actual_NpHrs_' + u.key]) || 0;
+        const unitHC = parseInt(rec['Actual_HC_' + u.key]) || 0;
+        const unitWages = parseFloat(rec['Actual_Wages_' + u.key]) || 0;
+        if (unitHrs > 0 || unitHC > 0) {
+          buMap[u.payrollBU] = {
+            bu: u.payrollBU,
+            hours: unitHrs * dayCount,
+            wages: unitWages * dayCount,
+            regHrs: (unitHrs - unitOT / dayCount) * dayCount,
+            otHrs: unitOT,
+            npHrs: unitNP * dayCount,
+            headcount: unitHC,
+            jobs: unitHC
+          };
+        }
+      });
+
+      // If no per-unit breakdown, build a single synthetic entry from totals
+      const hasBUData = Object.keys(buMap).length > 0;
+      if (!hasBUData && (varHrsDay > 0 || varHC > 0)) {
+        buMap['_VariableTotal'] = {
+          bu: '_VariableTotal',
+          hours: varHrsDay * dayCount,
+          wages: 0,
+          regHrs: (varHrsDay * dayCount) - varOT,
+          otHrs: varOT,
+          npHrs: 0,
+          headcount: varHC,
+          jobs: varHC
+        };
+      }
+      if (!hasBUData && (fixHrsDay > 0 || fixHC > 0)) {
+        buMap['_FixedTotal'] = {
+          bu: '_FixedTotal',
+          hours: fixHrsDay * dayCount,
+          wages: 0,
+          regHrs: fixHrsDay * dayCount,
+          otHrs: 0,
+          npHrs: 0,
+          headcount: fixHC,
+          jobs: fixHC
+        };
+      }
+
+      payrollHistory[dateKey] = {
+        data: buMap,
+        meta: {
+          fileName: rec.PayrollFileName || 'SharePoint import',
+          dayCount: dayCount,
+          minDate: new Date(dateKey + 'T12:00:00'),
+          maxDate: new Date(dateKey + 'T12:00:00'),
+          rowCount: 0,
+          source: 'sharepoint'
+        },
+        census: censusSnap,
+        npPct: npPct
+      };
+      imported++;
+    });
+
+    if (imported > 0) {
+      renderTrends();
+      updateSpStatus('Pulled ' + imported + ' record' + (imported > 1 ? 's' : '') + ' from SharePoint', 'ok');
+    } else {
+      updateSpStatus('All SharePoint records already loaded locally', 'ok');
+    }
+    console.log('[SP Pull] Imported ' + imported + ' of ' + records.length + ' records');
+
+  } catch (err) {
+    console.error('[SP Pull] Error:', err);
+    updateSpStatus('Pull error: ' + err.message, 'err');
+  }
+
+  if (btn) {
+    btn.disabled = false;
+    btn.textContent = 'Pull from SharePoint';
   }
 }
 
