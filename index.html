@@ -1942,10 +1942,14 @@ let spDebounceTimer = null;
 
 function getSpConfig() {
   let cfg;
-  try { cfg = JSON.parse(storeGet('spConfig') || '{}'); } catch { cfg = {}; }
+  try { cfg = JSON.parse(storeGet('spConfig') || '{}'); } catch(e) { cfg = {}; }
   // Always prefer the separately-stored token (immune to browser autofill issues)
   const directToken = storeGet('ghTokenDirect');
   if (directToken) cfg.ghToken = directToken;
+  // Normalize ghRepo — strip full GitHub URL to owner/repo format
+  if (cfg.ghRepo) {
+    cfg.ghRepo = cfg.ghRepo.replace(/^https?:\/\/github\.com\//, '').replace(/\/+$/, '').replace(/\.git$/, '');
+  }
   return cfg;
 }
 
