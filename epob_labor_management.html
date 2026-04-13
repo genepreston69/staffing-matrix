@@ -433,12 +433,8 @@
       <div class="accordion-body" id="mtdAccordionBody"></div>
     </div>
 
-    <div class="section-header" style="display:flex;align-items:center;justify-content:space-between">
-      <h2>Business Unit Variance <span class="sub">Model vs Actual FTE across all facility BUs · Nursing + Fixed Departments</span></h2>
-      <button class="export-btn" onclick="exportFixedBuVarianceCsv()">
-        <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>
-        Export CSV
-      </button>
+    <div class="section-header">
+      <h2>Business Unit Variance <span class="sub">Budget vs Actual FTE across all facility BUs · Upload or edit Budget FTE per BU</span></h2>
     </div>
     <div id="mtdFixedBuTable"></div>
 
@@ -1115,7 +1111,10 @@ const MTD_UNITS = [
   { key:'HRC',   label:'HRC',    sub:'SUD/Detox',   type:'detox', maxBeds:16, bu:'Acute Adult-100'  }
 ];
 
-// --- Full BU directory: nursing + fixed departments (matches index.html FIXED_DEPTS + MTD_UNITS) ---
+// --- Full BU directory: nursing + fixed departments.
+// NO hardcoded Model or Budget FTEs here. Nursing Model is computed from the
+// staffing grid (dynamic:true). Budget FTEs are loaded via upload or inline
+// edit and persisted in mtdState.buBudgets (shared team-wide via GitHub). ---
 const BU_DIRECTORY = [
   // Nursing / Detox — Model FTE computed from staffing grid (dynamic)
   { code:'1East', name:'1 East · Child Acute',     bu:'Acute Adult-100E', cat:'Nursing', dynamic:true },
@@ -1124,36 +1123,36 @@ const BU_DIRECTORY = [
   { code:'3East', name:'3 East · Adult Acute',     bu:'Acute Adult-300E', cat:'Nursing', dynamic:true },
   { code:'3West', name:'3 West · Adult Acute',     bu:'Acute Adult-300W', cat:'Nursing', dynamic:true },
   { code:'HRC',   name:'HRC · SUD/Detox',          bu:'Acute Adult-100',  cat:'Nursing', dynamic:true },
-  // Clinical Operations (from FIXED_DEPTS in index.html)
-  { code:'4100', name:'Case Management',           bu:'Case Management',            cat:'Clinical Ops',    modelFTE:5.6,  salaryFTE:0    },
-  { code:'4150', name:'Intake',                    bu:'Intake',                     cat:'Clinical Ops',    modelFTE:14.5, salaryFTE:0    },
-  { code:'4175', name:'Call Center',               bu:'Call Center',                cat:'Support Services',modelFTE:1.2,  salaryFTE:0    },
-  { code:'4200', name:'IP Clinical Admin',         bu:'IP Clinical Administration', cat:'Clinical Ops',    modelFTE:7.6,  salaryFTE:3.00 },
-  { code:'4250', name:'IP Therapists',             bu:'IP Therapists',              cat:'Clinical Ops',    modelFTE:2.4,  salaryFTE:4.00 },
-  { code:'4300', name:'Medical Staff',             bu:'Medical Staff',              cat:'Clinical Ops',    modelFTE:0.1,  salaryFTE:2.00 },
-  { code:'4350', name:'OP Clinical Admin',         bu:'OP Clinical Administration', cat:'Clinical Ops',    modelFTE:0,    salaryFTE:0    },
-  { code:'4400', name:'OP Therapists',             bu:'OP Therapists',              cat:'Clinical Ops',    modelFTE:0,    salaryFTE:0    },
-  { code:'4450', name:'Orientation and Training',  bu:'Orientation and Training',   cat:'Clinical Ops',    modelFTE:0,    salaryFTE:0    },
-  { code:'4500', name:'Pharmacy',                  bu:'Pharmacy',                   cat:'Clinical Ops',    modelFTE:0,    salaryFTE:0    },
-  { code:'4525', name:'Laboratory',                bu:'Laboratory',                 cat:'Clinical Ops',    modelFTE:0,    salaryFTE:0    },
-  { code:'4550', name:'Recreation Therapy',        bu:'Recreation Therapy',         cat:'Clinical Ops',    modelFTE:2.9,  salaryFTE:1.00 },
-  { code:'4600', name:'Utilization Review',        bu:'Utilization Review',         cat:'Clinical Ops',    modelFTE:3.3,  salaryFTE:3.00 },
+  // Clinical Operations
+  { code:'4100', name:'Case Management',           bu:'Case Management',            cat:'Clinical Ops'     },
+  { code:'4150', name:'Intake',                    bu:'Intake',                     cat:'Clinical Ops'     },
+  { code:'4175', name:'Call Center',               bu:'Call Center',                cat:'Support Services' },
+  { code:'4200', name:'IP Clinical Admin',         bu:'IP Clinical Administration', cat:'Clinical Ops'     },
+  { code:'4250', name:'IP Therapists',             bu:'IP Therapists',              cat:'Clinical Ops'     },
+  { code:'4300', name:'Medical Staff',             bu:'Medical Staff',              cat:'Clinical Ops'     },
+  { code:'4350', name:'OP Clinical Admin',         bu:'OP Clinical Administration', cat:'Clinical Ops'     },
+  { code:'4400', name:'OP Therapists',             bu:'OP Therapists',              cat:'Clinical Ops'     },
+  { code:'4450', name:'Orientation and Training',  bu:'Orientation and Training',   cat:'Clinical Ops'     },
+  { code:'4500', name:'Pharmacy',                  bu:'Pharmacy',                   cat:'Clinical Ops'     },
+  { code:'4525', name:'Laboratory',                bu:'Laboratory',                 cat:'Clinical Ops'     },
+  { code:'4550', name:'Recreation Therapy',        bu:'Recreation Therapy',         cat:'Clinical Ops'     },
+  { code:'4600', name:'Utilization Review',        bu:'Utilization Review',         cat:'Clinical Ops'     },
   // Admin / G&A + Support Services
-  { code:'5100', name:'Administration',            bu:'Administration',             cat:'Admin / G&A',     modelFTE:1.2,  salaryFTE:2.00 },
-  { code:'5150', name:'Business Office',           bu:'Business Office',            cat:'Admin / G&A',     modelFTE:0.1,  salaryFTE:0    },
-  { code:'5200', name:'Communications',            bu:'Communications',             cat:'Support Services',modelFTE:2.5,  salaryFTE:0    },
-  { code:'5250', name:'Dietary',                   bu:'Dietary',                    cat:'Support Services',modelFTE:8.0,  salaryFTE:2.00 },
-  { code:'5300', name:'Facility Accounting',       bu:'Facility Accounting',        cat:'Admin / G&A',     modelFTE:1.3,  salaryFTE:2.00 },
-  { code:'5350', name:'Facility HR',               bu:'Human Resources',            cat:'Admin / G&A',     modelFTE:0.1,  salaryFTE:2.00 },
-  { code:'5400', name:'Housekeeping',              bu:'Housekeeping',               cat:'Support Services',modelFTE:6.0,  salaryFTE:1.00 },
-  { code:'5450', name:'Infection Control',         bu:'Infection Control',          cat:'Clinical Ops',    modelFTE:0.2,  salaryFTE:0    },
-  { code:'5500', name:'Facility IT',               bu:'Facility IT',                cat:'Admin / G&A',     modelFTE:0.1,  salaryFTE:2.00 },
-  { code:'5550', name:'Light Duty',                bu:'Light Duty',                 cat:'Support Services',modelFTE:0,    salaryFTE:0    },
-  { code:'5600', name:'Marketing / Bus Dev',       bu:'Marketing / Bus Dev',        cat:'Admin / G&A',     modelFTE:2.0,  salaryFTE:2.00 },
-  { code:'5650', name:'Medical Records',           bu:'Medical Records',            cat:'Support Services',modelFTE:2.1,  salaryFTE:1.00 },
-  { code:'5700', name:'Plant Operations',          bu:'Plant Operations',           cat:'Support Services',modelFTE:2.4,  salaryFTE:1.00 },
-  { code:'5750', name:'Facility QI/Risk Management', bu:'Facility QI/Risk Mgmt',    cat:'Admin / G&A',     modelFTE:1.5,  salaryFTE:1.00 },
-  { code:'5800', name:'Transportation',            bu:'Transportation',             cat:'Support Services',modelFTE:0,    salaryFTE:0    },
+  { code:'5100', name:'Administration',            bu:'Administration',             cat:'Admin / G&A'      },
+  { code:'5150', name:'Business Office',           bu:'Business Office',            cat:'Admin / G&A'      },
+  { code:'5200', name:'Communications',            bu:'Communications',             cat:'Support Services' },
+  { code:'5250', name:'Dietary',                   bu:'Dietary',                    cat:'Support Services' },
+  { code:'5300', name:'Facility Accounting',       bu:'Facility Accounting',        cat:'Admin / G&A'      },
+  { code:'5350', name:'Facility HR',               bu:'Human Resources',            cat:'Admin / G&A'      },
+  { code:'5400', name:'Housekeeping',              bu:'Housekeeping',               cat:'Support Services' },
+  { code:'5450', name:'Infection Control',         bu:'Infection Control',          cat:'Clinical Ops'     },
+  { code:'5500', name:'Facility IT',               bu:'Facility IT',                cat:'Admin / G&A'      },
+  { code:'5550', name:'Light Duty',                bu:'Light Duty',                 cat:'Support Services' },
+  { code:'5600', name:'Marketing / Bus Dev',       bu:'Marketing / Bus Dev',        cat:'Admin / G&A'      },
+  { code:'5650', name:'Medical Records',           bu:'Medical Records',            cat:'Support Services' },
+  { code:'5700', name:'Plant Operations',          bu:'Plant Operations',           cat:'Support Services' },
+  { code:'5750', name:'Facility QI/Risk Management', bu:'Facility QI/Risk Mgmt',    cat:'Admin / G&A'      },
+  { code:'5800', name:'Transportation',            bu:'Transportation',             cat:'Support Services' },
 ];
 
 // FTE conversion: 40-hr work week
@@ -1195,7 +1194,9 @@ let mtdState = {
   oneToOne: {},   // {unitKey: total period 1:1 hrs}
   actuals: {},    // {unitKey: {hours, npHrs, ot, hc}}
   otherHours: 0,  // sum of All Paid Hours for non-variable BUs (Hourly only)
-  otherSkippedSalary: 0
+  otherSkippedSalary: 0,
+  buBudgets: {},   // {code: budgetFTE} — uploaded/edited per BU
+  buBudgetMeta: {} // { uploadedAt, fileName }
 };
 function saveMtd() {
   try { localStorage.setItem(MTD_STORAGE_KEY, JSON.stringify(mtdState)); } catch(e) {}
@@ -1769,96 +1770,243 @@ function buildNursingModelFTE() {
   return out;
 }
 
+let buBudgetEditMode = false;
+
+function toggleBuBudgetEdit() {
+  buBudgetEditMode = !buBudgetEditMode;
+  renderFixedBuVariance();
+}
+
+function saveBuBudgetEdits() {
+  // Collect values from inputs
+  BU_DIRECTORY.forEach(d => {
+    const el = document.getElementById('budget-in-' + d.code);
+    if (el) {
+      const v = parseFloat(el.value);
+      if (!isNaN(v) && v > 0) mtdState.buBudgets[d.code] = v;
+      else delete mtdState.buBudgets[d.code];
+    }
+  });
+  buBudgetEditMode = false;
+  saveMtd();
+  renderFixedBuVariance();
+}
+
+function cancelBuBudgetEdit() {
+  buBudgetEditMode = false;
+  renderFixedBuVariance();
+}
+
+function clearAllBudgets() {
+  if (!confirm('Clear ALL budget FTE values for every BU? This cannot be undone.')) return;
+  mtdState.buBudgets = {};
+  mtdState.buBudgetMeta = {};
+  saveMtd();
+  renderFixedBuVariance();
+}
+
+// --- Parse budget upload (CSV or XLSX) ---
+function handleBudgetFile(file) {
+  if (!file) return;
+  const reader = new FileReader();
+  const isCsv = /\.csv$/i.test(file.name);
+  reader.onload = e => {
+    try {
+      let objs;
+      if (isCsv) {
+        const text = e.target.result;
+        const wb = XLSX.read(text, { type:'string' });
+        objs = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' });
+      } else {
+        const wb = XLSX.read(e.target.result, { type:'array' });
+        objs = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval:'' });
+      }
+      if (!objs.length) { alert('Budget file appears empty.'); return; }
+      const sample = objs[0];
+      const findCol = opts => opts.find(o => Object.keys(sample).some(k => k.toLowerCase() === o.toLowerCase())) || null;
+      const actualKey = want => Object.keys(sample).find(k => k.toLowerCase() === want.toLowerCase());
+      const codeCol = actualKey(findCol(['BU Code','Code','Unit Code','Department Code','BU','Unit']) || 'Code');
+      const nameCol = actualKey(findCol(['Department','Unit','BU Name','Name','Business Units','Business Unit']) || 'Department');
+      const budgetCol = actualKey(findCol(['Budget FTE','Budget','Budgeted FTE','FTE Budget','Model FTE','FTE','Budget_FTE']) || 'Budget FTE');
+
+      if (!budgetCol) { alert('Could not find a Budget FTE column. Expected one of: "Budget FTE", "Budget", "Budgeted FTE", "FTE", "Model FTE".'); return; }
+
+      const num = v => { const n = parseFloat(String(v).replace(/,/g,'').replace(/[()]/g,'')); return isNaN(n) ? null : n; };
+      const nameToCode = {};
+      BU_DIRECTORY.forEach(d => { nameToCode[d.name.toLowerCase()] = d.code; nameToCode[d.bu.toLowerCase()] = d.code; });
+      const validCodes = new Set(BU_DIRECTORY.map(d => d.code));
+
+      let matched = 0, unmatched = [];
+      objs.forEach(r => {
+        const rawCode = codeCol ? String(r[codeCol] || '').trim() : '';
+        const rawName = nameCol ? String(r[nameCol] || '').trim() : '';
+        const val = num(r[budgetCol]);
+        if (val == null) return;
+        let code = null;
+        if (rawCode && validCodes.has(rawCode)) code = rawCode;
+        else if (rawName && nameToCode[rawName.toLowerCase()]) code = nameToCode[rawName.toLowerCase()];
+        if (code) { mtdState.buBudgets[code] = val; matched++; }
+        else if (rawCode || rawName) unmatched.push(rawCode || rawName);
+      });
+
+      mtdState.buBudgetMeta = { uploadedAt: new Date().toISOString(), fileName: file.name };
+      saveMtd();
+      renderFixedBuVariance();
+
+      let msg = `Loaded ${matched} budget FTE${matched===1?'':'s'} from "${file.name}".`;
+      if (unmatched.length) msg += `\n\nUnmatched rows (${unmatched.length}): ${unmatched.slice(0,8).join(', ')}${unmatched.length>8?'...':''}`;
+      alert(msg);
+    } catch(err) {
+      alert('Failed to parse budget file: ' + err.message);
+    }
+  };
+  if (isCsv) reader.readAsText(file);
+  else reader.readAsArrayBuffer(file);
+}
+
 function renderFixedBuVariance() {
   const days = mtdDayCount();
   const actuals = mtdState.allBuActuals || {};
   const nursingModel = buildNursingModelFTE();
+  const budgets = mtdState.buBudgets || {};
 
   // Build rows grouped by category
   const groups = {};
   BU_DIRECTORY.forEach(d => {
     const act = actuals[d.code] || { hours:0, npHrs:0, ot:0, hc:null };
     const actualFTE = days > 0 ? (act.hours / days) * DAYS_TO_FTE : 0;
-    const modelFTE = d.dynamic ? (nursingModel[d.code] || 0) : (d.modelFTE || 0);
-    const varianceFTE = actualFTE - modelFTE;
-    const variancePct = modelFTE > 0 ? (varianceFTE / modelFTE) * 100 : (actualFTE > 0 ? 100 : null);
-    const row = { code:d.code, name:d.name, cat:d.cat, modelFTE, actualFTE, varianceFTE, variancePct, otHrs:act.ot, hc:act.hc };
+    const modelFTE = d.dynamic ? (nursingModel[d.code] || 0) : null; // null for non-nursing
+    const budgetFTE = budgets[d.code] != null ? budgets[d.code] : null;
+    const varVsBudget = budgetFTE != null ? actualFTE - budgetFTE : null;
+    const pctVsBudget = budgetFTE != null && budgetFTE > 0 ? (varVsBudget / budgetFTE) * 100 : (actualFTE > 0 && budgetFTE === 0 ? 100 : null);
+    const varVsModel = modelFTE != null ? actualFTE - modelFTE : null;
+    const pctVsModel = modelFTE != null && modelFTE > 0 ? (varVsModel / modelFTE) * 100 : null;
+    const row = { ...d, actualFTE, modelFTE, budgetFTE, varVsBudget, pctVsBudget, varVsModel, pctVsModel, otHrs:act.ot, hc:act.hc };
     if (!groups[d.cat]) groups[d.cat] = [];
     groups[d.cat].push(row);
   });
 
-  // Render table
   const catOrder = ['Nursing','Clinical Ops','Support Services','Admin / G&A'];
-  let html = '<table class="detail-table"><thead><tr>' +
+  const edit = buBudgetEditMode;
+
+  // Controls row
+  let controls = '<div style="display:flex;gap:8px;align-items:center;justify-content:flex-end;margin-bottom:10px;flex-wrap:wrap">';
+  if (edit) {
+    controls += `<button class="export-btn" style="background:var(--success);color:#fff;border-color:var(--success)" onclick="saveBuBudgetEdits()">Save Budgets</button>`;
+    controls += `<button class="export-btn" onclick="cancelBuBudgetEdit()">Cancel</button>`;
+  } else {
+    controls += `<label class="export-btn" style="cursor:pointer;margin:0">
+      <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
+      Upload Budget File
+      <input type="file" id="buBudgetFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleBudgetFile(this.files[0]); this.value=''">
+    </label>`;
+    controls += `<button class="export-btn" onclick="toggleBuBudgetEdit()">
+      <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+      Edit Budgets
+    </button>`;
+    controls += `<button class="export-btn" onclick="exportFixedBuVarianceCsv()">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>
+      Export CSV
+    </button>`;
+    controls += `<button class="export-btn" style="color:var(--danger);border-color:var(--danger)" onclick="clearAllBudgets()">Clear All</button>`;
+  }
+  controls += '</div>';
+
+  // Table
+  let html = controls;
+  html += '<table class="detail-table"><thead><tr>' +
     '<th>BU Code</th><th>Department</th><th>Category</th>' +
-    '<th class="num">Model FTE</th><th class="num">Actual FTE</th>' +
-    '<th class="num">Variance FTE</th><th class="num">Variance %</th>' +
+    '<th class="num">Model FTE</th>' +
+    '<th class="num">Budget FTE</th>' +
+    '<th class="num">Actual FTE</th>' +
+    '<th class="num">Var vs Budget</th><th class="num">% vs Budget</th>' +
+    '<th class="num">Var vs Model</th><th class="num">% vs Model</th>' +
     '<th class="num">OT Hrs</th><th class="num">HC</th><th>Status</th>' +
     '</tr></thead><tbody>';
 
-  let grandModel = 0, grandActual = 0, grandOt = 0, grandHc = 0;
+  let grandModel = 0, grandBudget = 0, grandActual = 0, grandOt = 0, grandHc = 0;
   catOrder.forEach(cat => {
     const rows = groups[cat] || [];
     if (rows.length === 0) return;
-    let catModel = 0, catActual = 0;
+    let catModel = 0, catBudget = 0, catActual = 0;
     rows.forEach(r => {
-      const status = r.variancePct == null ? { cls:'', txt:'—' } : statusFromVar(r.variancePct);
-      const varCls = r.varianceFTE == null ? 'var-neutral' : (r.varianceFTE > 0 ? 'var-pos' : 'var-neg');
-      const pctCls = r.variancePct == null ? 'var-neutral' : (r.variancePct > 0 ? 'var-pos' : 'var-neg');
+      const status = r.pctVsBudget == null ? { cls:'', txt:'—' } : statusFromVar(r.pctVsBudget);
+      const vbCls = r.varVsBudget == null ? 'var-neutral' : (r.varVsBudget > 0 ? 'var-pos' : 'var-neg');
+      const pbCls = r.pctVsBudget == null ? 'var-neutral' : (r.pctVsBudget > 0 ? 'var-pos' : 'var-neg');
+      const vmCls = r.varVsModel == null ? 'var-neutral' : (r.varVsModel > 0 ? 'var-pos' : 'var-neg');
+      const pmCls = r.pctVsModel == null ? 'var-neutral' : (r.pctVsModel > 0 ? 'var-pos' : 'var-neg');
+
+      const budgetCell = edit
+        ? `<input type="number" step="0.1" min="0" id="budget-in-${r.code}" value="${r.budgetFTE != null ? r.budgetFTE : ''}" placeholder="—" style="width:70px;padding:4px;border:1.5px solid var(--teal);border-radius:4px;font-size:13px;text-align:center">`
+        : (r.budgetFTE != null ? fmt(r.budgetFTE,1) : '<span style="color:var(--gray-300)">—</span>');
+
       html += `<tr>
         <td style="font-family:monospace;font-size:12px;color:var(--gray-500)">${r.code}</td>
         <td><strong>${r.name}</strong></td>
         <td style="font-size:12px;color:var(--gray-500)">${r.cat}</td>
-        <td class="num">${fmt(r.modelFTE,1)}</td>
-        <td class="num">${fmt(r.actualFTE,1)}</td>
-        <td class="num"><span class="var-cell ${varCls}">${r.varianceFTE > 0 ? '▲' : r.varianceFTE < 0 ? '▼' : ''} ${fmt(Math.abs(r.varianceFTE),1)}</span></td>
-        <td class="num"><span class="var-cell ${pctCls}">${r.variancePct == null ? '—' : fmtPct(r.variancePct)}</span></td>
+        <td class="num">${r.modelFTE != null ? fmt(r.modelFTE,1) : '<span style="color:var(--gray-300)">—</span>'}</td>
+        <td class="num">${budgetCell}</td>
+        <td class="num"><strong>${fmt(r.actualFTE,1)}</strong></td>
+        <td class="num"><span class="var-cell ${vbCls}">${r.varVsBudget == null ? '—' : (r.varVsBudget > 0 ? '▲ ' : r.varVsBudget < 0 ? '▼ ' : '') + fmt(Math.abs(r.varVsBudget),1)}</span></td>
+        <td class="num"><span class="var-cell ${pbCls}">${r.pctVsBudget == null ? '—' : fmtPct(r.pctVsBudget)}</span></td>
+        <td class="num"><span class="var-cell ${vmCls}">${r.varVsModel == null ? '—' : (r.varVsModel > 0 ? '▲ ' : r.varVsModel < 0 ? '▼ ' : '') + fmt(Math.abs(r.varVsModel),1)}</span></td>
+        <td class="num"><span class="var-cell ${pmCls}">${r.pctVsModel == null ? '—' : fmtPct(r.pctVsModel)}</span></td>
         <td class="num">${fmtInt(r.otHrs)}</td>
         <td class="num">${r.hc == null ? '—' : r.hc}</td>
         <td><span class="status-badge ${status.cls}"><span class="dot"></span>${status.txt}</span></td>
       </tr>`;
-      catModel += r.modelFTE; catActual += r.actualFTE;
-      grandModel += r.modelFTE; grandActual += r.actualFTE;
-      grandOt += r.otHrs || 0;
-      grandHc += r.hc || 0;
+      catModel += (r.modelFTE || 0);
+      catBudget += (r.budgetFTE || 0);
+      catActual += r.actualFTE;
     });
-    // Category subtotal
-    const catVar = catActual - catModel;
-    const catPct = catModel > 0 ? (catVar / catModel) * 100 : null;
+    const catVar = catActual - catBudget;
+    const catPct = catBudget > 0 ? (catVar / catBudget) * 100 : null;
     const catCls = catVar > 0 ? 'var-pos' : catVar < 0 ? 'var-neg' : 'var-neutral';
     html += `<tr style="background:var(--gray-100);font-weight:700">
       <td></td><td colspan="2">${cat} Subtotal</td>
       <td class="num">${fmt(catModel,1)}</td>
+      <td class="num">${fmt(catBudget,1)}</td>
       <td class="num">${fmt(catActual,1)}</td>
       <td class="num"><span class="var-cell ${catCls}">${fmt(Math.abs(catVar),1)}</span></td>
       <td class="num"><span class="var-cell ${catCls}">${catPct == null ? '—' : fmtPct(catPct)}</span></td>
-      <td colspan="3"></td>
+      <td colspan="5"></td>
     </tr>`;
+    grandModel += catModel; grandBudget += catBudget; grandActual += catActual;
   });
 
   // Grand total
-  const grandVar = grandActual - grandModel;
-  const grandPct = grandModel > 0 ? (grandVar / grandModel) * 100 : null;
+  const grandVar = grandActual - grandBudget;
+  const grandPct = grandBudget > 0 ? (grandVar / grandBudget) * 100 : null;
   const grandCls = grandVar > 0 ? 'var-pos' : grandVar < 0 ? 'var-neg' : 'var-neutral';
   html += `<tr style="background:var(--navy);color:#fff;font-weight:700">
     <td></td><td colspan="2">Facility Total (hourly only)</td>
     <td class="num">${fmt(grandModel,1)}</td>
+    <td class="num">${fmt(grandBudget,1)}</td>
     <td class="num">${fmt(grandActual,1)}</td>
     <td class="num">${fmt(Math.abs(grandVar),1)}</td>
     <td class="num">${grandPct == null ? '—' : fmtPct(grandPct)}</td>
-    <td class="num">${fmtInt(grandOt)}</td>
-    <td class="num">${grandHc || '—'}</td>
-    <td></td>
+    <td colspan="5"></td>
   </tr>`;
   html += '</tbody></table>';
 
-  // Footnote: salaried FTE and unmapped BUs
+  // Footnote
   const unmapped = mtdState.unmappedBuHours || {};
   const unmappedEntries = Object.keys(unmapped).filter(k => unmapped[k] > 0);
+  const meta = mtdState.buBudgetMeta || {};
+  const budgetCount = Object.keys(mtdState.buBudgets || {}).length;
   html += `<div style="margin-top:10px;font-size:11px;color:var(--gray-500);line-height:1.5">
-    <strong>Notes:</strong> Hourly-only totals. Salaried FTE of ~${BASELINE_SALARY_FTE.toFixed(2)} is filtered at parse and added separately in facility EPOB.`;
+    <strong>Notes:</strong> Hourly-only totals. Salaried FTE of ~${BASELINE_SALARY_FTE.toFixed(2)} is filtered at parse and accounted for in facility EPOB.
+    Model FTE for Nursing is computed from the staffing grid × ADC; other BUs have no staffing-model concept (—).
+    Variance vs Budget is the primary measure. Variance vs Model only shown for Nursing.`;
+  if (budgetCount > 0 && meta.fileName) {
+    html += ` <br><strong>Budget source:</strong> ${budgetCount} BU${budgetCount===1?'':'s'} loaded from "${meta.fileName}" on ${new Date(meta.uploadedAt).toLocaleString()}.`;
+  } else if (budgetCount > 0) {
+    html += ` <br><strong>Budget source:</strong> ${budgetCount} BU${budgetCount===1?'':'s'} configured manually.`;
+  } else {
+    html += ` <br><strong>No budgets configured yet.</strong> Upload a budget file or click "Edit Budgets" to enter values.`;
+  }
   if (unmappedEntries.length) {
-    html += ` <br><strong>Unmapped Workday BUs in this file:</strong> ${unmappedEntries.map(k => `${k} (${fmt(unmapped[k],0)} hrs)`).join(', ')}.`;
+    html += ` <br><strong>Unmapped Workday BUs:</strong> ${unmappedEntries.map(k => `${k} (${fmt(unmapped[k],0)} hrs)`).join(', ')}.`;
   }
   html += '</div>';
 
@@ -1872,19 +2020,29 @@ function exportFixedBuVarianceCsv() {
   if (days === 0) { alert('Set period dates first.'); return; }
   const actuals = mtdState.allBuActuals || {};
   const nursingModel = buildNursingModelFTE();
-  const header = ['Code','Department','Category','ModelFTE','ActualFTE','VarianceFTE','VariancePct','OTHrs','HC'];
+  const budgets = mtdState.buBudgets || {};
+  const header = ['Code','Department','Category','ModelFTE','BudgetFTE','ActualFTE','VarVsBudgetFTE','PctVsBudget','VarVsModelFTE','PctVsModel','OTHrs','HC'];
   const lines = [header.join(',')];
   BU_DIRECTORY.forEach(d => {
     const act = actuals[d.code] || { hours:0, ot:0, hc:null };
     const actualFTE = (act.hours / days) * DAYS_TO_FTE;
-    const modelFTE = d.dynamic ? (nursingModel[d.code] || 0) : (d.modelFTE || 0);
-    const varianceFTE = actualFTE - modelFTE;
-    const variancePct = modelFTE > 0 ? (varianceFTE / modelFTE) * 100 : '';
+    const modelFTE = d.dynamic ? (nursingModel[d.code] || 0) : '';
+    const budgetFTE = budgets[d.code] != null ? budgets[d.code] : '';
+    const varVsBudget = budgetFTE !== '' ? actualFTE - budgetFTE : '';
+    const pctVsBudget = (budgetFTE !== '' && budgetFTE > 0) ? ((actualFTE - budgetFTE) / budgetFTE) * 100 : '';
+    const varVsModel = modelFTE !== '' ? actualFTE - modelFTE : '';
+    const pctVsModel = (modelFTE !== '' && modelFTE > 0) ? ((actualFTE - modelFTE) / modelFTE) * 100 : '';
     lines.push([
       d.code, '"' + d.name.replace(/"/g,'""') + '"', '"' + d.cat + '"',
-      modelFTE.toFixed(2), actualFTE.toFixed(2), varianceFTE.toFixed(2),
-      variancePct === '' ? '' : variancePct.toFixed(1),
-      (act.ot || 0).toFixed(1), act.hc == null ? '' : act.hc
+      modelFTE === '' ? '' : modelFTE.toFixed(2),
+      budgetFTE === '' ? '' : budgetFTE.toFixed(2),
+      actualFTE.toFixed(2),
+      varVsBudget === '' ? '' : varVsBudget.toFixed(2),
+      pctVsBudget === '' ? '' : pctVsBudget.toFixed(1),
+      varVsModel === '' ? '' : varVsModel.toFixed(2),
+      pctVsModel === '' ? '' : pctVsModel.toFixed(1),
+      (act.ot || 0).toFixed(1),
+      act.hc == null ? '' : act.hc
     ].join(','));
   });
   const blob = new Blob([lines.join('\n')], { type:'text/csv' });
