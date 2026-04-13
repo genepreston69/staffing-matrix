@@ -10,9 +10,11 @@ No app code changes are required. The payload already includes `TimeEntryDate` (
 
 ---
 
-## Step 1 — Find the internal column name for `TimeEntryDate`
+## Step 1 — Confirm the column type and internal name
 
-The SharePoint connector's Filter Query uses the column's **internal** name, which is frozen at creation time and often differs from the display name. If the column was ever renamed, SharePoint typically keeps the original internal name and may append `0` (e.g., `TimeEntryDate0`). The app's field map in `index.html:2611` already suggests the internal name is `TimeEntryDate0`, but confirm before editing the flow.
+`TimeEntryDate` in the SharePoint list is a **Date and time** column (Include Time = No). That matters because SharePoint's OData filter syntax for date columns is different from text columns — equality on a bare date string is unreliable, so this guide uses a **day-range filter** instead (see Step 2a).
+
+You also need the column's **internal** name, which is frozen at creation and can differ from the display name. The app's field map in `index.html:2611` indicates the internal name is **`TimeEntryDate0`** (SharePoint appended `0` because the original name was reserved). Verify once before editing the flow.
 
 Two ways to confirm:
 
@@ -27,7 +29,7 @@ Two ways to confirm:
 2. Click the existing **Create item** action and expand the advanced parameters.
 3. Find the field whose value is `TimeEntryDate` from the HTTP trigger body. The label shown by the connector is the display name; hover/expand to see the internal name, or compare to step A.
 
-Write the internal name down. You'll paste it into one place below. The rest of this guide uses the placeholder `<INTERNAL_COLUMN_NAME>`.
+The rest of this guide uses `TimeEntryDate0` as the internal name. If yours differs, replace it everywhere below.
 
 ---
 
@@ -41,11 +43,13 @@ Open the existing flow in the Power Automate portal. It currently has one ShareP
 2. Configure:
    - **Site Address**: same site as the existing Create item.
    - **List Name**: same list as the existing Create item.
-   - **Filter Query** (expand advanced options):
+   - **Filter Query** (expand advanced options) — paste this **single line** (do not break it across lines):
      ```
-     <INTERNAL_COLUMN_NAME> eq '@{triggerBody()?['TimeEntryDate']}'
+     TimeEntryDate0 ge '@{triggerBody()?['TimeEntryDate']}' and TimeEntryDate0 lt '@{addDays(triggerBody()?['TimeEntryDate'], 1, 'yyyy-MM-dd')}'
      ```
-     Replace `<INTERNAL_COLUMN_NAME>` with the value you confirmed in Step 1. Keep the single quotes around the trigger expression — `TimeEntryDate` is a string.
+     Why a range and not `eq`: `TimeEntryDate0` is a Date column. SharePoint stores it as a datetime under the hood, so an `eq` against a bare date string is unreliable across timezones. The range `[date, date+1)` matches exactly the rows whose date equals the payload's `TimeEntryDate`.
+
+     The app sends `TimeEntryDate` as `YYYY-MM-DD` (see `index.html:2034`), which plugs straight into both expressions. If your internal column name differs from `TimeEntryDate0`, replace both occurrences.
    - **Top Count**: `1`. We only need to know whether at least one row exists.
 
 ### 2b. Wrap `Create item` in a Condition
@@ -93,7 +97,11 @@ Run this checklist after the flow saves cleanly.
 4. Click **Pull from SharePoint** (Trends) in the app. Confirm no duplicate dates appear in the chart.
 5. Open the flow's **Run history**. For each test run, expand it and verify the correct branch (Update vs. Create) executed.
 
-If step 1 or 2 fails with a Filter Query error in the flow run, the most common cause is the wrong internal column name — re-check Step 1.
+If step 1 or 2 fails with a Filter Query error in the flow run, expand the failing **Get items** action in the run details and look at the response body:
+
+- `Column 'X' does not exist` — wrong internal column name. Re-check Step 1.
+- `The expression … is not valid` — most often a quoting issue. Confirm the Filter Query is on a single line and that `@{…}` is wrapped in single quotes inside the expression (`'@{triggerBody()?['TimeEntryDate']}'`).
+- The Get items returns `0` results when you know a duplicate exists — the column is likely storing values with a non-midnight time (Include Time was once enabled, then disabled). Open one of the existing rows in SharePoint, hover the date, and check whether it has a time component. If so, the day-range filter still works; the `eq` form would not.
 
 ---
 
