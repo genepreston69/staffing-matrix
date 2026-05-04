@@ -4683,11 +4683,15 @@ function renderFixedBuVariance() {
     controls += `<button class="export-btn" style="background:var(--success);color:#fff;border-color:var(--success)" onclick="saveBuBudgetEdits()">Save Budgets</button>`;
     controls += `<button class="export-btn" onclick="cancelBuBudgetEdit()">Cancel</button>`;
   } else {
-    controls += `<label class="export-btn" style="cursor:pointer;margin:0">
+    controls += `<label class="export-btn" style="cursor:pointer;margin:0" title="Upload .xlsx, .xls, or .csv with columns: BU Code, Department, Budget FTE">
       <svg viewBox="0 0 24 24"><path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/></svg>
       Upload Budget File
       <input type="file" id="buBudgetFile" accept=".xlsx,.xls,.csv" style="display:none" onchange="handleBudgetFile(this.files[0]); this.value=''">
     </label>`;
+    controls += `<button class="export-btn" onclick="downloadBuBudgetTemplate()" title="Download a pre-populated Excel template with all BU codes">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zm-1 13l-3-3h2v-3h2v3h2l-3 3z"/></svg>
+      Budget Template
+    </button>`;
     controls += `<button class="export-btn" onclick="toggleBuBudgetEdit()">
       <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
       Edit Budgets
@@ -4804,6 +4808,68 @@ function renderFixedBuVariance() {
 
   const host = document.getElementById('mtdFixedBuTable');
   if (host) host.innerHTML = html;
+}
+
+// --- Download a pre-populated Excel budget template ---
+function downloadBuBudgetTemplate() {
+  const budgets = mtdState.buBudgets || {};
+  const header = ['BU Code', 'Department', 'Category', 'Budget FTE'];
+  const aoa = [header];
+  BU_DIRECTORY.forEach(d => {
+    const existing = budgets[d.code];
+    aoa.push([d.code, d.name, d.cat, existing != null ? Number(existing) : '']);
+  });
+
+  if (typeof XLSX === 'undefined') {
+    // Fallback: CSV template
+    const csvCell = v => {
+      const s = v == null ? '' : String(v);
+      return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+    };
+    const lines = aoa.map(r => r.map(csvCell).join(','));
+    const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'Highland_BU_Budget_Template.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [{ wch:10 }, { wch:34 }, { wch:18 }, { wch:12 }];
+
+  // Instructions sheet
+  const instructions = [
+    ['Highland Hospital — BU Budget Upload Template'],
+    [],
+    ['How to use:'],
+    ['  1. Fill in the "Budget FTE" column on the "Budgets" sheet.'],
+    ['  2. Leave any row blank to keep that BU unbudgeted (will show as "—").'],
+    ['  3. Save the file (.xlsx or .csv) and click "Upload Budget File".'],
+    [],
+    ['Required columns (case-insensitive, accepted aliases shown):'],
+    ['  BU Code      — also accepts: Code, Unit Code, Department Code, BU, Unit'],
+    ['  Department   — also accepts: Unit, BU Name, Name, Business Unit'],
+    ['  Budget FTE   — also accepts: Budget, Budgeted FTE, FTE Budget, FTE'],
+    [],
+    ['Matching rules:'],
+    ['  • Rows are matched first by BU Code (e.g., "1East", "4100").'],
+    ['  • If BU Code is blank or unrecognized, the Department name is used.'],
+    ['  • Rows with a blank or non-numeric Budget FTE are ignored.'],
+    [],
+    ['Tip: "Category" column is informational only and is not required.']
+  ];
+  const wsInfo = XLSX.utils.aoa_to_sheet(instructions);
+  wsInfo['!cols'] = [{ wch:90 }];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Budgets');
+  XLSX.utils.book_append_sheet(wb, wsInfo, 'Instructions');
+  XLSX.writeFile(wb, 'Highland_BU_Budget_Template.xlsx');
 }
 
 // --- Build BU variance rows for export (CSV or Excel) ---
@@ -5001,6 +5067,7 @@ window.saveBuBudgetEdits = saveBuBudgetEdits;
 window.cancelBuBudgetEdit = cancelBuBudgetEdit;
 window.clearAllBudgets = clearAllBudgets;
 window.handleBudgetFile = handleBudgetFile;
+window.downloadBuBudgetTemplate = downloadBuBudgetTemplate;
 })();
 </script>
 </body>
