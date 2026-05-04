@@ -1174,6 +1174,33 @@ function matchFixedDept(bu) {
   return FIXED_DEPTS.find(f => f.name === mapped);
 }
 
+// Compute actual fixed FTE from a payroll snapshot using per-department fallback:
+// for each fixed dept present in the payroll, use (paidHrs/days × 7/40) + baseline.salaryFTE;
+// for fixed depts NOT in the payroll file, fall back to baseline (salaryFTE if salaried,
+// otherwise the baseline hourly fte). This avoids understating fixed FTE when the daily
+// payroll file only contains the 6 nursing BUs.
+function computeActualFixedFte(pd, days) {
+  if (!pd || !days) {
+    return FIXED_DEPTS.reduce((s,d) => s + (d.salaryFTE > 0 ? d.salaryFTE : d.fte), 0);
+  }
+  const variableBUs = UNITS.map(u => u.payrollBU);
+  let total = 0;
+  const seen = new Set();
+  Object.entries(pd).forEach(([bu, d]) => {
+    if (variableBUs.includes(bu)) return;
+    const hourlyFTE = (d.hours / days) * DAYS_TO_FTE;
+    const baseline = matchFixedDept(bu);
+    const salaryFTE = baseline ? baseline.salaryFTE : 0;
+    total += hourlyFTE + salaryFTE;
+    if (baseline) seen.add(baseline.name);
+  });
+  FIXED_DEPTS.forEach(d => {
+    if (seen.has(d.name)) return;
+    total += d.salaryFTE > 0 ? d.salaryFTE : d.fte;
+  });
+  return total;
+}
+
 function getFixedTotals() {
   if (!payrollData || !payrollMeta) {
     // No payroll: use salaryFTE as FTE for salaried depts, baseline fte for others
@@ -1183,7 +1210,7 @@ function getFixedTotals() {
   }
   const variableBUs = UNITS.map(u => u.payrollBU);
   const days = payrollMeta.dayCount;
-  let totalFTE = 0, totalHC = 0;
+  let totalHC = 0;
   const depts = [];
   const seen = new Set();
 
@@ -1194,7 +1221,6 @@ function getFixedTotals() {
     const baseline = matchFixedDept(bu);
     const salaryFTE = baseline ? baseline.salaryFTE : 0;
     const combinedFTE = hourlyFTE + salaryFTE;
-    totalFTE += combinedFTE;
     totalHC += d.headcount;
     const displayName = baseline ? baseline.name : bu;
     depts.push({ name: displayName, cat: baseline ? baseline.cat : 'Other', hc: d.headcount, fte: combinedFTE, hourlyFTE, salaryFTE, source: 'payroll' });
@@ -1205,11 +1231,12 @@ function getFixedTotals() {
   FIXED_DEPTS.forEach(d => {
     if (seen.has(d.name)) return;
     const fte = d.salaryFTE > 0 ? d.salaryFTE : d.fte;
-    totalFTE += fte;
     totalHC += d.hc;
     depts.push({ ...d, fte, source: d.salaryFTE > 0 ? 'salary' : 'baseline' });
   });
 
+  // Single source of truth for the fixed FTE total
+  const totalFTE = computeActualFixedFte(payrollData, days);
   return { fte: totalFTE, hc: totalHC, source: 'payroll', depts };
 }
 
@@ -1380,13 +1407,15 @@ function updateEpobKpi(vals,totalCensus){
     if(payrollData && payrollMeta){
       const days=payrollMeta.dayCount;
       const variableBUs=UNITS.map(u=>u.payrollBU);
-      let actVarProdHrs=0, actFixHrs=0;
+      let actVarProdHrs=0;
       Object.keys(payrollData).forEach(bu=>{
         const d=payrollData[bu];
-        if(variableBUs.includes(bu)) actVarProdHrs+=(d.hours-d.npHrs)/days; else actFixHrs+=d.hours/days;
+        if(variableBUs.includes(bu)) actVarProdHrs+=(d.hours-d.npHrs)/days;
       });
       const actVarFTE=actVarProdHrs*DAYS_TO_FTE;
-      const actFixFTE=actFixHrs*DAYS_TO_FTE+BASELINE_SALARY_FTE;
+      // Fixed FTE: per-dept payroll hours where present + baseline fallback for missing
+      // depts (matches getFixedTotals so model and actual fixed are consistent).
+      const actFixFTE=m.fixed.fte;
       const actTotalFTE=actVarFTE+actFixFTE;
 
       const actDcEpob=actVarFTE/totalCensus;
@@ -1507,7 +1536,9 @@ function renderTrends() {
     let varHrs = 0, varProdHrs = 0, varOT = 0, varHC = 0, varNpHrs = 0;
     variableBUs.forEach(bu => { if (d[bu]) { varHrs += d[bu].hours / days; varProdHrs += (d[bu].hours - d[bu].npHrs) / days; varOT += d[bu].otHrs; varHC += d[bu].headcount; varNpHrs += d[bu].npHrs; } });
 
-    // Fixed hours/FTE from payroll (hourly only — salaried added via BASELINE_SALARY_FTE)
+    // Fixed hours/FTE from payroll — per-dept fallback for missing depts (see
+    // computeActualFixedFte). Daily payroll files often omit fixed/support BUs;
+    // falling back to baseline avoids understating fixed FTE.
     let fixHrs = 0, fixHC = 0;
     Object.keys(d).forEach(bu => {
       if (variableBUs.includes(bu)) return;
@@ -1520,8 +1551,7 @@ function renderTrends() {
     const actualNpPct = totalVarHrs > 0 ? (varNpHrs / totalVarHrs * 100) : 0;
 
     const varFTE = varProdHrs * DAYS_TO_FTE;
-    const fixHourlyFTE = fixHrs * DAYS_TO_FTE;
-    const fixFTE = fixHourlyFTE + BASELINE_SALARY_FTE;
+    const fixFTE = computeActualFixedFte(d, days);
     const totalFTE = varFTE + fixFTE;
     const totalHrs = varHrs + fixHrs;
     const epobDC = totalCensus > 0 ? varFTE / totalCensus : 0;
@@ -2011,17 +2041,19 @@ function renderVariance() {
   // EPOB calculations — must mirror computeStaffingMetrics (source of truth)
   // so the model EPOB shown here matches the EPOB Mgmt and Position Control pages.
   // Model Var Adj FTE = grossUp(nursing + float) + grossUp(1:1)
-  // Actual Var FTE uses productive hours only (NP excluded); Fixed adds salaried FTE proxy.
+  // Actual Var FTE uses productive hours only (NP excluded). Fixed FTE comes from
+  // getFixedTotals (per-dept payroll + baseline fallback), so daily files that
+  // omit support depts still produce a realistic facility EPOB.
+  const m = computeStaffingMetrics(vals, totOoHrs, npPct);
+  const fixed = m.fixed;
   const actualVarFTE = totActualProdHrs * DAYS_TO_FTE;
-  const actualFixHourlyFTE = totFixActualHrs * DAYS_TO_FTE;
-  const actualFixFTE = actualFixHourlyFTE + BASELINE_SALARY_FTE;
+  const actualFixFTE = fixed.fte;
+  const actualFixHourlyFTE = totFixActualHrs * DAYS_TO_FTE; // table-display total only
   const actualTotalFTE = actualVarFTE + actualFixFTE;
   const ooFTE = totOoHrs * DAYS_TO_FTE;
   const actualVarFTEex11 = actualVarFTE - ooFTE;
   const actualTotalFTEex11 = actualTotalFTE - ooFTE;
-  const m = computeStaffingMetrics(vals, totOoHrs, npPct);
   const modelVarFTE = m.totalVarAdj;
-  const fixed = m.fixed;
   const modelTotalFTE = m.grandAdj;
   const actualEpob = totalCensus > 0 ? actualTotalFTE / totalCensus : 0;
   const actualEpobEx11 = totalCensus > 0 ? actualTotalFTEex11 / totalCensus : 0;
@@ -2153,7 +2185,7 @@ function renderExecSummary() {
   const variableBUs = UNITS.map(u => u.payrollBU);
 
   // Payroll actuals
-  let actVarProdHrs = 0, actVarHrs = 0, actFixHrs = 0, actOT = 0;
+  let actVarProdHrs = 0, actVarHrs = 0, actOT = 0;
   if (hasPayroll) {
     Object.keys(payrollData).forEach(bu => {
       const d = payrollData[bu];
@@ -2161,13 +2193,13 @@ function renderExecSummary() {
         actVarHrs += d.hours / days;
         actVarProdHrs += (d.hours - d.npHrs) / days;
         actOT += d.otHrs;
-      } else {
-        actFixHrs += d.hours / days;
       }
     });
   }
   const actVarFTE = actVarProdHrs * DAYS_TO_FTE;
-  const actFixFTE = actFixHrs * DAYS_TO_FTE + BASELINE_SALARY_FTE;
+  // Fixed FTE: per-dept payroll where present + baseline fallback for missing depts
+  // (matches getFixedTotals so model and actual fixed are consistent).
+  const actFixFTE = m.fixed.fte;
   const actTotalFTE = actVarFTE + actFixFTE;
   const actDcEpob = hasPayroll && totalCensus > 0 ? actVarFTE / totalCensus : 0;
   const actTotalEpob = hasPayroll && totalCensus > 0 ? actTotalFTE / totalCensus : 0;
@@ -2614,9 +2646,12 @@ function collectSharePointPayload() {
     payload.Variance_VarPct_Total = totModelHrs > 0
       ? parseFloat(((totActVarHrs - totModelHrs) / totModelHrs * 100).toFixed(1)) : 0;
 
-    // Actual FTEs from payroll — DC uses productive hours; Total adds salaried FTE proxy
+    // Actual FTEs from payroll — DC uses productive hours. Fixed FTE uses
+    // per-dept payroll where present + baseline fallback for missing depts
+    // (matches getFixedTotals so daily snapshots are consistent with the
+    // EPOB & Labor Mgmt MTD reconciliation page).
     const actualVarFTE = totActVarProdHrs * DAYS_TO_FTE;
-    const actualFixFTE = totActFixHrs * DAYS_TO_FTE + BASELINE_SALARY_FTE;
+    const actualFixFTE = fixed.fte;
     const actualTotalFTE = actualVarFTE + actualFixFTE;
     payload.Actual_VarFTE = parseFloat(actualVarFTE.toFixed(1));
     payload.Actual_FixFTE = parseFloat(actualFixFTE.toFixed(1));
