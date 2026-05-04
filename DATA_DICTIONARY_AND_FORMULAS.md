@@ -404,10 +404,15 @@ Positive = overstaffed, negative = understaffed.
 ### 2.22 Actual FTE from Payroll (lines 975-976)
 
 ```
-actualVarFTE   = (totalActualVariableHours * 7) / 40
-actualFixFTE   = (totalActualFixedHours * 7) / 40
+actualVarFTE   = ((totalVariablePaidHours - totalVariableNpHours) / dayCount) * 7 / 40
+actualFixFTE   = ((totalFixedPaidHours / dayCount) * 7 / 40) + BASELINE_SALARY_FTE
 actualTotalFTE = actualVarFTE + actualFixFTE
 ```
+
+Variable FTE uses **productive** hours only (NP categories — PTO, Sick, Holiday,
+Continuing Ed, Education Pay, Jury Duty, Bereavement — are subtracted). Fixed
+FTE adds back `BASELINE_SALARY_FTE = 33.625` because salaried rows are filtered
+at parse time.
 
 ---
 

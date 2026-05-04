@@ -2008,8 +2008,10 @@ function renderVariance() {
   const grandVariance = (totActualHrs - totModelHrs);
   const grandVarianceCls = grandVariance > VARIANCE_THRESHOLD ? 'over' : grandVariance < -VARIANCE_THRESHOLD ? 'under' : 'balanced';
 
-  // EPOB calculations
-  // DC EPOB uses productive hours only (excluding NP); Total adds salaried FTE proxy
+  // EPOB calculations — must mirror computeStaffingMetrics (source of truth)
+  // so the model EPOB shown here matches the EPOB Mgmt and Position Control pages.
+  // Model Var Adj FTE = grossUp(nursing + float) + grossUp(1:1)
+  // Actual Var FTE uses productive hours only (NP excluded); Fixed adds salaried FTE proxy.
   const actualVarFTE = totActualProdHrs * DAYS_TO_FTE;
   const actualFixHourlyFTE = totFixActualHrs * DAYS_TO_FTE;
   const actualFixFTE = actualFixHourlyFTE + BASELINE_SALARY_FTE;
@@ -2017,14 +2019,16 @@ function renderVariance() {
   const ooFTE = totOoHrs * DAYS_TO_FTE;
   const actualVarFTEex11 = actualVarFTE - ooFTE;
   const actualTotalFTEex11 = actualTotalFTE - ooFTE;
-  const modelVarFTE = totModelFTE;
-  const fixed = getFixedTotals();
-  const modelTotalFTE = modelVarFTE + fixed.fte;
+  const m = computeStaffingMetrics(vals, totOoHrs, npPct);
+  const modelVarFTE = m.totalVarAdj;
+  const fixed = m.fixed;
+  const modelTotalFTE = m.grandAdj;
   const actualEpob = totalCensus > 0 ? actualTotalFTE / totalCensus : 0;
   const actualEpobEx11 = totalCensus > 0 ? actualTotalFTEex11 / totalCensus : 0;
-  const modelEpob = totalCensus > 0 ? modelTotalFTE / totalCensus : 0;
+  const modelEpob = m.totalEpob;
+  const modelEpobEx11 = totalCensus > 0 ? (modelTotalFTE - m.oneOneAdj) / totalCensus : 0;
   const epobVariance = actualEpob - modelEpob;
-  const epobVarianceEx11 = actualEpobEx11 - modelEpob;
+  const epobVarianceEx11 = actualEpobEx11 - modelEpobEx11;
   const epobCls = epobVariance > EPOB_VARIANCE_THRESH ? 'over' : epobVariance < -EPOB_VARIANCE_THRESH ? 'under' : 'balanced';
 
   // Date badge
@@ -2041,7 +2045,7 @@ function renderVariance() {
   h += `<div class="var-card"><div class="vc-label">Model Daily Hours</div><div class="vc-val">${totModelHrs.toFixed(1)}</div><div class="vc-sub">Census: ${totalCensus} | NP: ${npPct}%</div></div>`;
   const epobEx11Cls = epobVarianceEx11 > EPOB_VARIANCE_THRESH ? 'over' : epobVarianceEx11 < -EPOB_VARIANCE_THRESH ? 'under' : 'balanced';
   h += `<div class="var-card ${epobCls}"><div class="vc-label">EPOB (incl 1:1)</div><div class="vc-val">${totalCensus > 0 ? actualEpob.toFixed(2) : '—'}</div><div class="vc-sub">${totalCensus > 0 ? 'Model: '+modelEpob.toFixed(2)+' · Δ '+(epobVariance>=0?'+':'')+epobVariance.toFixed(2) : 'Enter census'}</div></div>`;
-  h += `<div class="var-card ${epobEx11Cls}"><div class="vc-label">EPOB (ex 1:1)</div><div class="vc-val">${totalCensus > 0 ? actualEpobEx11.toFixed(2) : '—'}</div><div class="vc-sub">${totalCensus > 0 ? 'Model: '+modelEpob.toFixed(2)+' · Δ '+(epobVarianceEx11>=0?'+':'')+epobVarianceEx11.toFixed(2)+(totOoHrs > 0 ? ' · '+totOoHrs.toFixed(0)+'h 1:1' : '') : 'Enter census'}</div></div>`;
+  h += `<div class="var-card ${epobEx11Cls}"><div class="vc-label">EPOB (ex 1:1)</div><div class="vc-val">${totalCensus > 0 ? actualEpobEx11.toFixed(2) : '—'}</div><div class="vc-sub">${totalCensus > 0 ? 'Model: '+modelEpobEx11.toFixed(2)+' · Δ '+(epobVarianceEx11>=0?'+':'')+epobVarianceEx11.toFixed(2)+(totOoHrs > 0 ? ' · '+totOoHrs.toFixed(0)+'h 1:1' : '') : 'Enter census'}</div></div>`;
   h += '</div>';
 
   // EPOB Detail Bar
