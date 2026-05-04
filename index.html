@@ -2239,8 +2239,21 @@ function renderExecSummary() {
   h += `<tr><td>Occupancy</td><td class="num">${(totalCensus/TOTAL_STAFFED*100).toFixed(0)}%</td></tr>`;
   h += `<tr><td>Units Open</td><td class="num">${vals.filter(v=>v.census>0).length} of ${UNITS.length} (${acuteOpen} acute, ${vals.filter(v=>v.type==='detox'&&v.census>0).length} detox)</td></tr>`;
   h += `<tr><td>1:1 Observation Hours</td><td class="num">${ooHrs > 0 ? ooHrs + ' hrs/day ('+ooFTE.toFixed(1)+' FTE)' : 'None'}</td></tr>`;
-  h += `<tr><td>Non-Productive %</td><td class="num">${npPct}% (gross-up ×${(1/(1-npPct/100)).toFixed(3)})</td></tr>`;
-  if (hasPayroll) h += `<tr><td>Overtime (Variable Units)</td><td class="num">${actOT.toFixed(1)} hrs</td></tr>`;
+  if (hasPayroll) {
+    let actNpHrs = 0, actPaidHrs = 0;
+    Object.keys(payrollData).forEach(bu => {
+      if (variableBUs.includes(bu)) {
+        actNpHrs   += payrollData[bu].npHrs;
+        actPaidHrs += payrollData[bu].hours;
+      }
+    });
+    const actNpPct = actPaidHrs > 0 ? (actNpHrs / actPaidHrs * 100) : 0;
+    const actNpHrsDay = days > 0 ? actNpHrs / days : 0;
+    h += `<tr><td>Non-Productive (period)</td><td class="num">${actNpHrs > 0 ? `${actNpHrs.toFixed(0)} hrs (${actNpHrsDay.toFixed(1)} hrs/day, ${actNpPct.toFixed(1)}%)` : 'None'}</td></tr>`;
+    h += `<tr><td>Overtime (Variable Units)</td><td class="num">${actOT.toFixed(1)} hrs</td></tr>`;
+  } else {
+    h += `<tr><td>Non-Productive % (model)</td><td class="num">${npPct}% (gross-up ×${(1/(1-npPct/100)).toFixed(3)})</td></tr>`;
+  }
   h += '</tbody></table></div>';
   // Right: EPOB
   h += '<div>';
@@ -5100,7 +5113,10 @@ function renderMtdExecSummary(rows, agg) {
   const detoxOpen        = rows.filter(r => r.unit.type === 'detox' && r.adc > 0).length;
   const unitsOpen        = rows.filter(r => r.adc > 0).length;
   const occupancy        = TOTAL_BEDS > 0 ? (agg.totalAdc / TOTAL_BEDS * 100) : 0;
-  const npPctDisplay     = (NP_PCT * 100);
+  const totalNpHrsPeriod = rows.reduce((s,r) => s + (r.npHours || 0), 0);
+  const totalPaidHrsPeriod = rows.reduce((s,r) => s + (r.paidHours || 0), 0);
+  const totalNpHrsDay    = agg.days > 0 ? totalNpHrsPeriod / agg.days : 0;
+  const actualNpPct      = totalPaidHrsPeriod > 0 ? (totalNpHrsPeriod / totalPaidHrsPeriod * 100) : 0;
 
   // Model & actual EPOB ex-1:1
   const modelVarFteEx11    = agg.modelVarAdjFte - obsAdjFteDaily;
@@ -5137,7 +5153,7 @@ function renderMtdExecSummary(rows, agg) {
   h += `<tr><td>Occupancy</td><td class="num">${occupancy.toFixed(0)}%</td></tr>`;
   h += `<tr><td>Units Open (avg)</td><td class="num">${unitsOpen} of ${MTD_UNITS.length} (${agg.acuteOpen} acute, ${detoxOpen} detox)</td></tr>`;
   h += `<tr><td>1:1 Observation Hours</td><td class="num">${totalOoHrsPeriod > 0 ? `${fmt(totalOoHrsPeriod,0)} hrs (${fmt(totalOoHrsDay,1)} hrs/day)` : 'None'}</td></tr>`;
-  h += `<tr><td>Non-Productive %</td><td class="num">${npPctDisplay.toFixed(1)}% (gross-up ×${(1/(1-NP_PCT)).toFixed(3)})</td></tr>`;
+  h += `<tr><td>Non-Productive (period)</td><td class="num">${totalNpHrsPeriod > 0 ? `${fmtInt(totalNpHrsPeriod)} hrs (${fmt(totalNpHrsDay,1)} hrs/day, ${actualNpPct.toFixed(1)}%)` : 'None'}</td></tr>`;
   h += `<tr><td>Overtime (period)</td><td class="num">${fmtInt(agg.totalOt)} hrs (${agg.days > 0 ? fmt(agg.totalOt/agg.days,1) : '—'} hrs/day)</td></tr>`;
   h += '</tbody></table></div>';
 
@@ -5208,7 +5224,7 @@ function renderMtdExecSummary(rows, agg) {
   h += `<tr><td>Fixed & Support FTE (other paid + ${BASELINE_SALARY_FTE} salary)</td><td class="num">${fmt(agg.fixedFte,1)}</td><td class="num">${fmt(agg.fixedFte,1)}</td><td class="num">—</td></tr>`;
   h += `<tr class="row-total"><td>GRAND TOTAL FACILITY FTE</td><td class="num">${fmt(agg.modelTotalFte,1)}</td><td class="num">${fmt(agg.actualTotalFte,1)}</td><td class="num">${sign(agg.actualTotalFte - agg.modelTotalFte)}</td></tr>`;
   h += '</tbody></table>';
-  h += `<div class="exec-note">Coverage multiplier: ${FTE_MULTIPLIER}. NP gross-up: ${npPctDisplay.toFixed(1)}%. Salaried rows filtered at parse; ${BASELINE_SALARY_FTE} salary FTE added back as constant.</div>`;
+  h += `<div class="exec-note">Coverage multiplier: ${FTE_MULTIPLIER}. Model NP gross-up: ${(NP_PCT*100).toFixed(1)}% (modeling assumption only — does not reflect budget or actuals). Salaried rows filtered at parse; ${BASELINE_SALARY_FTE} salary FTE added back as constant.</div>`;
   h += '</div>';
 
   // ═══ SECTION 4: FIXED & SUPPORT DEPARTMENTS ═══
