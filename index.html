@@ -1612,27 +1612,71 @@ function renderTrends() {
 }
 
 function exportToExcel(tabId) {
-  const tables = document.querySelectorAll('#tab-' + tabId + ' table');
-  if (!tables.length) return;
-  let xlsContent = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:spreadsheet" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><style>td,th{padding:4px 8px;border:1px solid #ccc;font-family:Calibri,sans-serif;font-size:11pt;}.grand-total-row td{background:#1b4f6e;color:#fff;font-weight:bold;}.subtotal-row td{background:#eef2f5;font-weight:bold;}</style></head><body>';
-  const title = tabId === 'staffing' ? 'Shift Staffing Requirements' : 'Position Control';
-  const census = document.getElementById('totalCensusNum').textContent;
-  xlsContent += '<h3>' + title + ' — Highland Hospital — Census: ' + census + ' — ' + new Date().toLocaleDateString() + '</h3>';
-  tables.forEach((t, i) => {
-    xlsContent += '<br>' + t.outerHTML;
-  });
-  // Also grab the EPOB footer if on position control
+  const TITLES = {
+    staffing:    'Shift Staffing Requirements',
+    poscontrol:  'Position Control',
+    trends:      'Performance Trends',
+    variance:    'Payroll Variance'
+  };
+  const title = TITLES[tabId] || 'Highland Export';
+
+  const root = document.getElementById('page-' + tabId);
+  if (!root) { alert('Could not find page content to export.'); return; }
+  const tables = root.querySelectorAll('table');
+  if (!tables.length) { alert('No data to export yet on this page.'); return; }
+
+  const censusEl = document.getElementById('totalCensusNum');
+  const census = censusEl ? censusEl.textContent : '';
+  const today = new Date().toISOString().slice(0,10);
+  const fileName = 'Highland_' + title.replace(/ /g, '_') + '_' + today + '.xlsx';
+
+  // Preferred path: real .xlsx via SheetJS (already loaded for BU exports)
+  if (typeof XLSX !== 'undefined') {
+    const wb = XLSX.utils.book_new();
+    const usedNames = new Set();
+    const safeName = raw => {
+      let n = (raw || 'Sheet').replace(/[\\/?*\[\]:]/g, ' ').trim().slice(0,28) || 'Sheet';
+      let candidate = n, i = 2;
+      while (usedNames.has(candidate)) candidate = (n + ' ' + i++).slice(0,31);
+      usedNames.add(candidate);
+      return candidate;
+    };
+    tables.forEach((t, i) => {
+      // Try to find a nearby section title for the sheet name
+      let label = '';
+      const prevHdr = t.closest('.var-section, .table-wrap, div')?.previousElementSibling;
+      if (prevHdr) {
+        const h = prevHdr.querySelector?.('h3, h2, .section-title');
+        if (h) label = h.textContent.trim();
+      }
+      if (!label) {
+        const sib = t.parentElement?.querySelector('h3, h2, .section-title');
+        if (sib) label = sib.textContent.trim();
+      }
+      const ws = XLSX.utils.table_to_sheet(t, { raw:false });
+      XLSX.utils.book_append_sheet(wb, ws, safeName(label || (title + ' ' + (i+1))));
+    });
+    XLSX.writeFile(wb, fileName);
+    return;
+  }
+
+  // Fallback: HTML-as-Excel
+  let xlsContent = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:spreadsheet" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="UTF-8"><style>td,th{padding:4px 8px;border:1px solid #ccc;font-family:Calibri,sans-serif;font-size:11pt;}.grand-total-row td{background:#1b4f6e;color:#fff;font-weight:bold;}.subtotal-row td{background:#eef2f5;font-weight:bold;}</style></head><body>';
+  xlsContent += '<h3>' + title + ' — Highland Hospital' + (census ? ' — Census: ' + census : '') + ' — ' + new Date().toLocaleDateString() + '</h3>';
+  tables.forEach(t => { xlsContent += '<br>' + t.outerHTML; });
   if (tabId === 'poscontrol') {
-    const footer = document.querySelector('#tab-poscontrol .epob-footer');
+    const footer = root.querySelector('.epob-footer');
     if (footer) xlsContent += '<br>' + footer.outerHTML;
   }
   xlsContent += '</body></html>';
-  const blob = new Blob([xlsContent], {type: 'application/vnd.ms-excel'});
+  const blob = new Blob([xlsContent], { type:'application/vnd.ms-excel' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = 'Highland_' + title.replace(/ /g, '_') + '_' + new Date().toISOString().slice(0,10) + '.xls';
+  a.download = fileName.replace(/\.xlsx$/, '.xls');
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
 
