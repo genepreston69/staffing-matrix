@@ -4692,6 +4692,10 @@ function renderFixedBuVariance() {
       <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.9959.9959 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
       Edit Budgets
     </button>`;
+    controls += `<button class="export-btn" onclick="exportFixedBuVarianceExcel()">
+      <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>
+      Export Excel
+    </button>`;
     controls += `<button class="export-btn" onclick="exportFixedBuVarianceCsv()">
       <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm-1 2l5 5h-5V4zM9.5 11.5l2 2.5-2 2.5h1.5l1.25-1.7L13.5 16.5H15l-2-2.5 2-2.5h-1.5l-1.25 1.7-1.25-1.7H9.5z"/></svg>
       Export CSV
@@ -4802,44 +4806,116 @@ function renderFixedBuVariance() {
   if (host) host.innerHTML = html;
 }
 
-// --- Export full BU variance to CSV ---
-function exportFixedBuVarianceCsv() {
+// --- Build BU variance rows for export (CSV or Excel) ---
+function buildFixedBuVarianceExportRows() {
   const days = mtdDayCount();
-  if (days === 0) { alert('Set period dates first.'); return; }
   const actuals = mtdState.allBuActuals || {};
   const nursingModel = buildNursingModelFTE();
   const budgets = mtdState.buBudgets || {};
-  const header = ['Code','Department','Category','ModelFTE','BudgetFTE','ActualFTE','VarVsBudgetFTE','PctVsBudget','VarVsModelFTE','PctVsModel','OTHrs','HC'];
-  const lines = [header.join(',')];
+  const header = ['Code','Department','Category','Model FTE','Budget FTE','Actual FTE','Var vs Budget FTE','% vs Budget','Var vs Model FTE','% vs Model','OT Hrs','HC'];
+  const rows = [];
   BU_DIRECTORY.forEach(d => {
     const act = actuals[d.code] || { hours:0, ot:0, hc:null };
-    const actualFTE = (act.hours / days) * DAYS_TO_FTE;
-    const modelFTE = d.dynamic ? (nursingModel[d.code] || 0) : '';
-    const budgetFTE = budgets[d.code] != null ? budgets[d.code] : '';
-    const varVsBudget = budgetFTE !== '' ? actualFTE - budgetFTE : '';
-    const pctVsBudget = (budgetFTE !== '' && budgetFTE > 0) ? ((actualFTE - budgetFTE) / budgetFTE) * 100 : '';
-    const varVsModel = modelFTE !== '' ? actualFTE - modelFTE : '';
-    const pctVsModel = (modelFTE !== '' && modelFTE > 0) ? ((actualFTE - modelFTE) / modelFTE) * 100 : '';
-    lines.push([
-      d.code, '"' + d.name.replace(/"/g,'""') + '"', '"' + d.cat + '"',
-      modelFTE === '' ? '' : modelFTE.toFixed(2),
-      budgetFTE === '' ? '' : budgetFTE.toFixed(2),
-      actualFTE.toFixed(2),
-      varVsBudget === '' ? '' : varVsBudget.toFixed(2),
-      pctVsBudget === '' ? '' : pctVsBudget.toFixed(1),
-      varVsModel === '' ? '' : varVsModel.toFixed(2),
-      pctVsModel === '' ? '' : pctVsModel.toFixed(1),
-      (act.ot || 0).toFixed(1),
-      act.hc == null ? '' : act.hc
-    ].join(','));
+    const actualFTE = days > 0 ? (act.hours / days) * DAYS_TO_FTE : 0;
+    const modelFTE = d.dynamic ? (nursingModel[d.code] || 0) : null;
+    const budgetFTE = budgets[d.code] != null ? budgets[d.code] : null;
+    const varVsBudget = budgetFTE != null ? actualFTE - budgetFTE : null;
+    const pctVsBudget = (budgetFTE != null && budgetFTE > 0) ? ((actualFTE - budgetFTE) / budgetFTE) * 100 : null;
+    const varVsModel = modelFTE != null ? actualFTE - modelFTE : null;
+    const pctVsModel = (modelFTE != null && modelFTE > 0) ? ((actualFTE - modelFTE) / modelFTE) * 100 : null;
+    rows.push({
+      code: d.code,
+      name: d.name,
+      cat: d.cat,
+      modelFTE,
+      budgetFTE,
+      actualFTE,
+      varVsBudget,
+      pctVsBudget,
+      varVsModel,
+      pctVsModel,
+      otHrs: act.ot || 0,
+      hc: act.hc
+    });
   });
-  const blob = new Blob([lines.join('\n')], { type:'text/csv' });
+  return { header, rows, days };
+}
+
+function exportFileBaseName() {
+  const start = mtdState.start || 'mtd';
+  const end = mtdState.end || new Date().toISOString().slice(0,10);
+  return `Highland_BU_Variance_${start}_to_${end}`;
+}
+
+// --- Export full BU variance to CSV ---
+function exportFixedBuVarianceCsv() {
+  const { header, rows } = buildFixedBuVarianceExportRows();
+  const csvCell = v => {
+    if (v == null || v === '') return '';
+    const s = String(v);
+    return /[",\n]/.test(s) ? '"' + s.replace(/"/g,'""') + '"' : s;
+  };
+  const num = (v, d) => v == null ? '' : v.toFixed(d);
+  const lines = [header.map(csvCell).join(',')];
+  rows.forEach(r => {
+    lines.push([
+      r.code, r.name, r.cat,
+      num(r.modelFTE, 2),
+      num(r.budgetFTE, 2),
+      num(r.actualFTE, 2),
+      num(r.varVsBudget, 2),
+      num(r.pctVsBudget, 1),
+      num(r.varVsModel, 2),
+      num(r.pctVsModel, 1),
+      num(r.otHrs, 1),
+      r.hc == null ? '' : r.hc
+    ].map(csvCell).join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type:'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `Highland_BU_Variance_${mtdState.start || 'mtd'}_to_${mtdState.end || ''}.csv`;
+  a.download = exportFileBaseName() + '.csv';
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
+}
+
+// --- Export full BU variance to Excel (.xlsx via SheetJS) ---
+function exportFixedBuVarianceExcel() {
+  if (typeof XLSX === 'undefined') {
+    alert('Excel library failed to load. Falling back to CSV.');
+    exportFixedBuVarianceCsv();
+    return;
+  }
+  const { header, rows } = buildFixedBuVarianceExportRows();
+  const round = (v, d) => v == null ? null : Number(v.toFixed(d));
+  const aoa = [header];
+  rows.forEach(r => {
+    aoa.push([
+      r.code, r.name, r.cat,
+      round(r.modelFTE, 2),
+      round(r.budgetFTE, 2),
+      round(r.actualFTE, 2),
+      round(r.varVsBudget, 2),
+      round(r.pctVsBudget, 1),
+      round(r.varVsModel, 2),
+      round(r.pctVsModel, 1),
+      round(r.otHrs, 1),
+      r.hc == null ? null : r.hc
+    ]);
+  });
+  const ws = XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols'] = [
+    { wch:8 }, { wch:32 }, { wch:18 },
+    { wch:10 }, { wch:10 }, { wch:10 },
+    { wch:14 }, { wch:12 }, { wch:14 }, { wch:12 },
+    { wch:8 }, { wch:6 }
+  ];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'BU Variance');
+  XLSX.writeFile(wb, exportFileBaseName() + '.xlsx');
 }
 
 // --- Master render ---
@@ -4918,6 +4994,13 @@ window.resetMtd = resetMtd;
 window.syncMtdFromGitHub = syncMtdFromGitHub;
 window.toggleAccordion = toggleAccordion;
 window.exportDetailCsv = exportDetailCsv;
+window.exportFixedBuVarianceCsv = exportFixedBuVarianceCsv;
+window.exportFixedBuVarianceExcel = exportFixedBuVarianceExcel;
+window.toggleBuBudgetEdit = toggleBuBudgetEdit;
+window.saveBuBudgetEdits = saveBuBudgetEdits;
+window.cancelBuBudgetEdit = cancelBuBudgetEdit;
+window.clearAllBudgets = clearAllBudgets;
+window.handleBudgetFile = handleBudgetFile;
 })();
 </script>
 </body>
