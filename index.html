@@ -1504,8 +1504,8 @@ function renderTrends() {
     const totalOoHrs = rec.census.reduce((s, c) => s + (c.ooHrs || 0), 0);
 
     // Variable hours/FTE from payroll — productive hours only for DC EPOB
-    let varHrs = 0, varProdHrs = 0, varOT = 0, varHC = 0;
-    variableBUs.forEach(bu => { if (d[bu]) { varHrs += d[bu].hours / days; varProdHrs += (d[bu].hours - d[bu].npHrs) / days; varOT += d[bu].otHrs; varHC += d[bu].headcount; } });
+    let varHrs = 0, varProdHrs = 0, varOT = 0, varHC = 0, varNpHrs = 0;
+    variableBUs.forEach(bu => { if (d[bu]) { varHrs += d[bu].hours / days; varProdHrs += (d[bu].hours - d[bu].npHrs) / days; varOT += d[bu].otHrs; varHC += d[bu].headcount; varNpHrs += d[bu].npHrs; } });
 
     // Fixed hours/FTE from payroll (hourly only — salaried added via BASELINE_SALARY_FTE)
     let fixHrs = 0, fixHC = 0;
@@ -1514,6 +1514,10 @@ function renderTrends() {
       fixHrs += d[bu].hours / days;
       fixHC += d[bu].headcount;
     });
+
+    // Actual NP% from variable (direct care) BUs — NP hrs / paid hrs
+    const totalVarHrs = variableBUs.reduce((s, bu) => s + (d[bu] ? d[bu].hours : 0), 0);
+    const actualNpPct = totalVarHrs > 0 ? (varNpHrs / totalVarHrs * 100) : 0;
 
     const varFTE = varProdHrs * DAYS_TO_FTE;
     const fixHourlyFTE = fixHrs * DAYS_TO_FTE;
@@ -1541,7 +1545,7 @@ function renderTrends() {
 
     return {
       date: dk, totalCensus, varHrs, fixHrs, totalHrs, varFTE, fixFTE, totalFTE,
-      varOT, varHC, fixHC, epobDC, epobTotal, modelVarAdj, npPct: recNP,
+      varOT, varHC, fixHC, epobDC, epobTotal, modelVarAdj, npPct: recNP, actualNpPct,
       hrsVariance: varHrs - (modelVarShifts * 8)
     };
   });
@@ -1585,7 +1589,7 @@ function renderTrends() {
 
   row('Total Census', m => m.totalCensus, v => v);
   row('Occupancy %', m => m.totalCensus > 0 ? Math.round(m.totalCensus / TOTAL_STAFFED * 100) : 0, v => v + '%');
-  row('NP %', m => m.npPct, v => v.toFixed(1) + '%');
+  row('NP %', m => m.actualNpPct, v => v.toFixed(1) + '%');
   row('Variable Hrs/Day', m => m.varHrs, v => v.toFixed(1));
   row('Fixed Hrs/Day', m => m.fixHrs, v => v.toFixed(1));
   row('Total Hrs/Day', m => m.totalHrs, v => v.toFixed(1));
