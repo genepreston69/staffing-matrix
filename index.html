@@ -1018,6 +1018,11 @@
     </div>
     <div id="mtdFixedBuTable"></div>
 
+    <div class="section-header">
+      <h2>Executive Summary <span class="sub">Print-ready snapshot of the reconciliation period</span></h2>
+    </div>
+    <div id="mtdExecSummaryOutput"><div class="empty-state"><div class="msg">Enter ADC and upload a Workday file to generate the MTD Executive Summary.</div></div></div>
+
   </div><!-- /panel-mtd -->
 
   </div><!-- /page-epob -->
@@ -5067,6 +5072,236 @@ function exportFixedBuVarianceExcel() {
   XLSX.writeFile(wb, exportFileBaseName() + '.xlsx');
 }
 
+// --- MTD Executive Summary (mirrors daily renderExecSummary format) ---
+function renderMtdExecSummary(rows, agg) {
+  const out = document.getElementById('mtdExecSummaryOutput');
+  if (!out) return;
+  if (!agg || !agg.totalAdc || agg.totalAdc <= 0) {
+    out.innerHTML = '<div class="empty-state"><div class="msg">Enter ADC and upload a Workday file to generate the MTD Executive Summary.</div></div>';
+    return;
+  }
+
+  const TOTAL_BEDS = MTD_UNITS.reduce((s,u) => s + u.maxBeds, 0);
+  const fmtDate = iso => {
+    if (!iso) return '—';
+    const d = new Date(iso + 'T12:00:00');
+    return d.toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+  };
+  const sign = v => (v >= 0 ? '+' : '') + (v == null ? '—' : v.toFixed(2));
+  const periodLabel = (mtdState.start && mtdState.end)
+    ? `${fmtDate(mtdState.start)} — ${fmtDate(mtdState.end)}`
+    : `${agg.days} day${agg.days === 1 ? '' : 's'}`;
+
+  // Period totals across all rows
+  const totalOoHrsPeriod = rows.reduce((s,r) => s + (r.oneToOneTotal || 0), 0);
+  const totalOoHrsDay    = agg.days > 0 ? totalOoHrsPeriod / agg.days : 0;
+  const obsProdFteDaily  = totalOoHrsDay * DAYS_TO_FTE;            // actual-side 1:1 (no gross-up)
+  const obsAdjFteDaily   = agg.totalObsAdjFte;                      // model-side 1:1 (gross-up)
+  const detoxOpen        = rows.filter(r => r.unit.type === 'detox' && r.adc > 0).length;
+  const unitsOpen        = rows.filter(r => r.adc > 0).length;
+  const occupancy        = TOTAL_BEDS > 0 ? (agg.totalAdc / TOTAL_BEDS * 100) : 0;
+  const npPctDisplay     = (NP_PCT * 100);
+
+  // Model & actual EPOB ex-1:1
+  const modelVarFteEx11    = agg.modelVarAdjFte - obsAdjFteDaily;
+  const modelTotalFteEx11  = modelVarFteEx11 + agg.fixedFte;
+  const actualVarFteEx11   = agg.actualVarFte - obsProdFteDaily;
+  const actualTotalFteEx11 = actualVarFteEx11 + agg.fixedFte;
+  const modelDcEpobEx11    = agg.totalAdc > 0 ? modelVarFteEx11    / agg.totalAdc : 0;
+  const modelTotEpobEx11   = agg.totalAdc > 0 ? modelTotalFteEx11  / agg.totalAdc : 0;
+  const actualDcEpobEx11   = agg.totalAdc > 0 ? actualVarFteEx11   / agg.totalAdc : 0;
+  const actualTotEpobEx11  = agg.totalAdc > 0 ? actualTotalFteEx11 / agg.totalAdc : 0;
+
+  const generatedAt = new Date().toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
+
+  let h = '<div class="exec-report">';
+  h += '<button class="print-btn" onclick="printMtdExecSummary()">Print Executive Summary</button>';
+
+  // ═══ HEADER ═══
+  h += '<div class="report-header">';
+  h += '<div class="report-facility">Highland Hospital · Behavioral Health</div>';
+  h += '<div class="report-title">EPOB & Labor Management — Executive Summary</div>';
+  h += `<div class="report-subtitle">${periodLabel}${mtdState.fileName ? ' · Source: ' + mtdState.fileName : ''}</div>`;
+  h += '</div>';
+
+  // ═══ SECTION 1: PERIOD SNAPSHOT + EPOB (side by side) ═══
+  h += '<div class="exec-section"><div class="two-col">';
+  // Left: Period snapshot
+  h += '<div>';
+  h += '<div class="exec-section-title">Period Snapshot</div>';
+  h += '<table><tbody>';
+  h += `<tr><td>Period</td><td class="num">${periodLabel}</td></tr>`;
+  h += `<tr><td>Days</td><td class="num">${agg.days}</td></tr>`;
+  h += `<tr><td>Avg Daily Census (ADC)</td><td class="num val-highlight">${agg.totalAdc.toFixed(1)}</td></tr>`;
+  h += `<tr><td>Licensed Beds</td><td class="num">${TOTAL_BEDS}</td></tr>`;
+  h += `<tr><td>Occupancy</td><td class="num">${occupancy.toFixed(0)}%</td></tr>`;
+  h += `<tr><td>Units Open (avg)</td><td class="num">${unitsOpen} of ${MTD_UNITS.length} (${agg.acuteOpen} acute, ${detoxOpen} detox)</td></tr>`;
+  h += `<tr><td>1:1 Observation Hours</td><td class="num">${totalOoHrsPeriod > 0 ? `${fmt(totalOoHrsPeriod,0)} hrs (${fmt(totalOoHrsDay,1)} hrs/day)` : 'None'}</td></tr>`;
+  h += `<tr><td>Non-Productive %</td><td class="num">${npPctDisplay.toFixed(1)}% (gross-up ×${(1/(1-NP_PCT)).toFixed(3)})</td></tr>`;
+  h += `<tr><td>Overtime (period)</td><td class="num">${fmtInt(agg.totalOt)} hrs (${agg.days > 0 ? fmt(agg.totalOt/agg.days,1) : '—'} hrs/day)</td></tr>`;
+  h += '</tbody></table></div>';
+
+  // Right: EPOB
+  h += '<div>';
+  h += '<div class="exec-section-title">EPOB — Employees Per Occupied Bed</div>';
+  h += '<table><thead><tr><th>Metric</th><th class="num">Model</th><th class="num">Actual</th><th class="num">Variance</th></tr></thead><tbody>';
+  h += `<tr><td>Direct Care EPOB</td><td class="num">${fmt(agg.modelDcEpob,2)}</td><td class="num">${fmt(agg.actualDcEpob,2)}</td><td class="num">${sign(agg.actualDcEpob - agg.modelDcEpob)}</td></tr>`;
+  h += `<tr><td>Total Facility EPOB</td><td class="num">${fmt(agg.modelTotalEpob,2)}</td><td class="num">${fmt(agg.actualTotalEpob,2)}</td><td class="num">${sign(agg.actualTotalEpob - agg.modelTotalEpob)}</td></tr>`;
+  if (totalOoHrsPeriod > 0) {
+    h += `<tr class="row-label"><td colspan="4" style="padding-top:6px;font-style:italic">Excluding 1:1 Observation (${fmt(totalOoHrsDay,1)} hrs/day)</td></tr>`;
+    h += `<tr><td>DC EPOB (ex 1:1)</td><td class="num">${fmt(modelDcEpobEx11,2)}</td><td class="num">${fmt(actualDcEpobEx11,2)}</td><td class="num">${sign(actualDcEpobEx11 - modelDcEpobEx11)}</td></tr>`;
+    h += `<tr><td>Total EPOB (ex 1:1)</td><td class="num">${fmt(modelTotEpobEx11,2)}</td><td class="num">${fmt(actualTotEpobEx11,2)}</td><td class="num">${sign(actualTotEpobEx11 - modelTotEpobEx11)}</td></tr>`;
+  }
+  h += '</tbody></table></div>';
+  h += '</div></div>';
+
+  // ═══ SECTION 2: UNIT-LEVEL CENSUS, HOURS & VARIANCE ═══
+  h += '<div class="exec-section">';
+  h += '<div class="exec-section-title">Unit-Level Census, Hours & Variance</div>';
+  h += '<table><thead><tr><th>Unit</th><th class="num">Beds</th><th class="num">ADC</th><th class="num">Occ %</th><th class="num">1:1 Hrs</th>';
+  h += '<th class="num">Paid Hrs/Day</th><th class="num">Prod Hrs/Day</th><th class="num">Model Hrs/Day</th><th class="num">Variance</th><th class="num">Var %</th><th class="num">Var FTE</th><th class="num">OT</th><th class="num">HC</th>';
+  h += '</tr></thead><tbody>';
+
+  let totBeds = 0, totModelHrs = 0;
+  rows.forEach(r => {
+    const occ = r.unit.maxBeds > 0 && r.adc != null ? (r.adc / r.unit.maxBeds * 100) : null;
+    const vCls = r.variancePct == null ? '' : (r.variancePct > 5 ? 'row-over' : r.variancePct < -5 ? 'row-under' : '');
+    totBeds += r.unit.maxBeds;
+    totModelHrs += r.modelHrsDay;
+    h += `<tr>`;
+    h += `<td><strong>${r.unit.label}</strong> <span style="color:#888;font-size:10px">${r.unit.sub}</span></td>`;
+    h += `<td class="num">${r.unit.maxBeds}</td>`;
+    h += `<td class="num" style="font-weight:700">${r.adc != null ? fmt(r.adc,1) : '—'}</td>`;
+    h += `<td class="num">${occ != null ? occ.toFixed(0) + '%' : '—'}</td>`;
+    h += `<td class="num">${r.oneToOneTotal > 0 ? fmt(r.oneToOneTotal,0) : '—'}</td>`;
+    h += `<td class="num">${fmt(r.paidHrsDay,1)}</td>`;
+    h += `<td class="num">${fmt(r.prodHrsDay,1)}</td>`;
+    h += `<td class="num">${fmt(r.modelHrsDay,0)}</td>`;
+    h += `<td class="num ${vCls}">${r.varianceHrs != null ? (r.varianceHrs >= 0 ? '+' : '') + fmt(r.varianceHrs,1) : '—'}</td>`;
+    h += `<td class="num ${vCls}">${fmtPct(r.variancePct)}</td>`;
+    h += `<td class="num">${fmt(r.actVarFte,2)}</td>`;
+    h += `<td class="num">${fmtInt(r.actualOT)}</td>`;
+    h += `<td class="num">${r.actualHC ?? '—'}</td>`;
+    h += `</tr>`;
+  });
+  const totVar = agg.totalProdHrsDay - totModelHrs;
+  const totVarPct = totModelHrs > 0 ? (totVar / totModelHrs * 100) : null;
+  h += `<tr class="row-total"><td>TOTAL</td><td class="num">${totBeds}</td><td class="num">${fmt(agg.totalAdc,1)}</td><td class="num">${(agg.totalAdc/totBeds*100).toFixed(0)}%</td>`;
+  h += `<td class="num">${totalOoHrsPeriod > 0 ? fmt(totalOoHrsPeriod,0) : '—'}</td>`;
+  h += `<td class="num">${fmt(agg.totalPaidHrsDay,1)}</td><td class="num">${fmt(agg.totalProdHrsDay,1)}</td><td class="num">${fmt(totModelHrs,0)}</td>`;
+  h += `<td class="num">${(totVar>=0?'+':'')+fmt(totVar,1)}</td><td class="num">${fmtPct(totVarPct)}</td>`;
+  h += `<td class="num">${fmt(agg.actualVarFte,1)}</td><td class="num">${fmtInt(agg.totalOt)}</td><td class="num">—</td></tr>`;
+  h += '</tbody></table></div>';
+
+  // ═══ SECTION 3: FTE POSITION CONTROL SUMMARY ═══
+  h += '<div class="exec-section page-break">';
+  h += '<div class="exec-section-title">FTE Position Control Summary</div>';
+  h += '<table><thead><tr><th>Component</th><th class="num">Model FTE</th><th class="num">Actual FTE</th><th class="num">Variance</th></tr></thead><tbody>';
+  h += `<tr><td>Nursing Productive (positions × ${FTE_MULTIPLIER})</td><td class="num">${fmt(agg.nursingProdFte,1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+  h += `<tr><td>Float Coverage (productive)</td><td class="num">${fmt(agg.floatFte,1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+  h += `<tr><td>NP Gross-Up on Nursing + Float</td><td class="num">${fmt(grossUp(agg.nursingProdFte + agg.floatFte) - (agg.nursingProdFte + agg.floatFte),1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+  if (totalOoHrsPeriod > 0) {
+    h += `<tr><td>1:1 Observation (${fmt(totalOoHrsDay,1)} hrs/day, gross-up)</td><td class="num">${fmt(agg.totalObsAdjFte,1)}</td><td class="num">${fmt(obsProdFteDaily,1)}</td><td class="num">${sign(obsProdFteDaily - agg.totalObsAdjFte)}</td></tr>`;
+  }
+  const varVar = agg.actualVarFte - agg.modelVarAdjFte;
+  h += `<tr class="row-total"><td>Variable Adj FTE (Direct Care)</td><td class="num">${fmt(agg.modelVarAdjFte,1)}</td><td class="num">${fmt(agg.actualVarFte,1)}</td><td class="num">${sign(varVar)}</td></tr>`;
+  h += `<tr><td>Fixed & Support FTE (other paid + ${BASELINE_SALARY_FTE} salary)</td><td class="num">${fmt(agg.fixedFte,1)}</td><td class="num">${fmt(agg.fixedFte,1)}</td><td class="num">—</td></tr>`;
+  h += `<tr class="row-total"><td>GRAND TOTAL FACILITY FTE</td><td class="num">${fmt(agg.modelTotalFte,1)}</td><td class="num">${fmt(agg.actualTotalFte,1)}</td><td class="num">${sign(agg.actualTotalFte - agg.modelTotalFte)}</td></tr>`;
+  h += '</tbody></table>';
+  h += `<div class="exec-note">Coverage multiplier: ${FTE_MULTIPLIER}. NP gross-up: ${npPctDisplay.toFixed(1)}%. Salaried rows filtered at parse; ${BASELINE_SALARY_FTE} salary FTE added back as constant.</div>`;
+  h += '</div>';
+
+  // ═══ SECTION 4: FIXED & SUPPORT DEPARTMENTS ═══
+  const days = agg.days;
+  const actuals = mtdState.allBuActuals || {};
+  const budgets = mtdState.buBudgets || {};
+  const fixedRows = BU_DIRECTORY.filter(d => !d.dynamic).map(d => {
+    const a = actuals[d.code] || { hours:0, ot:0, hc:null };
+    const actFte = days > 0 ? (a.hours / days) * DAYS_TO_FTE : 0;
+    const budFte = budgets[d.code] != null ? budgets[d.code] : null;
+    const variance = budFte != null ? actFte - budFte : null;
+    return { ...d, actFte, budFte, variance, hc: a.hc, ot: a.ot };
+  });
+  if (fixedRows.length > 0) {
+    h += '<div class="exec-section">';
+    h += '<div class="exec-section-title">Fixed & Support Departments</div>';
+    h += '<table><thead><tr><th>Department</th><th class="num">Budget FTE</th><th class="num">Actual FTE</th><th class="num">Variance</th><th class="num">HC</th></tr></thead><tbody>';
+    const cats = {};
+    fixedRows.forEach(r => { (cats[r.cat] = cats[r.cat] || []).push(r); });
+    let tBud = 0, tAct = 0, tHC = 0, anyBudget = false;
+    ['Clinical Ops','Support Services','Admin / G&A','Other'].forEach(cat => {
+      if (!cats[cat]) return;
+      h += `<tr class="row-sub"><td colspan="5">${cat}</td></tr>`;
+      cats[cat].forEach(r => {
+        const vCls = r.variance == null ? '' : (r.variance > 0.5 ? 'row-over' : r.variance < -0.5 ? 'row-under' : '');
+        if (r.budFte != null) anyBudget = true;
+        tBud += r.budFte || 0;
+        tAct += r.actFte;
+        tHC  += r.hc || 0;
+        h += `<tr>`;
+        h += `<td style="padding-left:16px">${r.name}</td>`;
+        h += `<td class="num">${r.budFte != null ? fmt(r.budFte,1) : '—'}</td>`;
+        h += `<td class="num">${fmt(r.actFte,1)}</td>`;
+        h += `<td class="num ${vCls}">${r.variance != null ? sign(r.variance) : '—'}</td>`;
+        h += `<td class="num">${r.hc ?? '—'}</td>`;
+        h += `</tr>`;
+      });
+    });
+    h += `<tr class="row-total"><td>TOTAL FIXED/SUPPORT</td><td class="num">${anyBudget ? fmt(tBud,1) : '—'}</td><td class="num">${fmt(tAct,1)}</td><td class="num">${anyBudget ? sign(tAct - tBud) : '—'}</td><td class="num">${tHC > 0 ? tHC : '—'}</td></tr>`;
+    h += '</tbody></table>';
+    h += '<div class="exec-note">Budget FTEs are user-entered per BU on the Business Unit Variance table. Actual FTEs derive from paid hours / days × 7/40 (hourly only — salaried rows filtered at parse).</div>';
+    h += '</div>';
+  }
+
+  // ═══ FOOTER ═══
+  h += `<div class="exec-footer">Highland Hospital · Behavioral Health · EPOB & Labor Management Executive Summary · Generated ${generatedAt}</div>`;
+  h += '</div>';
+  out.innerHTML = h;
+}
+
+function printMtdExecSummary() {
+  const content = document.getElementById('mtdExecSummaryOutput').innerHTML;
+  const css = [
+    'body{font-family:Segoe UI,system-ui,sans-serif;color:#1a2332;margin:0;padding:20px}',
+    '.exec-report{max-width:100%}',
+    '.report-header{text-align:center;border-bottom:3px solid #0f4c5c;padding-bottom:12px;margin-bottom:20px}',
+    '.report-title{font-size:20px;font-weight:700;color:#0f4c5c;margin:0}',
+    '.report-subtitle{font-size:12px;color:#666;margin:3px 0 0}',
+    '.report-facility{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:2px}',
+    '.exec-section{margin-bottom:18px;break-inside:avoid}',
+    '.exec-section-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:#0f4c5c;border-bottom:2px solid #0f4c5c;padding-bottom:3px;margin-bottom:8px}',
+    'table{width:100%;border-collapse:collapse;font-size:11px;margin-bottom:10px}',
+    'th{background:#f0f2f5;font-weight:600;text-transform:uppercase;font-size:9px;letter-spacing:.5px;padding:5px 6px;text-align:left;border-bottom:2px solid #bbb;color:#333}',
+    'td{padding:4px 6px;border-bottom:1px solid #e8e8e8;color:#1a2332}',
+    'th.num,td.num{text-align:right}',
+    '.row-over{color:#c0392b;font-weight:600}',
+    '.row-under{color:#27ae60;font-weight:600}',
+    '.row-total{font-weight:700;background:#f0f2f5;border-top:2px solid #999}',
+    '.row-sub{font-weight:600;background:#f8f9fa}',
+    '.row-label{color:#666;font-size:10px}',
+    '.val-highlight{font-size:14px;font-weight:700}',
+    '.page-break{page-break-before:always}',
+    '.exec-note{font-size:9px;color:#999;font-style:italic;margin-top:3px}',
+    '.two-col{display:flex;gap:16px}.two-col>div{flex:1}',
+    '.print-btn{display:none}',
+    '.exec-footer{text-align:center;font-size:9px;color:#aaa;border-top:1px solid #ddd;padding-top:6px;margin-top:16px}',
+    '@media print{body{padding:0}@page{margin:.5in .6in;size:letter}}',
+  ].join('\n');
+
+  let frame = document.getElementById('mtdPrintFrame');
+  if (!frame) {
+    frame = document.createElement('iframe');
+    frame.id = 'mtdPrintFrame';
+    frame.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:0;height:0;border:none';
+    document.body.appendChild(frame);
+  }
+  const doc = frame.contentDocument || frame.contentWindow.document;
+  doc.open();
+  doc.write('<!DOCTYPE html><html><head><style>' + css + '</style></head><body>' + content + '</body></html>');
+  doc.close();
+  setTimeout(function() { frame.contentWindow.focus(); frame.contentWindow.print(); }, 300);
+}
+
 // --- Master render ---
 function renderMtd() {
   const rows = buildMtdRows();
@@ -5075,6 +5310,7 @@ function renderMtd() {
   renderMtdHeatmap(rows);
   renderMtdDetail(rows, agg);
   renderFixedBuVariance();
+  renderMtdExecSummary(rows, agg);
   const meta = document.getElementById('mtdMeta');
   if (mtdState.start && mtdState.end) {
     meta.textContent = `${mtdState.start} → ${mtdState.end} · ${agg.days} day${agg.days===1?'':'s'}` + (mtdState.fileName ? ` · ${mtdState.fileName}` : '');
@@ -5151,6 +5387,7 @@ window.cancelBuBudgetEdit = cancelBuBudgetEdit;
 window.clearAllBudgets = clearAllBudgets;
 window.handleBudgetFile = handleBudgetFile;
 window.downloadBuBudgetTemplate = downloadBuBudgetTemplate;
+window.printMtdExecSummary = printMtdExecSummary;
 })();
 </script>
 </body>
