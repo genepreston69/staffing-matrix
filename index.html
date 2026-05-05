@@ -2216,14 +2216,20 @@ function renderExecSummary() {
     });
   }
   const actVarFTE = actVarProdHrs * DAYS_TO_FTE;
+  const actVarPaidFTE = actVarHrs * DAYS_TO_FTE;
   // Fixed FTE: per-dept payroll where present + baseline fallback for missing depts
   // (matches getFixedTotals so model and actual fixed are consistent).
   const actFixFTE = m.fixed.fte;
   const actTotalFTE = actVarFTE + actFixFTE;
+  const actTotalPaidFTE = actVarPaidFTE + actFixFTE;
   const actDcEpob = hasPayroll && totalCensus > 0 ? actVarFTE / totalCensus : 0;
   const actTotalEpob = hasPayroll && totalCensus > 0 ? actTotalFTE / totalCensus : 0;
+  const paidDcEpob = hasPayroll && totalCensus > 0 ? actVarPaidFTE / totalCensus : 0;
+  const paidTotalEpob = hasPayroll && totalCensus > 0 ? actTotalPaidFTE / totalCensus : 0;
   const actDcEpobEx11 = hasPayroll && totalCensus > 0 ? (actVarFTE - ooFTE) / totalCensus : 0;
   const actTotalEpobEx11 = hasPayroll && totalCensus > 0 ? (actTotalFTE - ooFTE) / totalCensus : 0;
+  const paidDcEpobEx11 = hasPayroll && totalCensus > 0 ? (actVarPaidFTE - ooFTE) / totalCensus : 0;
+  const paidTotalEpobEx11 = hasPayroll && totalCensus > 0 ? (actTotalPaidFTE - ooFTE) / totalCensus : 0;
 
   const reportDate = payrollMeta && payrollMeta.minDate
     ? payrollMeta.minDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
@@ -2273,21 +2279,21 @@ function renderExecSummary() {
   h += '<div>';
   h += '<div class="exec-section-title">EPOB — Employees Per Occupied Bed</div>';
   h += '<table><thead><tr><th>Metric</th><th class="num">Model</th>';
-  if (hasPayroll) h += '<th class="num">Actual</th><th class="num">Variance</th>';
+  if (hasPayroll) h += '<th class="num">Productive</th><th class="num">Paid</th><th class="num">Variance</th>';
   h += '</tr></thead><tbody>';
   h += `<tr><td>Direct Care EPOB</td><td class="num">${dcEpob.toFixed(2)}</td>`;
-  if (hasPayroll) h += `<td class="num">${actDcEpob.toFixed(2)}</td><td class="num">${sign(actDcEpob-dcEpob)}</td>`;
+  if (hasPayroll) h += `<td class="num">${actDcEpob.toFixed(2)}</td><td class="num">${paidDcEpob.toFixed(2)}</td><td class="num">${sign(actDcEpob-dcEpob)}</td>`;
   h += '</tr>';
   h += `<tr><td>Total Facility EPOB</td><td class="num">${totalEpob.toFixed(2)}</td>`;
-  if (hasPayroll) h += `<td class="num">${actTotalEpob.toFixed(2)}</td><td class="num">${sign(actTotalEpob-totalEpob)}</td>`;
+  if (hasPayroll) h += `<td class="num">${actTotalEpob.toFixed(2)}</td><td class="num">${paidTotalEpob.toFixed(2)}</td><td class="num">${sign(actTotalEpob-totalEpob)}</td>`;
   h += '</tr>';
   if (ooHrs > 0) {
-    h += `<tr class="row-label"><td colspan="${hasPayroll ? 4 : 2}" style="padding-top:6px;font-style:italic">Excluding 1:1 Observation (${ooHrs} hrs/day)</td></tr>`;
+    h += `<tr class="row-label"><td colspan="${hasPayroll ? 5 : 2}" style="padding-top:6px;font-style:italic">Excluding 1:1 Observation (${ooHrs} hrs/day)</td></tr>`;
     h += `<tr><td>DC EPOB (ex 1:1)</td><td class="num">${(dcEpob - ooFTE/totalCensus).toFixed(2)}</td>`;
-    if (hasPayroll) h += `<td class="num">${actDcEpobEx11.toFixed(2)}</td><td class="num">${sign(actDcEpobEx11-(dcEpob-ooFTE/totalCensus))}</td>`;
+    if (hasPayroll) h += `<td class="num">${actDcEpobEx11.toFixed(2)}</td><td class="num">${paidDcEpobEx11.toFixed(2)}</td><td class="num">${sign(actDcEpobEx11-(dcEpob-ooFTE/totalCensus))}</td>`;
     h += '</tr>';
     h += `<tr><td>Total EPOB (ex 1:1)</td><td class="num">${(totalEpob - ooFTE/totalCensus).toFixed(2)}</td>`;
-    if (hasPayroll) h += `<td class="num">${actTotalEpobEx11.toFixed(2)}</td><td class="num">${sign(actTotalEpobEx11-(totalEpob-ooFTE/totalCensus))}</td>`;
+    if (hasPayroll) h += `<td class="num">${actTotalEpobEx11.toFixed(2)}</td><td class="num">${paidTotalEpobEx11.toFixed(2)}</td><td class="num">${sign(actTotalEpobEx11-(totalEpob-ooFTE/totalCensus))}</td>`;
     h += '</tr>';
   }
   h += '</tbody></table></div>';
@@ -5156,10 +5162,14 @@ function renderMtdExecSummary(rows, agg) {
   const modelTotalFteEx11  = modelVarFteEx11 + agg.fixedFte;
   const actualVarFteEx11   = agg.actualVarFte - obsProdFteDaily;
   const actualTotalFteEx11 = actualVarFteEx11 + agg.fixedFte;
+  const paidVarFteEx11     = (agg.actualPaidVarFte || 0) - obsProdFteDaily;
+  const paidTotalFteEx11   = paidVarFteEx11 + agg.fixedFte;
   const modelDcEpobEx11    = agg.totalAdc > 0 ? modelVarFteEx11    / agg.totalAdc : 0;
   const modelTotEpobEx11   = agg.totalAdc > 0 ? modelTotalFteEx11  / agg.totalAdc : 0;
   const actualDcEpobEx11   = agg.totalAdc > 0 ? actualVarFteEx11   / agg.totalAdc : 0;
   const actualTotEpobEx11  = agg.totalAdc > 0 ? actualTotalFteEx11 / agg.totalAdc : 0;
+  const paidDcEpobEx11     = agg.totalAdc > 0 ? paidVarFteEx11     / agg.totalAdc : 0;
+  const paidTotEpobEx11    = agg.totalAdc > 0 ? paidTotalFteEx11   / agg.totalAdc : 0;
 
   const generatedAt = new Date().toLocaleString('en-US', { month:'short', day:'numeric', year:'numeric', hour:'numeric', minute:'2-digit' });
 
@@ -5193,13 +5203,13 @@ function renderMtdExecSummary(rows, agg) {
   // Right: EPOB
   h += '<div>';
   h += '<div class="exec-section-title">EPOB — Employees Per Occupied Bed</div>';
-  h += '<table><thead><tr><th>Metric</th><th class="num">Model</th><th class="num">Actual</th><th class="num">Variance</th></tr></thead><tbody>';
-  h += `<tr><td>Direct Care EPOB</td><td class="num">${fmt(agg.modelDcEpob,2)}</td><td class="num">${fmt(agg.actualDcEpob,2)}</td><td class="num">${sign(agg.actualDcEpob - agg.modelDcEpob)}</td></tr>`;
-  h += `<tr><td>Total Facility EPOB</td><td class="num">${fmt(agg.modelTotalEpob,2)}</td><td class="num">${fmt(agg.actualTotalEpob,2)}</td><td class="num">${sign(agg.actualTotalEpob - agg.modelTotalEpob)}</td></tr>`;
+  h += '<table><thead><tr><th>Metric</th><th class="num">Model</th><th class="num">Productive</th><th class="num">Paid</th><th class="num">Variance</th></tr></thead><tbody>';
+  h += `<tr><td>Direct Care EPOB</td><td class="num">${fmt(agg.modelDcEpob,2)}</td><td class="num">${fmt(agg.actualDcEpob,2)}</td><td class="num">${fmt(agg.paidDcEpob,2)}</td><td class="num">${sign(agg.actualDcEpob - agg.modelDcEpob)}</td></tr>`;
+  h += `<tr><td>Total Facility EPOB</td><td class="num">${fmt(agg.modelTotalEpob,2)}</td><td class="num">${fmt(agg.actualTotalEpob,2)}</td><td class="num">${fmt(agg.paidTotalEpob,2)}</td><td class="num">${sign(agg.actualTotalEpob - agg.modelTotalEpob)}</td></tr>`;
   if (totalOoHrsPeriod > 0) {
-    h += `<tr class="row-label"><td colspan="4" style="padding-top:6px;font-style:italic">Excluding 1:1 Observation (${fmt(totalOoHrsDay,1)} hrs/day)</td></tr>`;
-    h += `<tr><td>DC EPOB (ex 1:1)</td><td class="num">${fmt(modelDcEpobEx11,2)}</td><td class="num">${fmt(actualDcEpobEx11,2)}</td><td class="num">${sign(actualDcEpobEx11 - modelDcEpobEx11)}</td></tr>`;
-    h += `<tr><td>Total EPOB (ex 1:1)</td><td class="num">${fmt(modelTotEpobEx11,2)}</td><td class="num">${fmt(actualTotEpobEx11,2)}</td><td class="num">${sign(actualTotEpobEx11 - modelTotEpobEx11)}</td></tr>`;
+    h += `<tr class="row-label"><td colspan="5" style="padding-top:6px;font-style:italic">Excluding 1:1 Observation (${fmt(totalOoHrsDay,1)} hrs/day)</td></tr>`;
+    h += `<tr><td>DC EPOB (ex 1:1)</td><td class="num">${fmt(modelDcEpobEx11,2)}</td><td class="num">${fmt(actualDcEpobEx11,2)}</td><td class="num">${fmt(paidDcEpobEx11,2)}</td><td class="num">${sign(actualDcEpobEx11 - modelDcEpobEx11)}</td></tr>`;
+    h += `<tr><td>Total EPOB (ex 1:1)</td><td class="num">${fmt(modelTotEpobEx11,2)}</td><td class="num">${fmt(actualTotEpobEx11,2)}</td><td class="num">${fmt(paidTotEpobEx11,2)}</td><td class="num">${sign(actualTotEpobEx11 - modelTotEpobEx11)}</td></tr>`;
   }
   h += '</tbody></table></div>';
   h += '</div></div>';
