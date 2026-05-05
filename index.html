@@ -320,6 +320,7 @@
   .exec-report .val-highlight { font-size: 14px; font-weight: 700; }
   .exec-report .page-break { page-break-before: always; }
   .exec-report .exec-note { font-size: 9px; color: #999; font-style: italic; margin-top: 3px; }
+  .exec-report .model-only-tag { display:inline-block; padding:1px 6px; margin-left:6px; border-radius:3px; font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; background:#eef2f5; color:#607d8b; }
   .exec-report .two-col { display: flex; gap: 16px; }
   .exec-report .two-col > div { flex: 1; }
   .exec-report .print-btn { background: #0f4c5c; color: #fff; border: none; padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 16px; }
@@ -765,7 +766,8 @@
             <div class="epob-sub" id="kpiDcLine">Variable FTEs ÷ ADC</div>
             <div id="kpiDcActualBlock" style="display:none">
               <div class="epob-div"></div>
-              <div class="epob-row"><span class="epob-rl">Actual</span><span class="epob-rv" id="kpiDcActual">—</span></div>
+              <div class="epob-row"><span class="epob-rl">Productive</span><span class="epob-rv" id="kpiDcActual">—</span></div>
+              <div class="epob-row"><span class="epob-rl">Paid</span><span class="epob-rv" id="kpiDcPaid">—</span></div>
               <div class="epob-row"><span class="epob-rl">Variance</span><span class="epob-rv" id="kpiDcVariance">—</span></div>
             </div>
           </div>
@@ -781,7 +783,8 @@
             <div class="epob-sub" id="kpiCensusLine">All FTEs ÷ ADC</div>
             <div id="kpiTotalActualBlock" style="display:none">
               <div class="epob-div"></div>
-              <div class="epob-row"><span class="epob-rl">Actual</span><span class="epob-rv" id="kpiTotalActual">—</span></div>
+              <div class="epob-row"><span class="epob-rl">Productive</span><span class="epob-rv" id="kpiTotalActual">—</span></div>
+              <div class="epob-row"><span class="epob-rl">Paid</span><span class="epob-rv" id="kpiTotalPaid">—</span></div>
               <div class="epob-row"><span class="epob-rl">Variance</span><span class="epob-rv" id="kpiTotalVariance">—</span></div>
             </div>
           </div>
@@ -1412,30 +1415,41 @@ function updateEpobKpi(vals,totalCensus){
     if(payrollData && payrollMeta){
       const days=payrollMeta.dayCount;
       const variableBUs=UNITS.map(u=>u.payrollBU);
-      let actVarProdHrs=0;
+      let actVarProdHrs=0, actVarPaidHrs=0;
       Object.keys(payrollData).forEach(bu=>{
         const d=payrollData[bu];
-        if(variableBUs.includes(bu)) actVarProdHrs+=(d.hours-d.npHrs)/days;
+        if(variableBUs.includes(bu)){
+          actVarProdHrs+=(d.hours-d.npHrs)/days;
+          actVarPaidHrs+=d.hours/days;
+        }
       });
       const actVarFTE=actVarProdHrs*DAYS_TO_FTE;
+      const actVarPaidFTE=actVarPaidHrs*DAYS_TO_FTE;
       // Fixed FTE: per-dept payroll hours where present + baseline fallback for missing
       // depts (matches getFixedTotals so model and actual fixed are consistent).
       const actFixFTE=m.fixed.fte;
       const actTotalFTE=actVarFTE+actFixFTE;
+      const actTotalPaidFTE=actVarPaidFTE+actFixFTE;
 
       const actDcEpob=actVarFTE/totalCensus;
+      const paidDcEpob=actVarPaidFTE/totalCensus;
       const dcVar=actDcEpob-m.dcEpob;
       document.getElementById('kpiDcActualBlock').style.display='';
       document.getElementById('kpiDcActual').textContent=actDcEpob.toFixed(2);
       document.getElementById('kpiDcActual').style.color=actDcEpob>EPOB_DC_DANGER?'var(--danger)':actDcEpob>EPOB_DC_WARN?'var(--warning)':'var(--success)';
+      document.getElementById('kpiDcPaid').textContent=paidDcEpob.toFixed(2);
+      document.getElementById('kpiDcPaid').style.color=paidDcEpob>EPOB_DC_DANGER?'var(--danger)':paidDcEpob>EPOB_DC_WARN?'var(--warning)':'var(--success)';
       document.getElementById('kpiDcVariance').textContent=(dcVar>=0?'+':'')+dcVar.toFixed(2);
       document.getElementById('kpiDcVariance').style.color=dcVar>EPOB_VARIANCE_THRESH?'var(--danger)':dcVar<-EPOB_VARIANCE_THRESH?'var(--warning)':'var(--success)';
 
       const actTotalEpob=actTotalFTE/totalCensus;
+      const paidTotalEpob=actTotalPaidFTE/totalCensus;
       const totalVar=actTotalEpob-m.totalEpob;
       document.getElementById('kpiTotalActualBlock').style.display='';
       document.getElementById('kpiTotalActual').textContent=actTotalEpob.toFixed(2);
       document.getElementById('kpiTotalActual').style.color=actTotalEpob>EPOB_TOTAL_DANGER?'var(--danger)':actTotalEpob>EPOB_TOTAL_WARN?'var(--warning)':'var(--success)';
+      document.getElementById('kpiTotalPaid').textContent=paidTotalEpob.toFixed(2);
+      document.getElementById('kpiTotalPaid').style.color=paidTotalEpob>EPOB_TOTAL_DANGER?'var(--danger)':paidTotalEpob>EPOB_TOTAL_WARN?'var(--warning)':'var(--success)';
       document.getElementById('kpiTotalVariance').textContent=(totalVar>=0?'+':'')+totalVar.toFixed(2);
       document.getElementById('kpiTotalVariance').style.color=totalVar>EPOB_VARIANCE_THRESH?'var(--danger)':totalVar<-EPOB_VARIANCE_THRESH?'var(--warning)':'var(--success)';
     }else{
@@ -3446,6 +3460,14 @@ function sum(arr, key) {
 }
 function aggregate(rows) {
   if (rows.length === 0) return null;
+  // Paid EPOB = all paid hours (productive + NP) over census. Variable side uses
+  // actualVarHrsDay (paid); fixed side uses actualFixFTE (already paid-derived).
+  const paidRows = rows.map(r => {
+    if (!r.totalCensus) return { paidDc: null, paidTotal: null };
+    const paidVarFte = (r.actualVarHrsDay || 0) * 7 / 40;
+    const paidTotalFte = paidVarFte + (r.actualFixFTE || 0);
+    return { paidDc: paidVarFte / r.totalCensus, paidTotal: paidTotalFte / r.totalCensus };
+  });
   return {
     days: rows.length,
     avgCensus: avg(rows, 'totalCensus'),
@@ -3454,6 +3476,8 @@ function aggregate(rows) {
     modelTotalEpob: avg(rows, 'modelTotalEpob'),
     actualDcEpob: avg(rows, 'actualDcEpob'),
     actualTotalEpob: avg(rows, 'actualTotalEpob'),
+    paidDcEpob: avg(paidRows, 'paidDc'),
+    paidTotalEpob: avg(paidRows, 'paidTotal'),
     avgModelHrs: avg(rows, 'modelVarHrsDay'),
     avgActualHrs: avg(rows, 'actualVarHrsDay'),
     avgVarianceHrs: avg(rows, 'varianceHrsDay'),
@@ -3539,7 +3563,8 @@ function renderKpis(a) {
       <div class="kpi-label">Direct Care EPOB</div>
       <div class="kpi-paired">
         <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelDcEpob,2)}</div></div>
-        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Productive</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Paid</div><div class="val ${epobColor(a.paidDcEpob,0.9,1.2)}">${fmt(a.paidDcEpob,2)}</div></div>
       </div>
       ${dcDelta != null ? `<span class="kpi-delta ${dcDelta < 0 ? 'good' : dcDelta > 0.05 ? 'bad' : 'neutral'}">${dcDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(dcDelta),2)}</span>` : ''}
     </div>
@@ -3547,7 +3572,8 @@ function renderKpis(a) {
       <div class="kpi-label">Total Facility EPOB</div>
       <div class="kpi-paired">
         <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelTotalEpob,2)}</div></div>
-        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Productive</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Paid</div><div class="val ${epobColor(a.paidTotalEpob,1.5,2.0)}">${fmt(a.paidTotalEpob,2)}</div></div>
       </div>
       ${totDelta != null ? `<span class="kpi-delta ${totDelta < 0 ? 'good' : totDelta > 0.05 ? 'bad' : 'neutral'}">${totDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(totDelta),2)}</span>` : ''}
     </div>
@@ -4449,19 +4475,23 @@ function aggregateMtdFacility(rows) {
   const totalPaidHrsDay  = rows.reduce((s,r) => s + r.paidHrsDay, 0);
   const totalProdHrsDay  = rows.reduce((s,r) => s + r.prodHrsDay, 0);
   const actualVarFte     = totalProdHrsDay * 7 / 40;
+  const actualPaidVarFte = totalPaidHrsDay * 7 / 40;
 
   // FIXED side — same calc serves both model and actual (no separate model for fixed)
   const otherPaidHrsDay  = days > 0 ? (mtdState.otherHours || 0) / days : 0;
   const otherHourlyFte   = otherPaidHrsDay * 7 / 40;
   const fixedFte         = otherHourlyFte + BASELINE_SALARY_FTE;
 
-  const modelTotalFte    = modelVarAdjFte + fixedFte;
-  const actualTotalFte   = actualVarFte   + fixedFte;
+  const modelTotalFte      = modelVarAdjFte    + fixedFte;
+  const actualTotalFte     = actualVarFte      + fixedFte;
+  const actualPaidTotalFte = actualPaidVarFte  + fixedFte;
 
-  const modelDcEpob    = totalAdc > 0 ? modelVarAdjFte / totalAdc : null;
-  const actualDcEpob   = totalAdc > 0 ? actualVarFte   / totalAdc : null;
-  const modelTotalEpob = totalAdc > 0 ? modelTotalFte  / totalAdc : null;
-  const actualTotalEpob= totalAdc > 0 ? actualTotalFte / totalAdc : null;
+  const modelDcEpob     = totalAdc > 0 ? modelVarAdjFte    / totalAdc : null;
+  const actualDcEpob    = totalAdc > 0 ? actualVarFte      / totalAdc : null;
+  const paidDcEpob      = totalAdc > 0 ? actualPaidVarFte  / totalAdc : null;
+  const modelTotalEpob  = totalAdc > 0 ? modelTotalFte     / totalAdc : null;
+  const actualTotalEpob = totalAdc > 0 ? actualTotalFte    / totalAdc : null;
+  const paidTotalEpob   = totalAdc > 0 ? actualPaidTotalFte/ totalAdc : null;
 
   const totOt = rows.reduce((s,r) => s + r.actualOT, 0);
 
@@ -4471,12 +4501,13 @@ function aggregateMtdFacility(rows) {
     totalShiftPositions, nursingProdFte, floatFte, totalObsAdjFte,
     modelVarAdjFte, totalModelHrsDay,
     // Actual
-    totalPaidHrsDay, totalProdHrsDay, actualVarFte,
+    totalPaidHrsDay, totalProdHrsDay, actualVarFte, actualPaidVarFte,
     // Fixed
     otherPaidHrsDay, otherHourlyFte, fixedFte,
     // Totals
-    modelTotalFte, actualTotalFte,
-    modelDcEpob, actualDcEpob, modelTotalEpob, actualTotalEpob,
+    modelTotalFte, actualTotalFte, actualPaidTotalFte,
+    modelDcEpob, actualDcEpob, paidDcEpob,
+    modelTotalEpob, actualTotalEpob, paidTotalEpob,
     totalActualHrsDay: totalProdHrsDay,
     varianceHrsDay: totalProdHrsDay - totalModelHrsDay,
     variancePct: totalModelHrsDay > 0 ? ((totalProdHrsDay - totalModelHrsDay)/totalModelHrsDay)*100 : null,
@@ -4505,7 +4536,8 @@ function renderMtdKpis(a) {
       <div class="kpi-label">Direct Care EPOB</div>
       <div class="kpi-paired">
         <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelDcEpob,2)}</div></div>
-        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Productive</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Paid</div><div class="val ${epobColor(a.paidDcEpob,0.9,1.2)}">${fmt(a.paidDcEpob,2)}</div></div>
       </div>
       ${dcDelta != null ? `<span class="kpi-delta ${dcDelta < -0.05 ? 'good' : dcDelta > 0.05 ? 'bad' : 'neutral'}">${dcDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(dcDelta),2)}</span>` : ''}
     </div>
@@ -4513,7 +4545,8 @@ function renderMtdKpis(a) {
       <div class="kpi-label">Total Facility EPOB</div>
       <div class="kpi-paired">
         <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelTotalEpob,2)}</div></div>
-        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Productive</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Paid</div><div class="val ${epobColor(a.paidTotalEpob,1.5,2.0)}">${fmt(a.paidTotalEpob,2)}</div></div>
       </div>
       ${totDelta != null ? `<span class="kpi-delta ${totDelta < -0.05 ? 'good' : totDelta > 0.05 ? 'bad' : 'neutral'}">${totDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(totDelta),2)}</span>` : ''}
     </div>
@@ -5213,9 +5246,9 @@ function renderMtdExecSummary(rows, agg) {
   h += '<div class="exec-section page-break">';
   h += '<div class="exec-section-title">FTE Position Control Summary</div>';
   h += '<table><thead><tr><th>Component</th><th class="num">Model FTE</th><th class="num">Actual FTE</th><th class="num">Variance</th></tr></thead><tbody>';
-  h += `<tr><td>Nursing Productive (positions × ${FTE_MULTIPLIER})</td><td class="num">${fmt(agg.nursingProdFte,1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
-  h += `<tr><td>Float Coverage (productive)</td><td class="num">${fmt(agg.floatFte,1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
-  h += `<tr><td>NP Gross-Up on Nursing + Float</td><td class="num">${fmt(grossUp(agg.nursingProdFte + agg.floatFte) - (agg.nursingProdFte + agg.floatFte),1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+  h += `<tr><td>Nursing Productive (positions × ${FTE_MULTIPLIER}) <span class="model-only-tag">model only</span></td><td class="num">${fmt(agg.nursingProdFte,1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+  h += `<tr><td>Float Coverage (productive) <span class="model-only-tag">model only</span></td><td class="num">${fmt(agg.floatFte,1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
+  h += `<tr><td>NP Gross-Up on Nursing + Float <span class="model-only-tag">model only</span></td><td class="num">${fmt(grossUp(agg.nursingProdFte + agg.floatFte) - (agg.nursingProdFte + agg.floatFte),1)}</td><td class="num">—</td><td class="num">—</td></tr>`;
   if (totalOoHrsPeriod > 0) {
     h += `<tr><td>1:1 Observation (${fmt(totalOoHrsDay,1)} hrs/day, gross-up)</td><td class="num">${fmt(agg.totalObsAdjFte,1)}</td><td class="num">${fmt(obsProdFteDaily,1)}</td><td class="num">${sign(obsProdFteDaily - agg.totalObsAdjFte)}</td></tr>`;
   }
