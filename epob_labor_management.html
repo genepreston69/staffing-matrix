@@ -557,6 +557,14 @@ function sum(arr, key) {
 }
 function aggregate(rows) {
   if (rows.length === 0) return null;
+  // Paid EPOB = all paid hours (productive + NP) over census. Variable side uses
+  // actualVarHrsDay (paid); fixed side uses actualFixFTE (already paid-derived).
+  const paidRows = rows.map(r => {
+    if (!r.totalCensus) return { paidDc: null, paidTotal: null };
+    const paidVarFte = (r.actualVarHrsDay || 0) * 7 / 40;
+    const paidTotalFte = paidVarFte + (r.actualFixFTE || 0);
+    return { paidDc: paidVarFte / r.totalCensus, paidTotal: paidTotalFte / r.totalCensus };
+  });
   return {
     days: rows.length,
     avgCensus: avg(rows, 'totalCensus'),
@@ -565,6 +573,8 @@ function aggregate(rows) {
     modelTotalEpob: avg(rows, 'modelTotalEpob'),
     actualDcEpob: avg(rows, 'actualDcEpob'),
     actualTotalEpob: avg(rows, 'actualTotalEpob'),
+    paidDcEpob: avg(paidRows, 'paidDc'),
+    paidTotalEpob: avg(paidRows, 'paidTotal'),
     avgModelHrs: avg(rows, 'modelVarHrsDay'),
     avgActualHrs: avg(rows, 'actualVarHrsDay'),
     avgVarianceHrs: avg(rows, 'varianceHrsDay'),
@@ -650,7 +660,8 @@ function renderKpis(a) {
       <div class="kpi-label">Direct Care EPOB</div>
       <div class="kpi-paired">
         <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelDcEpob,2)}</div></div>
-        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Productive</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Paid</div><div class="val ${epobColor(a.paidDcEpob,0.9,1.2)}">${fmt(a.paidDcEpob,2)}</div></div>
       </div>
       ${dcDelta != null ? `<span class="kpi-delta ${dcDelta < 0 ? 'good' : dcDelta > 0.05 ? 'bad' : 'neutral'}">${dcDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(dcDelta),2)}</span>` : ''}
     </div>
@@ -658,7 +669,8 @@ function renderKpis(a) {
       <div class="kpi-label">Total Facility EPOB</div>
       <div class="kpi-paired">
         <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelTotalEpob,2)}</div></div>
-        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Productive</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Paid</div><div class="val ${epobColor(a.paidTotalEpob,1.5,2.0)}">${fmt(a.paidTotalEpob,2)}</div></div>
       </div>
       ${totDelta != null ? `<span class="kpi-delta ${totDelta < 0 ? 'good' : totDelta > 0.05 ? 'bad' : 'neutral'}">${totDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(totDelta),2)}</span>` : ''}
     </div>
@@ -1560,19 +1572,23 @@ function aggregateMtdFacility(rows) {
   const totalPaidHrsDay  = rows.reduce((s,r) => s + r.paidHrsDay, 0);
   const totalProdHrsDay  = rows.reduce((s,r) => s + r.prodHrsDay, 0);
   const actualVarFte     = totalProdHrsDay * 7 / 40;
+  const actualPaidVarFte = totalPaidHrsDay * 7 / 40;
 
   // FIXED side — same calc serves both model and actual (no separate model for fixed)
   const otherPaidHrsDay  = days > 0 ? (mtdState.otherHours || 0) / days : 0;
   const otherHourlyFte   = otherPaidHrsDay * 7 / 40;
   const fixedFte         = otherHourlyFte + BASELINE_SALARY_FTE;
 
-  const modelTotalFte    = modelVarAdjFte + fixedFte;
-  const actualTotalFte   = actualVarFte   + fixedFte;
+  const modelTotalFte      = modelVarAdjFte    + fixedFte;
+  const actualTotalFte     = actualVarFte      + fixedFte;
+  const actualPaidTotalFte = actualPaidVarFte  + fixedFte;
 
-  const modelDcEpob    = totalAdc > 0 ? modelVarAdjFte / totalAdc : null;
-  const actualDcEpob   = totalAdc > 0 ? actualVarFte   / totalAdc : null;
-  const modelTotalEpob = totalAdc > 0 ? modelTotalFte  / totalAdc : null;
-  const actualTotalEpob= totalAdc > 0 ? actualTotalFte / totalAdc : null;
+  const modelDcEpob       = totalAdc > 0 ? modelVarAdjFte    / totalAdc : null;
+  const actualDcEpob      = totalAdc > 0 ? actualVarFte      / totalAdc : null;
+  const paidDcEpob        = totalAdc > 0 ? actualPaidVarFte  / totalAdc : null;
+  const modelTotalEpob    = totalAdc > 0 ? modelTotalFte     / totalAdc : null;
+  const actualTotalEpob   = totalAdc > 0 ? actualTotalFte    / totalAdc : null;
+  const paidTotalEpob     = totalAdc > 0 ? actualPaidTotalFte/ totalAdc : null;
 
   const totOt = rows.reduce((s,r) => s + r.actualOT, 0);
 
@@ -1582,12 +1598,13 @@ function aggregateMtdFacility(rows) {
     totalShiftPositions, nursingProdFte, floatFte, totalObsAdjFte,
     modelVarAdjFte, totalModelHrsDay,
     // Actual
-    totalPaidHrsDay, totalProdHrsDay, actualVarFte,
+    totalPaidHrsDay, totalProdHrsDay, actualVarFte, actualPaidVarFte,
     // Fixed
     otherPaidHrsDay, otherHourlyFte, fixedFte,
     // Totals
-    modelTotalFte, actualTotalFte,
-    modelDcEpob, actualDcEpob, modelTotalEpob, actualTotalEpob,
+    modelTotalFte, actualTotalFte, actualPaidTotalFte,
+    modelDcEpob, actualDcEpob, paidDcEpob,
+    modelTotalEpob, actualTotalEpob, paidTotalEpob,
     totalActualHrsDay: totalProdHrsDay,
     varianceHrsDay: totalProdHrsDay - totalModelHrsDay,
     variancePct: totalModelHrsDay > 0 ? ((totalProdHrsDay - totalModelHrsDay)/totalModelHrsDay)*100 : null,
@@ -1616,7 +1633,8 @@ function renderMtdKpis(a) {
       <div class="kpi-label">Direct Care EPOB</div>
       <div class="kpi-paired">
         <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelDcEpob,2)}</div></div>
-        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Productive</div><div class="val ${epobColor(a.actualDcEpob,0.9,1.2)}">${fmt(a.actualDcEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Paid</div><div class="val ${epobColor(a.paidDcEpob,0.9,1.2)}">${fmt(a.paidDcEpob,2)}</div></div>
       </div>
       ${dcDelta != null ? `<span class="kpi-delta ${dcDelta < -0.05 ? 'good' : dcDelta > 0.05 ? 'bad' : 'neutral'}">${dcDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(dcDelta),2)}</span>` : ''}
     </div>
@@ -1624,7 +1642,8 @@ function renderMtdKpis(a) {
       <div class="kpi-label">Total Facility EPOB</div>
       <div class="kpi-paired">
         <div class="col"><div class="lbl">Model</div><div class="val">${fmt(a.modelTotalEpob,2)}</div></div>
-        <div class="col"><div class="lbl">Actual</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Productive</div><div class="val ${epobColor(a.actualTotalEpob,1.5,2.0)}">${fmt(a.actualTotalEpob,2)}</div></div>
+        <div class="col"><div class="lbl">Paid</div><div class="val ${epobColor(a.paidTotalEpob,1.5,2.0)}">${fmt(a.paidTotalEpob,2)}</div></div>
       </div>
       ${totDelta != null ? `<span class="kpi-delta ${totDelta < -0.05 ? 'good' : totDelta > 0.05 ? 'bad' : 'neutral'}">${totDelta < 0 ? '▼' : '▲'} ${fmt(Math.abs(totDelta),2)}</span>` : ''}
     </div>
