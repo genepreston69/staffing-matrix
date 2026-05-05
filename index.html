@@ -321,6 +321,10 @@
   .exec-report .page-break { page-break-before: always; }
   .exec-report .exec-note { font-size: 9px; color: #999; font-style: italic; margin-top: 3px; }
   .exec-report .model-only-tag { display:inline-block; padding:1px 6px; margin-left:6px; border-radius:3px; font-size:8px; font-weight:700; text-transform:uppercase; letter-spacing:0.4px; background:#eef2f5; color:#607d8b; }
+  .exec-report .methodology h4 { font-size: 11px; font-weight: 700; color: #0f4c5c; text-transform: uppercase; letter-spacing: 0.5px; margin: 8px 0 4px; }
+  .exec-report .methodology ul { font-size: 10px; line-height: 1.5; margin: 0 0 6px 16px; padding: 0; color: #333; }
+  .exec-report .methodology li { margin-bottom: 3px; }
+  .exec-report .methodology strong { color: #0f4c5c; }
   .exec-report .two-col { display: flex; gap: 16px; }
   .exec-report .two-col > div { flex: 1; }
   .exec-report .print-btn { background: #0f4c5c; color: #fff; border: none; padding: 10px 24px; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; margin-bottom: 16px; }
@@ -2184,6 +2188,38 @@ function renderVariance() {
 }
 
 /* ── Executive Summary ── */
+function execMethodologyHtml() {
+  return '<div class="exec-section">'
+    + '<div class="exec-section-title">Methodology &amp; Definitions</div>'
+    + '<div class="methodology">'
+
+    + '<h4>EPOB &mdash; Employees Per Occupied Bed</h4>'
+    + '<ul>'
+    + '<li><strong>Model EPOB</strong> = (Variable Adj FTE + Fixed FTE) &divide; ADC. Variable Adj = (Nursing Productive + Float) grossed up for NP, plus 1:1 observation FTE. What staffing <em>should</em> be at the budgeted NP rate.</li>'
+    + '<li><strong>Productive EPOB</strong> = Productive FTE &divide; ADC, where Productive FTE = (Paid Hrs &minus; NP Hrs) &divide; days &times; 7/40. Reflects worked time only &mdash; what staff actually delivered.</li>'
+    + '<li><strong>Paid EPOB</strong> = Paid FTE &divide; ADC, where Paid FTE = Paid Hrs &divide; days &times; 7/40. Includes all paid time (productive + NP) &mdash; what payroll cost.</li>'
+    + '<li><strong>Variance</strong> in the EPOB table = Productive &minus; Model. Positive means worked staffing exceeded the model; negative means below model.</li>'
+    + '</ul>'
+
+    + '<h4>FTE Position Control</h4>'
+    + '<ul>'
+    + '<li><strong>FTE Multiplier (1.4)</strong>: each filled shift position requires 1.4 FTE for 24/7 coverage (3&times;8 shifts &divide; 40-hr week, with weekend/relief).</li>'
+    + '<li><strong>NP Gross-Up</strong> (model side) = Productive &divide; (1 &minus; NP%). Default NP% = 12.6% &mdash; modeling assumption only; does not reflect budget or actual.</li>'
+    + '<li><strong>Float Coverage</strong> = &lceil; acute units open &divide; 2 &rceil; &times; 1.4 FTE.</li>'
+    + '<li><strong>Fixed &amp; Support FTE</strong> = per-department hourly FTE from payroll + 33.625 baseline salary FTE constant.</li>'
+    + '</ul>'
+
+    + '<h4>Data Sources &amp; Conventions</h4>'
+    + '<ul>'
+    + '<li><strong>Model</strong>: derived from the staffing grid and entered ADC; no payroll required.</li>'
+    + '<li><strong>Actual</strong>: derived from the uploaded payroll/time-entry export (paid, NP, and OT hours per BU). Salaried rows are filtered at parse and the 33.625 salary FTE is re-added as a constant.</li>'
+    + '<li><strong>Non-Productive (NP) categories</strong>: PTO, Sick, Holiday, Continuing Education, Education Pay, Jury Duty, Bereavement. Orientation, Training, and Light Duty are <em>productive</em>.</li>'
+    + '<li><strong>FTE conversion</strong>: hours/day &times; 7 &divide; 40 = FTE (40-hour week).</li>'
+    + '</ul>'
+
+    + '</div></div>';
+}
+
 function renderExecSummary() {
   const out = document.getElementById('execSummaryOutput');
   const vals = getVals();
@@ -2387,6 +2423,9 @@ function renderExecSummary() {
     h += '</tbody></table></div>';
   }
 
+  // ═══ METHODOLOGY ═══
+  h += execMethodologyHtml();
+
   // ═══ FOOTER ═══
   h += `<div class="exec-footer">Highland Hospital · Behavioral Health · Executive Summary · Generated ${generatedAt}</div>`;
   h += '</div>';
@@ -2415,6 +2454,10 @@ function printExecSummary() {
     '.val-highlight{font-size:14px;font-weight:700}',
     '.page-break{page-break-before:always}',
     '.exec-note{font-size:9px;color:#999;font-style:italic;margin-top:3px}',
+    '.methodology h4{font-size:11px;font-weight:700;color:#0f4c5c;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px}',
+    '.methodology ul{font-size:10px;line-height:1.5;margin:0 0 6px 16px;padding:0;color:#333}',
+    '.methodology li{margin-bottom:3px}',
+    '.methodology strong{color:#0f4c5c}',
     '.two-col{display:flex;gap:16px}.two-col>div{flex:1}',
     '.print-btn{display:none}',
     '.exec-footer{text-align:center;font-size:9px;color:#aaa;border-top:1px solid #ddd;padding-top:6px;margin-top:16px}',
@@ -5312,6 +5355,9 @@ function renderMtdExecSummary(rows, agg) {
     h += '</div>';
   }
 
+  // ═══ METHODOLOGY ═══
+  h += execMethodologyHtml();
+
   // ═══ FOOTER ═══
   h += `<div class="exec-footer">Highland Hospital · Behavioral Health · EPOB & Labor Management Executive Summary · Generated ${generatedAt}</div>`;
   h += '</div>';
@@ -5341,6 +5387,10 @@ function printMtdExecSummary() {
     '.val-highlight{font-size:14px;font-weight:700}',
     '.page-break{page-break-before:always}',
     '.exec-note{font-size:9px;color:#999;font-style:italic;margin-top:3px}',
+    '.methodology h4{font-size:11px;font-weight:700;color:#0f4c5c;text-transform:uppercase;letter-spacing:.5px;margin:8px 0 4px}',
+    '.methodology ul{font-size:10px;line-height:1.5;margin:0 0 6px 16px;padding:0;color:#333}',
+    '.methodology li{margin-bottom:3px}',
+    '.methodology strong{color:#0f4c5c}',
     '.two-col{display:flex;gap:16px}.two-col>div{flex:1}',
     '.print-btn{display:none}',
     '.exec-footer{text-align:center;font-size:9px;color:#aaa;border-top:1px solid #ddd;padding-top:6px;margin-top:16px}',
