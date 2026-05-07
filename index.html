@@ -1797,6 +1797,7 @@ function parsePayroll(rows, fileName) {
   const wagesCol = findCol(sample, ['All Paid Wages','Total Wages','AllPaidWages']);
   const regHrsCol = findCol(sample, ['Regular Hours','RegularHours']);
   const otHrsCol = findCol(sample, ['OT Hours','OTHours','Overtime Hours']);
+  const trainingHrsCol = findCol(sample, ['Training Hours','TrainingHours']);
   const startCol = findCol(sample, ['Start Date','StartDate']);
   const endCol = findCol(sample, ['End Date','EndDate']);
   const jobCol = findCol(sample, ['Job Profile','JobProfile','Job Title']);
@@ -1833,11 +1834,12 @@ function parsePayroll(rows, fileName) {
       const rateType = String(r[payRateTypeCol] || '').trim();
       if(rateType !== 'Hourly') return;
     }
-    if(!buMap[bu]) buMap[bu] = { bu, hours:0, wages:0, regHrs:0, otHrs:0, npHrs:0, headcount:0, workers:new Set(), fteSum:0, jobs:{} };
+    if(!buMap[bu]) buMap[bu] = { bu, hours:0, wages:0, regHrs:0, otHrs:0, trainingHrs:0, npHrs:0, headcount:0, workers:new Set(), fteSum:0, jobs:{} };
     const hrs = parseFloat(r[hrsCol]) || 0;
     const wages = parseFloat(r[wagesCol]) || 0;
     const reg = regHrsCol ? (parseFloat(r[regHrsCol]) || 0) : 0;
     const ot = otHrsCol ? (parseFloat(r[otHrsCol]) || 0) : 0;
+    const training = trainingHrsCol ? (parseFloat(r[trainingHrsCol]) || 0) : 0;
     const fte = fteCol ? (parseFloat(r[fteCol]) || 0) : 0;
     const worker = workerCol ? String(r[workerCol]) : '';
     const job = jobCol ? String(r[jobCol] || '') : '';
@@ -1846,6 +1848,7 @@ function parsePayroll(rows, fileName) {
     buMap[bu].wages += wages;
     buMap[bu].regHrs += reg;
     buMap[bu].otHrs += ot;
+    buMap[bu].trainingHrs += training;
     buMap[bu].npHrs += npHrs;
     buMap[bu].fteSum += fte/100;
     if(worker) buMap[bu].workers.add(worker);
@@ -4351,6 +4354,7 @@ function parseMtdFile(file) {
       const buCol           = findCol(['Business Units','Business Unit','BusinessUnit','BU']);
       const hrsCol          = findCol(['All Paid Hours','Total Hours','AllPaidHours']);
       const otCol           = findCol(['OT Hours','OTHours','Overtime Hours']);
+      const trainingCol     = findCol(['Training Hours','TrainingHours']);
       const workerCol       = findCol(['Worker','Employee Name','Name']);
       const payRateTypeCol  = findCol(['Pay Rate Type','PayRateType','Pay Type']);
 
@@ -4370,9 +4374,9 @@ function parseMtdFile(file) {
       BU_DIRECTORY.forEach(d => { fullBuMap[d.bu] = d.code; });
 
       const agg = {};
-      MTD_UNITS.forEach(u => agg[u.key] = { hours:0, npHrs:0, ot:0, workers:new Set() });
+      MTD_UNITS.forEach(u => agg[u.key] = { hours:0, npHrs:0, ot:0, training:0, workers:new Set() });
       const allBuAgg = {};
-      BU_DIRECTORY.forEach(d => allBuAgg[d.code] = { hours:0, npHrs:0, ot:0, workers:new Set() });
+      BU_DIRECTORY.forEach(d => allBuAgg[d.code] = { hours:0, npHrs:0, ot:0, training:0, workers:new Set() });
       let otherHours = 0;
       let otherSkippedSalary = 0, varSkippedSalary = 0;
       const otherBus = new Set();
@@ -4395,11 +4399,13 @@ function parseMtdFile(file) {
         const paid = num(r[hrsCol]);
         const np   = npCols.reduce((s,c) => s + num(r[c]), 0);
         const ot   = otCol ? num(r[otCol]) : 0;
+        const training = trainingCol ? num(r[trainingCol]) : 0;
         const key  = buMap[bu];
         if (key) {
           agg[key].hours += paid;
           agg[key].npHrs += np;
           agg[key].ot    += ot;
+          agg[key].training += training;
           if (workerCol && r[workerCol]) agg[key].workers.add(String(r[workerCol]));
           varRowsKept++;
         } else {
@@ -4413,6 +4419,7 @@ function parseMtdFile(file) {
           allBuAgg[fullCode].hours += paid;
           allBuAgg[fullCode].npHrs += np;
           allBuAgg[fullCode].ot    += ot;
+          allBuAgg[fullCode].training += training;
           if (workerCol && r[workerCol]) allBuAgg[fullCode].workers.add(String(r[workerCol]));
         } else {
           unmappedBuHours[bu] = (unmappedBuHours[bu] || 0) + paid;
@@ -4422,19 +4429,21 @@ function parseMtdFile(file) {
       mtdState.actuals = {};
       Object.keys(agg).forEach(k => {
         mtdState.actuals[k] = {
-          hours:  agg[k].hours,
-          npHrs:  agg[k].npHrs,
-          ot:     agg[k].ot,
-          hc:     agg[k].workers.size || null
+          hours:    agg[k].hours,
+          npHrs:    agg[k].npHrs,
+          ot:       agg[k].ot,
+          training: agg[k].training,
+          hc:       agg[k].workers.size || null
         };
       });
       mtdState.allBuActuals = {};
       Object.keys(allBuAgg).forEach(c => {
         mtdState.allBuActuals[c] = {
-          hours:  allBuAgg[c].hours,
-          npHrs:  allBuAgg[c].npHrs,
-          ot:     allBuAgg[c].ot,
-          hc:     allBuAgg[c].workers.size || null
+          hours:    allBuAgg[c].hours,
+          npHrs:    allBuAgg[c].npHrs,
+          ot:       allBuAgg[c].ot,
+          training: allBuAgg[c].training,
+          hc:       allBuAgg[c].workers.size || null
         };
       });
       mtdState.unmappedBuHours = unmappedBuHours;
