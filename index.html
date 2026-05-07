@@ -1064,6 +1064,8 @@ const HOURS_PER_SHIFT      = 8;      // hours per shift position
 const DAYS_PER_WEEK        = 7;
 const HOURS_PER_FTE_WEEK   = 40;
 const DAYS_TO_FTE          = DAYS_PER_WEEK / HOURS_PER_FTE_WEEK; // 0.175
+const TRAIN_DAYS_PER_WEEK  = 5;      // training scheduled Mon–Fri
+const TRAIN_TO_FTE         = TRAIN_DAYS_PER_WEEK / HOURS_PER_FTE_WEEK; // 0.125
 const COOKIE_EXPIRY_DAYS   = 400;
 const MS_PER_DAY           = 86400000;
 const VARIANCE_THRESHOLD   = 2;      // hours — color threshold for variance display
@@ -1419,16 +1421,17 @@ function updateEpobKpi(vals,totalCensus){
     if(payrollData && payrollMeta){
       const days=payrollMeta.dayCount;
       const variableBUs=UNITS.map(u=>u.payrollBU);
-      let actVarProdHrs=0, actVarPaidHrs=0;
+      let actVarProdHrs=0, actVarPaidHrs=0, actVarTrainHrs=0;
       Object.keys(payrollData).forEach(bu=>{
         const d=payrollData[bu];
         if(variableBUs.includes(bu)){
           actVarProdHrs+=(d.hours-d.npHrs)/days;
           actVarPaidHrs+=d.hours/days;
+          actVarTrainHrs+=(d.trainingHrs||0)/days;
         }
       });
       const actVarFTE=actVarProdHrs*DAYS_TO_FTE;
-      const actVarPaidFTE=actVarPaidHrs*DAYS_TO_FTE;
+      const actVarPaidFTE=(actVarPaidHrs-actVarTrainHrs)*DAYS_TO_FTE+actVarTrainHrs*TRAIN_TO_FTE;
       // Fixed FTE: per-dept payroll hours where present + baseline fallback for missing
       // depts (matches getFixedTotals so model and actual fixed are consistent).
       const actFixFTE=m.fixed.fte;
@@ -1797,6 +1800,7 @@ function parsePayroll(rows, fileName) {
   const wagesCol = findCol(sample, ['All Paid Wages','Total Wages','AllPaidWages']);
   const regHrsCol = findCol(sample, ['Regular Hours','RegularHours']);
   const otHrsCol = findCol(sample, ['OT Hours','OTHours','Overtime Hours']);
+  const trainingHrsCol = findCol(sample, ['Training Hours','TrainingHours']);
   const startCol = findCol(sample, ['Start Date','StartDate']);
   const endCol = findCol(sample, ['End Date','EndDate']);
   const jobCol = findCol(sample, ['Job Profile','JobProfile','Job Title']);
@@ -1833,11 +1837,12 @@ function parsePayroll(rows, fileName) {
       const rateType = String(r[payRateTypeCol] || '').trim();
       if(rateType !== 'Hourly') return;
     }
-    if(!buMap[bu]) buMap[bu] = { bu, hours:0, wages:0, regHrs:0, otHrs:0, npHrs:0, headcount:0, workers:new Set(), fteSum:0, jobs:{} };
+    if(!buMap[bu]) buMap[bu] = { bu, hours:0, wages:0, regHrs:0, otHrs:0, trainingHrs:0, npHrs:0, headcount:0, workers:new Set(), fteSum:0, jobs:{} };
     const hrs = parseFloat(r[hrsCol]) || 0;
     const wages = parseFloat(r[wagesCol]) || 0;
     const reg = regHrsCol ? (parseFloat(r[regHrsCol]) || 0) : 0;
     const ot = otHrsCol ? (parseFloat(r[otHrsCol]) || 0) : 0;
+    const training = trainingHrsCol ? (parseFloat(r[trainingHrsCol]) || 0) : 0;
     const fte = fteCol ? (parseFloat(r[fteCol]) || 0) : 0;
     const worker = workerCol ? String(r[workerCol]) : '';
     const job = jobCol ? String(r[jobCol] || '') : '';
@@ -1846,6 +1851,7 @@ function parsePayroll(rows, fileName) {
     buMap[bu].wages += wages;
     buMap[bu].regHrs += reg;
     buMap[bu].otHrs += ot;
+    buMap[bu].trainingHrs += training;
     buMap[bu].npHrs += npHrs;
     buMap[bu].fteSum += fte/100;
     if(worker) buMap[bu].workers.add(worker);
@@ -2197,7 +2203,7 @@ function execMethodologyHtml() {
     + '<ul>'
     + '<li><strong>Model EPOB</strong> = (Variable Adj FTE + Fixed FTE) &divide; ADC. Variable Adj = (Nursing Productive + Float) grossed up for NP, plus 1:1 observation FTE. What staffing <em>should</em> be at the budgeted NP rate.</li>'
     + '<li><strong>Productive EPOB</strong> = Productive FTE &divide; ADC, where Productive FTE = (Paid Hrs &minus; NP Hrs) &divide; days &times; 7/40. Reflects worked time only &mdash; what staff actually delivered.</li>'
-    + '<li><strong>Paid EPOB</strong> = Paid FTE &divide; ADC, where Paid FTE = Paid Hrs &divide; days &times; 7/40. Includes all paid time (productive + NP) &mdash; what payroll cost.</li>'
+    + '<li><strong>Paid EPOB</strong> = Paid FTE &divide; ADC, where Paid FTE = (Paid Hrs &minus; Training Hrs) &divide; days &times; 7/40 + Training Hrs &divide; days &times; 5/40. Includes all paid time (productive + NP) &mdash; what payroll cost. Training is converted at 5/40 (Mon&ndash;Fri schedule).</li>'
     + '<li><strong>Variance</strong> in the EPOB table = Productive &minus; Model. Positive means worked staffing exceeded the model; negative means below model.</li>'
     + '</ul>'
 
@@ -2240,19 +2246,20 @@ function renderExecSummary() {
   const variableBUs = UNITS.map(u => u.payrollBU);
 
   // Payroll actuals
-  let actVarProdHrs = 0, actVarHrs = 0, actOT = 0;
+  let actVarProdHrs = 0, actVarHrs = 0, actVarTrainHrs = 0, actOT = 0;
   if (hasPayroll) {
     Object.keys(payrollData).forEach(bu => {
       const d = payrollData[bu];
       if (variableBUs.includes(bu)) {
         actVarHrs += d.hours / days;
         actVarProdHrs += (d.hours - d.npHrs) / days;
+        actVarTrainHrs += (d.trainingHrs || 0) / days;
         actOT += d.otHrs;
       }
     });
   }
   const actVarFTE = actVarProdHrs * DAYS_TO_FTE;
-  const actVarPaidFTE = actVarHrs * DAYS_TO_FTE;
+  const actVarPaidFTE = (actVarHrs - actVarTrainHrs) * DAYS_TO_FTE + actVarTrainHrs * TRAIN_TO_FTE;
   // Fixed FTE: per-dept payroll where present + baseline fallback for missing depts
   // (matches getFixedTotals so model and actual fixed are consistent).
   const actFixFTE = m.fixed.fte;
@@ -4121,6 +4128,7 @@ const BU_DIRECTORY = [
 
 // FTE conversion: 40-hr work week
 const DAYS_TO_FTE = 7 / 40; // 0.175
+const TRAIN_TO_FTE = 5 / 40; // 0.125 — training scheduled Mon–Fri
 
 // --- Staffing grids (verbatim from daily tool) ---
 const ACUTE_GRID = {
@@ -4351,6 +4359,7 @@ function parseMtdFile(file) {
       const buCol           = findCol(['Business Units','Business Unit','BusinessUnit','BU']);
       const hrsCol          = findCol(['All Paid Hours','Total Hours','AllPaidHours']);
       const otCol           = findCol(['OT Hours','OTHours','Overtime Hours']);
+      const trainingCol     = findCol(['Training Hours','TrainingHours']);
       const workerCol       = findCol(['Worker','Employee Name','Name']);
       const payRateTypeCol  = findCol(['Pay Rate Type','PayRateType','Pay Type']);
 
@@ -4370,10 +4379,10 @@ function parseMtdFile(file) {
       BU_DIRECTORY.forEach(d => { fullBuMap[d.bu] = d.code; });
 
       const agg = {};
-      MTD_UNITS.forEach(u => agg[u.key] = { hours:0, npHrs:0, ot:0, workers:new Set() });
+      MTD_UNITS.forEach(u => agg[u.key] = { hours:0, npHrs:0, ot:0, training:0, workers:new Set() });
       const allBuAgg = {};
-      BU_DIRECTORY.forEach(d => allBuAgg[d.code] = { hours:0, npHrs:0, ot:0, workers:new Set() });
-      let otherHours = 0;
+      BU_DIRECTORY.forEach(d => allBuAgg[d.code] = { hours:0, npHrs:0, ot:0, training:0, workers:new Set() });
+      let otherHours = 0, otherTraining = 0;
       let otherSkippedSalary = 0, varSkippedSalary = 0;
       const otherBus = new Set();
       const unmappedBuHours = {};
@@ -4395,15 +4404,18 @@ function parseMtdFile(file) {
         const paid = num(r[hrsCol]);
         const np   = npCols.reduce((s,c) => s + num(r[c]), 0);
         const ot   = otCol ? num(r[otCol]) : 0;
+        const training = trainingCol ? num(r[trainingCol]) : 0;
         const key  = buMap[bu];
         if (key) {
           agg[key].hours += paid;
           agg[key].npHrs += np;
           agg[key].ot    += ot;
+          agg[key].training += training;
           if (workerCol && r[workerCol]) agg[key].workers.add(String(r[workerCol]));
           varRowsKept++;
         } else {
           otherHours += paid;
+          otherTraining += training;
           otherBus.add(bu);
           otherRowsKept++;
         }
@@ -4413,6 +4425,7 @@ function parseMtdFile(file) {
           allBuAgg[fullCode].hours += paid;
           allBuAgg[fullCode].npHrs += np;
           allBuAgg[fullCode].ot    += ot;
+          allBuAgg[fullCode].training += training;
           if (workerCol && r[workerCol]) allBuAgg[fullCode].workers.add(String(r[workerCol]));
         } else {
           unmappedBuHours[bu] = (unmappedBuHours[bu] || 0) + paid;
@@ -4422,23 +4435,26 @@ function parseMtdFile(file) {
       mtdState.actuals = {};
       Object.keys(agg).forEach(k => {
         mtdState.actuals[k] = {
-          hours:  agg[k].hours,
-          npHrs:  agg[k].npHrs,
-          ot:     agg[k].ot,
-          hc:     agg[k].workers.size || null
+          hours:    agg[k].hours,
+          npHrs:    agg[k].npHrs,
+          ot:       agg[k].ot,
+          training: agg[k].training,
+          hc:       agg[k].workers.size || null
         };
       });
       mtdState.allBuActuals = {};
       Object.keys(allBuAgg).forEach(c => {
         mtdState.allBuActuals[c] = {
-          hours:  allBuAgg[c].hours,
-          npHrs:  allBuAgg[c].npHrs,
-          ot:     allBuAgg[c].ot,
-          hc:     allBuAgg[c].workers.size || null
+          hours:    allBuAgg[c].hours,
+          npHrs:    allBuAgg[c].npHrs,
+          ot:       allBuAgg[c].ot,
+          training: allBuAgg[c].training,
+          hc:       allBuAgg[c].workers.size || null
         };
       });
       mtdState.unmappedBuHours = unmappedBuHours;
       mtdState.otherHours = otherHours;
+      mtdState.otherTraining = otherTraining;
       mtdState.otherSkippedSalary = otherSkippedSalary;
       mtdState.fileName = file.name;
       saveMtd();
@@ -4473,7 +4489,7 @@ function buildMtdRows() {
     const adc       = mtdState.adc[u.key];
     const otoTotal  = mtdState.oneToOne[u.key] || 0;
     const otoPerDay = days > 0 ? otoTotal / days : 0;
-    const act       = mtdState.actuals[u.key] || { hours:0, npHrs:0, ot:0, hc:null };
+    const act       = mtdState.actuals[u.key] || { hours:0, npHrs:0, ot:0, training:0, hc:null };
 
     // MODEL side (staffing grid)
     const positions      = adc != null && adc > 0 ? unitShiftPositions(u, Math.round(adc)) : 0;
@@ -4485,6 +4501,7 @@ function buildMtdRows() {
     // ACTUAL side (payroll)
     const paidHrsDay     = days > 0 ? act.hours / days : 0;
     const npHrsDay       = days > 0 ? act.npHrs / days : 0;
+    const trainHrsDay    = days > 0 ? (act.training || 0) / days : 0;
     const prodHrsDay     = paidHrsDay - npHrsDay;
     const actVarFte      = prodHrsDay * 7 / 40;
 
@@ -4494,8 +4511,8 @@ function buildMtdRows() {
     return {
       unit: u, adc, oneToOneTotal: otoTotal, oneToOnePerDay: otoPerDay,
       // Actual
-      paidHours: act.hours, npHours: act.npHrs,
-      paidHrsDay, npHrsDay, prodHrsDay, actualOT: act.ot, actualHC: act.hc,
+      paidHours: act.hours, npHours: act.npHrs, trainingHours: act.training || 0,
+      paidHrsDay, npHrsDay, trainHrsDay, prodHrsDay, actualOT: act.ot, actualHC: act.hc,
       actVarFte,
       // Model
       positions, modelHrsDay, modelProdFte, modelAdjFte, obsAdjFte,
@@ -4523,12 +4540,14 @@ function aggregateMtdFacility(rows) {
   // === ACTUAL ===
   const totalPaidHrsDay  = rows.reduce((s,r) => s + r.paidHrsDay, 0);
   const totalProdHrsDay  = rows.reduce((s,r) => s + r.prodHrsDay, 0);
+  const totalTrainHrsDay = rows.reduce((s,r) => s + (r.trainHrsDay || 0), 0);
   const actualVarFte     = totalProdHrsDay * 7 / 40;
-  const actualPaidVarFte = totalPaidHrsDay * 7 / 40;
+  const actualPaidVarFte = (totalPaidHrsDay - totalTrainHrsDay) * DAYS_TO_FTE + totalTrainHrsDay * TRAIN_TO_FTE;
 
   // FIXED side — same calc serves both model and actual (no separate model for fixed)
   const otherPaidHrsDay  = days > 0 ? (mtdState.otherHours || 0) / days : 0;
-  const otherHourlyFte   = otherPaidHrsDay * 7 / 40;
+  const otherTrainHrsDay = days > 0 ? (mtdState.otherTraining || 0) / days : 0;
+  const otherHourlyFte   = (otherPaidHrsDay - otherTrainHrsDay) * DAYS_TO_FTE + otherTrainHrsDay * TRAIN_TO_FTE;
   const fixedFte         = otherHourlyFte + BASELINE_SALARY_FTE;
 
   const modelTotalFte      = modelVarAdjFte    + fixedFte;
