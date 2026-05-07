@@ -338,7 +338,7 @@
   .app-header { grid-column:1 / -1; }
   .app-layout > header { grid-column:1 / -1; }
   .app-sidebar { grid-row:3; background:var(--navy-deep); overflow-y:auto; border-right:1px solid rgba(255,255,255,0.06); display:flex; flex-direction:column; }
-  .app-main { grid-row:3; overflow-y:auto; background:var(--off-white); }
+  .app-main { grid-row:3; overflow-y:auto; background:var(--off-white); position:relative; }
   .app-footer { grid-column:1 / -1; }
   .sidebar-overlay { display:none; }
 
@@ -368,6 +368,9 @@
   /* App Pages (replace tab panels) */
   .app-page { display:none; }
   .app-page.active { display:block; }
+  .app-page.opreview-page { position:absolute; inset:0; }
+  .app-page.opreview-page.active { display:flex; flex-direction:column; }
+  .opreview-frame { flex:1; width:100%; border:0; background:var(--off-white); }
   .page-container { max-width:1360px; margin:0 auto; padding:28px 32px 60px; }
 
   /* Hide old tabs */
@@ -633,7 +636,7 @@
       EPOB & Labor Mgmt
     </li>
     <li class="nav-divider"></li>
-    <li class="nav-item" onclick="window.open('https://genepreston69.github.io/mor/', '_blank', 'noopener,noreferrer')">
+    <li class="nav-item" data-page="opreview" onclick="navigateTo('opreview')">
       <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
       Operation Review
     </li>
@@ -1038,6 +1041,9 @@
   </div><!-- /panel-mtd -->
 
   </div><!-- /page-epob -->
+  <div class="app-page opreview-page" id="page-opreview">
+    <iframe class="opreview-frame" src="https://genepreston69.github.io/mor/" title="Operation Review" loading="lazy" referrerpolicy="no-referrer"></iframe>
+  </div>
   <!-- Keep old tabs hidden for JS compatibility -->
   <div class="tabs" style="display:none">
     <button class="tab-btn active" data-tab="staffing">Shift Staffing Requirements</button>
