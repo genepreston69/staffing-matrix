@@ -4086,9 +4086,9 @@ const MTD_UNITS = [
 ];
 
 // --- Full BU directory: nursing + fixed departments.
-// NO hardcoded Model or Budget FTEs here. Nursing Model is computed from the
-// staffing grid (dynamic:true). Budget FTEs are loaded via upload or inline
-// edit and persisted in mtdState.buBudgets (shared team-wide via GitHub). ---
+// Nursing Model is computed from the staffing grid (dynamic:true).
+// Budget FTEs default to BU_BUDGET_DEFAULTS below; uploaded/edited values
+// in mtdState.buBudgets override the defaults (shared team-wide via GitHub). ---
 const BU_DIRECTORY = [
   // Nursing / Detox — Model FTE computed from staffing grid (dynamic)
   { code:'1East', name:'1 East · Child Acute',     bu:'Acute Adult-100E', cat:'Nursing', dynamic:true },
@@ -4128,6 +4128,35 @@ const BU_DIRECTORY = [
   { code:'5750', name:'Facility QI/Risk Management', bu:'Facility QI/Risk Mgmt',    cat:'Admin / G&A'      },
   { code:'5800', name:'Transportation',            bu:'Transportation',             cat:'Support Services' },
 ];
+
+// --- Hardcoded Budget FTE defaults per BU code.
+// Used as fallback when mtdState.buBudgets has no value for a code.
+// Nursing units (1East..3West, HRC) are intentionally absent — Model FTE is
+// computed dynamically from the staffing grid; no budget is set here. ---
+const BU_BUDGET_DEFAULTS = {
+  '4100': 5.0,    // Case Management
+  '4150': 14.5,   // Intake
+  '4175': 1.0,    // Call Center
+  '4200': 12.4,   // IP Clinical Admin
+  '4250': 11.3,   // IP Therapists
+  '4300': 4.0,    // Medical Staff
+  '4450': 3.0,    // Orientation and Training
+  '4550': 2.7,    // Recreation Therapy
+  '4600': 4.0,    // Utilization Review
+  '5100': 3.0,    // Administration
+  '5150': 1.0,    // Business Office
+  '5200': 2.4,    // Communications
+  '5250': 10.4,   // Dietary
+  '5300': 4.0,    // Facility Accounting
+  '5350': 2.0,    // Facility HR
+  '5400': 9.0,    // Housekeeping
+  '5450': 0.0,    // Infection Control
+  '5500': 2.0,    // Facility IT
+  '5600': 3.0,    // Marketing / Bus Dev
+  '5650': 4.0,    // Medical Records
+  '5700': 5.0,    // Plant Operations
+  '5750': 2.5,    // Facility QI/Risk Management
+};
 
 // FTE conversion: 40-hr work week
 const DAYS_TO_FTE = 7 / 40; // 0.175
@@ -4861,7 +4890,7 @@ function renderFixedBuVariance() {
   const days = mtdDayCount();
   const actuals = mtdState.allBuActuals || {};
   const nursingModel = buildNursingModelFTE();
-  const budgets = mtdState.buBudgets || {};
+  const budgets = { ...BU_BUDGET_DEFAULTS, ...(mtdState.buBudgets || {}) };
 
   // Build rows grouped by category
   const groups = {};
@@ -4999,12 +5028,13 @@ function renderFixedBuVariance() {
     <strong>Notes:</strong> Hourly-only totals. Salaried FTE of ~${BASELINE_SALARY_FTE.toFixed(2)} is filtered at parse and accounted for in facility EPOB.
     Model FTE for Nursing is computed from the staffing grid × ADC; other BUs have no staffing-model concept (—).
     Variance vs Budget is the primary measure. Variance vs Model only shown for Nursing.`;
+  const defaultsCount = Object.keys(BU_BUDGET_DEFAULTS).length;
   if (budgetCount > 0 && meta.fileName) {
-    html += ` <br><strong>Budget source:</strong> ${budgetCount} BU${budgetCount===1?'':'s'} loaded from "${meta.fileName}" on ${new Date(meta.uploadedAt).toLocaleString()}.`;
+    html += ` <br><strong>Budget source:</strong> ${budgetCount} BU${budgetCount===1?'':'s'} loaded from "${meta.fileName}" on ${new Date(meta.uploadedAt).toLocaleString()} (overrides on top of ${defaultsCount} hardcoded defaults).`;
   } else if (budgetCount > 0) {
-    html += ` <br><strong>Budget source:</strong> ${budgetCount} BU${budgetCount===1?'':'s'} configured manually.`;
+    html += ` <br><strong>Budget source:</strong> ${budgetCount} BU${budgetCount===1?'':'s'} configured manually (overrides on top of ${defaultsCount} hardcoded defaults).`;
   } else {
-    html += ` <br><strong>No budgets configured yet.</strong> Upload a budget file or click "Edit Budgets" to enter values.`;
+    html += ` <br><strong>Budget source:</strong> ${defaultsCount} hardcoded defaults. Upload a budget file or click "Edit Budgets" to override.`;
   }
   if (unmappedEntries.length) {
     html += ` <br><strong>Unmapped Workday BUs:</strong> ${unmappedEntries.map(k => `${k} (${fmt(unmapped[k],0)} hrs)`).join(', ')}.`;
@@ -5017,7 +5047,7 @@ function renderFixedBuVariance() {
 
 // --- Download a pre-populated Excel budget template ---
 function downloadBuBudgetTemplate() {
-  const budgets = mtdState.buBudgets || {};
+  const budgets = { ...BU_BUDGET_DEFAULTS, ...(mtdState.buBudgets || {}) };
   const header = ['BU Code', 'Department', 'Category', 'Budget FTE'];
   const aoa = [header];
   BU_DIRECTORY.forEach(d => {
@@ -5082,7 +5112,7 @@ function buildFixedBuVarianceExportRows() {
   const days = mtdDayCount();
   const actuals = mtdState.allBuActuals || {};
   const nursingModel = buildNursingModelFTE();
-  const budgets = mtdState.buBudgets || {};
+  const budgets = { ...BU_BUDGET_DEFAULTS, ...(mtdState.buBudgets || {}) };
   const header = ['Code','Department','Category','Model FTE','Budget FTE','Actual FTE','Var vs Budget FTE','% vs Budget','Var vs Model FTE','% vs Model','OT Hrs','HC'];
   const rows = [];
   BU_DIRECTORY.forEach(d => {
@@ -5338,7 +5368,7 @@ function renderMtdExecSummary(rows, agg) {
   // ═══ SECTION 4: FIXED & SUPPORT DEPARTMENTS ═══
   const days = agg.days;
   const actuals = mtdState.allBuActuals || {};
-  const budgets = mtdState.buBudgets || {};
+  const budgets = { ...BU_BUDGET_DEFAULTS, ...(mtdState.buBudgets || {}) };
   const fixedRows = BU_DIRECTORY.filter(d => !d.dynamic).map(d => {
     const a = actuals[d.code] || { hours:0, ot:0, hc:null };
     const actFte = days > 0 ? (a.hours / days) * DAYS_TO_FTE : 0;
