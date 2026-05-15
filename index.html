@@ -331,7 +331,36 @@
   .exec-report .print-btn:hover { background: #0a3a47; }
   .exec-report .exec-footer { text-align: center; font-size: 9px; color: #aaa; border-top: 1px solid #ddd; padding-top: 6px; margin-top: 16px; }
 
-  @media print { .app-sidebar,.top-bar { display:none !important; } .app-layout { display:block; } .table-wrap { box-shadow:none; border:1px solid #ccc; } body { background:#fff; } }
+  @media print {
+    @page { size: letter; margin: 0.5in; }
+    html, body {
+      background: #fff !important;
+      min-height: 0 !important;
+      height: auto !important;
+      max-height: none !important;
+      overflow: visible !important;
+    }
+    .app-sidebar, .top-bar, .app-header, .app-footer, .sidebar-overlay { display: none !important; }
+    .app-layout {
+      display: block !important;
+      min-height: 0 !important;
+      height: auto !important;
+    }
+    .app-main {
+      display: block !important;
+      grid-row: auto !important;
+      position: static !important;
+      overflow: visible !important;
+      height: auto !important;
+      max-height: none !important;
+    }
+    .app-page { display: none !important; }
+    .app-page.active { display: block !important; position: static !important; }
+    .app-page.opreview-page,
+    .app-page.opreview-page.active { position: static !important; inset: auto !important; }
+    .page-container { max-width: 100% !important; padding: 0 !important; }
+    .table-wrap { box-shadow: none; border: 1px solid #ccc; overflow: visible !important; }
+  }
 
   /* ── App Layout: Sidebar Navigation ── */
   .app-layout { display:grid; grid-template-rows:auto auto 1fr auto; grid-template-columns:240px 1fr; min-height:100vh; }
