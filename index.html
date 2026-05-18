@@ -1558,6 +1558,7 @@ function renderPositionControl(vals,totalCensus){
   h+=`<tr><td>LPNs</td><td class="num">${tLPN}</td><td class="num">${fmt(lpnFTE)}</td><td class="num bold">${fmt(grossUp(lpnFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(lpnFTE)-lpnFTE)}</td></tr>`;
   h+=`<tr><td>Behavioral Health Techs</td><td class="num">${tTech}</td><td class="num">${fmt(techFTE)}</td><td class="num bold">${fmt(grossUp(techFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(techFTE)-techFTE)}</td></tr>`;
   h+=`<tr><td>Float</td><td class="num">${floatShift}</td><td class="num">${fmt(floatFTE)}</td><td class="num bold">${fmt(grossUp(floatFTE))}</td><td class="num" style="color:var(--warning)">+${fmt(grossUp(floatFTE)-floatFTE)}</td></tr>`;
+  if(ooHrs>0){h+=`<tr style="color:var(--danger)"><td>1:1 Observation</td><td class="num">${ooHrs} hrs/day</td><td class="num">${fmt(oneOneProd)}</td><td class="num bold">${fmt(oneOneAdj)}</td><td class="num" style="color:var(--warning)">+${fmt(oneOneAdj-oneOneProd)}</td></tr>`;}
   h+=`<tr class="grand-total-row"><td>TOTAL VARIABLE</td><td class="num">${shiftTot+floatShift}</td><td class="num">${fmt(totalVarProd)}</td><td class="num">${fmt(totalVarAdj)}</td><td class="num">+${fmt(varNPadd)}</td></tr></tbody></table></div>`;
   const fixSource = fixed.source === 'payroll' ? 'From uploaded time entry file' : 'Baseline (5 PP ending 3/17/26)';
   h+=`<div class="section-header-row"><h3 class="section-title">Fixed FTEs — Support & Overhead <span class="sub">· ${fixSource}</span></h3></div>`;
